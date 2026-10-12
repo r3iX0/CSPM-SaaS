@@ -77,7 +77,36 @@ function byCodeUnit(a: string, b: string): number {
 
 /** The drawn size of a box. The canvas centres on these and labels are placed by them. */
 export const BOX_WIDTH = 220;
-export const BOX_HEIGHT = 44;
+export const BOX_HEIGHT = 52;
+
+/**
+ * The zoom below which a box's name stops being readable (DECISIONS.md §248).
+ * The map used to fit the whole estate into one frame, and seventeen routes
+ * drew boxes too small to read.
+ */
+export const READABLE_ZOOM = 0.7;
+
+/**
+ * The boxes the map frames on arrival: all of them where they fit at a
+ * readable zoom, and otherwise the columns from the way in that do -- reading
+ * starts at the left, and the rest is a pan away rather than a blur.
+ */
+export function readableFit(
+  at: ReadonlyMap<string, { x: number; y: number }>,
+  width: number,
+  padding: number,
+): string[] {
+  const all = [...at.keys()];
+  if (all.length === 0 || width <= 0) return all;
+  const xs = [...at.values()].map((point) => point.x);
+  const left = Math.min(...xs);
+  const visible = (width * (1 - 2 * padding)) / READABLE_ZOOM;
+  if (Math.max(...xs) + BOX_WIDTH - left <= visible) return all;
+  const fits = [...at]
+    .filter(([, point]) => point.x + BOX_WIDTH - left <= visible)
+    .map(([id]) => id);
+  return fits.length > 0 ? fits : [...at].filter(([, p]) => p.x === left).map(([id]) => id);
+}
 
 /** A line's label as the canvas would draw it, in the order it should win a tie for space. */
 export interface LabelCandidate {

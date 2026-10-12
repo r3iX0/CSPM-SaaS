@@ -35,7 +35,7 @@ GRAPH_SCOPE = "https://graph.microsoft.com/.default"
 # Application permissions requested at consent time. Every one is read-only --
 # CloudGuard never asks for a write permission (SECURITY.md section 3).
 # These must be declared on the app registration in Azure Portal before any
-# customer can consent (AZURE_CONNECTOR_REDESIGN.md section 9).
+# customer can consent (AZURE_INTEGRATION.md section 2.1).
 REQUIRED_GRAPH_PERMISSIONS = [
     "Directory.Read.All",
     "User.Read.All",

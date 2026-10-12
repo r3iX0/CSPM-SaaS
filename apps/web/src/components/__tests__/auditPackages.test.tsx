@@ -73,6 +73,14 @@ function detail(overrides: Partial<AuditPackageDetail> = {}): AuditPackageDetail
       payloads_named: 40,
       payloads_stored: 38,
     },
+    fixes: {
+      window_from: "2025-10-01T00:00:00Z",
+      window_to: "2026-10-01T00:00:00Z",
+      total: 12,
+      listed: 12,
+      verified: 9,
+      with_pull_request: 3,
+    },
     ...overrides,
   };
 }
@@ -216,6 +224,8 @@ describe("AuditPackagesSection", () => {
     expect(await screen.findByText("61 controls")).toBeInTheDocument();
     expect(screen.getByText(HASH)).toBeInTheDocument();
     expect(screen.getByText(/38 of 40 payloads still stored/)).toBeInTheDocument();
+    expect(screen.getByText(/12 fixes observed by a scan/)).toBeInTheDocument();
+    expect(screen.getByText(/9 confirmed by verification · 3 by pull request/)).toBeInTheDocument();
   });
 
   it("says when the stored rows no longer give the sealed hash", async () => {

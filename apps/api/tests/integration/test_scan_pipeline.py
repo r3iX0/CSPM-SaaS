@@ -3550,6 +3550,42 @@ class TestRiskHistory:
         entries = await self._history(org_id)
         assert second["score_delta"] == entries[1][0] - entries[0][0]
 
+    async def test_a_reading_keeps_what_it_charged(self, replay, connected_account) -> None:
+        """The ledger the next reading's movement is explained from (§235)."""
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+
+        [(charges, versions)] = await fetch(
+            "SELECT charges, rule_versions FROM risk_history WHERE organization_id = :o",
+            {"o": org_id},
+        )
+        assert charges, "the vulnerable fixture has open risks to charge"
+        assert set(charges.values()) <= {level.value for level in Level}
+        assert versions, "the rules that ran are named with their versions"
+
+    async def test_a_verified_fix_explains_the_movement(self, replay, connected_account) -> None:
+        """The delta, split into causes that add up to it, the fix among them."""
+        from app.services.dashboard import build_dashboard
+        from app.services.score_movement import explain
+
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+        async with service_session() as session:
+            assert (await explain(session, org_id))["reason"] == "first_reading"
+
+        replay["payload"] = _with_rdp_closed()
+        await run_scan(org_id, account_id)
+
+        async with service_session() as session:
+            dashboard = await build_dashboard(session, org_id)
+            movement = await explain(session, org_id)
+        assert movement["available"]
+        assert movement["delta"] == dashboard["score_delta"]
+        assert sum(cause["points"] for cause in movement["causes"]) == movement["delta"]
+        fixed = next(c for c in movement["causes"] if c["cause"] == "fixes_verified")
+        assert fixed["points"] > 0 and fixed["findings"]
+        assert all(c["cause"] != "unexplained" for c in movement["causes"])
+
     async def test_a_superseded_replay_records_nothing(self, replay, connected_account) -> None:
         """It reports what today's rules would have found and changes nothing,
         so recording an entry would make the line move on a day nobody looked
@@ -4955,3 +4991,117 @@ class TestComplianceProvenance:
         for row in rows:
             assert row["status"] == by_id[row["control_id"]]["status"]
         assert {row["assessed_at"] for row in rows} == {detail["assessment"]["completed_at"]}
+
+
+class TestRouteLedger:
+    """Every route a scan's graph holds is an episode in the ledger (§244)."""
+
+    async def test_a_first_scan_opens_an_episode_per_route(self, replay, connected_account) -> None:
+        org_id, account_id = connected_account
+        scan_id = await run_scan(org_id, account_id)
+
+        episodes = await self._episodes(org_id)
+        assert episodes, "the recording has routes"
+        assert all(row.opened_scan_id == scan_id for row in episodes)
+        assert all(row.last_seen_scan_id == scan_id for row in episodes)
+        assert all(row.closed_at is None for row in episodes)
+        events = await fetch(
+            "SELECT kind FROM route_events WHERE organization_id = :o", {"o": org_id}
+        )
+        assert {row[0] for row in events} == {"OPENED"}
+        assert len(events) == len(episodes)
+
+    async def test_a_scan_seeing_the_same_routes_writes_no_event(
+        self, replay, connected_account
+    ) -> None:
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+        before = await fetch(
+            "SELECT count(*) FROM route_events WHERE organization_id = :o", {"o": org_id}
+        )
+        second = await run_scan(org_id, account_id)
+
+        after = await fetch(
+            "SELECT count(*) FROM route_events WHERE organization_id = :o", {"o": org_id}
+        )
+        assert after == before
+        assert all(row.last_seen_scan_id == second for row in await self._episodes(org_id))
+
+    async def test_a_severed_route_closes_as_a_removed_link(
+        self, replay, connected_account
+    ) -> None:
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+
+        severed = load_raw()
+        for vm in severed["data"]["virtual_machines"]:
+            vm.pop("identity", None)
+        replay["payload"] = severed
+        await run_scan(org_id, account_id)
+
+        closed = [row for row in await self._episodes(org_id) if row.closed_at is not None]
+        assert closed, "the machine's routes closed"
+        assert all(row.close_reason == "LINK_REMOVED" for row in closed)
+        assert all(row.entry_name == "vm-jumpbox" for row in closed)
+
+    async def test_a_closed_route_that_returns_opens_a_second_episode(
+        self, replay, connected_account
+    ) -> None:
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+        severed = load_raw()
+        for vm in severed["data"]["virtual_machines"]:
+            vm.pop("identity", None)
+        replay["payload"] = severed
+        await run_scan(org_id, account_id)
+        replay["payload"] = load_raw()
+        await run_scan(org_id, account_id)
+
+        by_key: dict[str, list] = {}
+        for row in await self._episodes(org_id):
+            by_key.setdefault(row.route_key, []).append(row)
+        returned = [rows for rows in by_key.values() if len(rows) == 2]
+        assert returned, "a route that came back has two episodes"
+        for rows in returned:
+            assert sum(1 for row in rows if row.closed_at is None) == 1
+
+    async def _episodes(self, org_id: uuid.UUID) -> list:
+        return await fetch(
+            "SELECT route_key, entry_name, opened_scan_id, last_seen_scan_id, closed_at, "
+            "close_reason FROM route_episodes WHERE organization_id = :o",
+            {"o": org_id},
+        )
+
+
+class TestAssetDeclaration:
+    """A customer's word about one asset's data is applied by the next scan (§251)."""
+
+    async def test_a_declared_asset_is_raised_and_attributed_to_the_customer(
+        self, replay, connected_account
+    ) -> None:
+        from app.models.context import AssetDeclarationRecord
+
+        org_id, account_id = connected_account
+        await run_scan(org_id, account_id)
+        [(row_id, provider_id)] = await fetch(
+            "SELECT id, provider_resource_id FROM cloud_resources WHERE organization_id = :o "
+            "AND data_sensitivity <> 'CRITICAL' AND cloud_account_id IS NOT NULL "
+            "ORDER BY provider_resource_id LIMIT 1",
+            {"o": org_id},
+        )
+        async with service_session() as session:
+            session.add(
+                AssetDeclarationRecord(
+                    organization_id=org_id, resource_id=row_id, data_sensitivity=Level.CRITICAL
+                )
+            )
+            await session.commit()
+
+        await run_scan(org_id, account_id)
+
+        [(level, source)] = await fetch(
+            "SELECT data_sensitivity, data_sensitivity_source FROM cloud_resources WHERE id = :r",
+            {"r": row_id},
+        )
+        assert (level, source) == ("CRITICAL", "customer")
+        assert provider_id

@@ -1,8 +1,9 @@
 # CloudGuard — Deploying to the Web
 
-Companion to [`DECISIONS.md`](DECISIONS.md). CloudGuard is cloud-only — there
-is no local development mode and no localhost defaults, and the API refuses to
-start without a complete deployment environment. Everything runs on:
+Companion to [`DECISIONS.md`](DECISIONS.md). CloudGuard is deployed to the cloud.
+There are no localhost defaults, and the API refuses to start without a complete
+deployment environment. `APP_ENV=local` (DECISIONS.md §240) runs the same code on a
+developer's machine, and only there. Everything deployed runs on:
 
 | Layer | Platform | Why |
 |---|---|---|
@@ -361,6 +362,27 @@ Node installed on your machine.
    # been run against a live AWS account. Set this to true only after the
    # ten-item checklist in AWS_INTEGRATION.md §1 has passed.
    AWS_ENABLED=false
+
+   # Cleave's GitHub App, for the Terraform state index and Fix-as-Code pull
+   # requests (DECISIONS.md §231). Optional: leave blank and GitHub is not
+   # offered. Set on the API and the worker. The App needs "Request user
+   # authorization (OAuth) during installation" on, with the callback URL
+   # https://<your-vercel-domain>/settings/integrations/github, because linking
+   # an installation is proven with the linking person's own GitHub token.
+   # The private key may be pasted on one line with its newlines written as \n.
+   # API_URL above is also the audience the state index upload's token must name.
+   # Repository permissions: Contents and Pull requests read and write, and
+   # Checks read and write for the pull-request guardrail (DECISIONS.md §234);
+   # subscribe to the Pull request event. A permission added later must be
+   # accepted by each installation on GitHub before it applies there.
+   GITHUB_APP_ID=
+   GITHUB_APP_SLUG=
+   GITHUB_APP_CLIENT_ID=
+   GITHUB_APP_CLIENT_SECRET=
+   GITHUB_APP_PRIVATE_KEY=
+   GITHUB_APP_WEBHOOK_SECRET=
+   # Whether the GitHub card appears and uploads are taken. Off by default.
+   FIX_PRS_ENABLED=false
 
    SENTRY_DSN=
 

@@ -90,6 +90,26 @@ READING_COLUMNS = (
     "payload_file",
 )
 GAP_COLUMNS = ("framework", "control_id", "kind", "subject", "detail")
+FIX_COLUMNS = (
+    "framework",
+    "control_id",
+    "rule_id",
+    "finding_id",
+    "severity",
+    "finding",
+    "asset",
+    "asset_id",
+    "first_detected_at",
+    "fixed_at",
+    "fixed_by_scan_id",
+    "days_to_fix",
+    "task_status",
+    "marked_done_at",
+    "verification_status",
+    "verification_settled_at",
+    "verified_by_scan_id",
+    "pull_requests",
+)
 
 
 @dataclass(frozen=True)
@@ -236,6 +256,86 @@ def _gap_rows(
     return rows
 
 
+def _days_between(start: str | None, end: str | None) -> str:
+    if not start or not end:
+        return ""
+    elapsed = datetime.fromisoformat(end) - datetime.fromisoformat(start)
+    return f"{elapsed.total_seconds() / 86_400:.1f}"
+
+
+def _fix_rows(package: AuditPackage) -> list[list[object]]:
+    """One row per control and each fix of a rule it rests on (DECISIONS.md section 238).
+
+    A fix of a rule that two controls rest on is listed under both, since an auditor reads the
+    evidence one control at a time. A ticket is not a column: no tracker sync exists yet, and a
+    column that is always empty would claim one does.
+    """
+    fixes = (package.fixes or {}).get("items") or []
+    by_rule: dict[str, list[Mapping[str, Any]]] = {}
+    for fix in fixes:
+        by_rule.setdefault(fix["rule_id"], []).append(fix)
+    rows: list[list[object]] = []
+    for control in package.controls:
+        for rule in control.get("rules") or []:
+            for fix in by_rule.get(rule["rule_id"], []):
+                task = fix.get("task") or {}
+                verification = fix.get("verification") or {}
+                rows.append(
+                    [
+                        control["framework_id"],
+                        control["id"],
+                        fix["rule_id"],
+                        fix["finding_id"],
+                        fix["severity"],
+                        fix["title"],
+                        fix.get("asset") or "",
+                        fix.get("asset_id") or "",
+                        fix["first_detected_at"],
+                        fix["fixed_at"],
+                        fix.get("fixed_by_scan_id") or "",
+                        _days_between(fix["first_detected_at"], fix["fixed_at"]),
+                        task.get("status") or "",
+                        task.get("marked_done_at") or "",
+                        verification.get("status") or "",
+                        verification.get("settled_at") or "",
+                        verification.get("verified_by_scan_id") or "",
+                        "; ".join(
+                            f"{change['repository']}#{change['number']} {change['state']}"
+                            for change in fix.get("pull_requests") or []
+                        ),
+                    ]
+                )
+    return rows
+
+
+def _fixes_readme(package: AuditPackage) -> tuple[str, str]:
+    """The README's line about fixes.csv, and its paragraph; empty for a version 1 package."""
+    if package.fixes is None:
+        return "", ""
+    window = package.fixes.get("window") or {}
+    total = int(package.fixes.get("total") or 0)
+    kept = len(package.fixes.get("items") or [])
+    cut = (
+        f" The package keeps the latest {kept} of {total}; the rest are counted, not listed."
+        if kept < total
+        else ""
+    )
+    listing = (
+        "\nfixes.csv                One row per control and each fix of a rule it rests on: when\n"
+        "                         a scan observed it fixed, the task, the verification and any\n"
+        "                         pull request that changed its code."
+    )
+    paragraph = f"""
+FIXES
+-----
+{total} finding(s) a scan observed fixed between {window.get("from")} and {window.get("to")},
+for the rules these controls rest on, and still fixed when the package was sealed.{cut} A fix
+is a resolution a scan observed, never a status a person set. Where a person claimed the fix
+first, the verification column says whether Cleave's own checking confirmed it.
+"""
+    return listing, paragraph
+
+
 def _reading_rows(
     items: Sequence[AuditPackageItem], payload_status: Mapping[str, str]
 ) -> list[list[object]]:
@@ -280,6 +380,7 @@ def _readme(package: AuditPackage, summary: ArchiveSummary, root: str) -> bytes:
         else "not declared"
     )
     completed = package.scan_completed_at.isoformat() if package.scan_completed_at else "unknown"
+    fixes_listing, fixes_paragraph = _fixes_readme(package)
     text = f"""\
 Cleave audit package: {package.name}
 {"=" * 60}
@@ -333,7 +434,7 @@ gaps.csv                 What Cleave could not reach, could not conclude on, or 
                          before the controls: a control that is green and unread is not a pass.
 evidence/readings.csv    One row per reading: when, under which permission, and the payload hash.
 evidence/payloads/       The captured provider responses, one file per distinct hash.
-SHA256SUMS               The hash of every other file.
+SHA256SUMS               The hash of every other file.{fixes_listing}
 
 STATUSES
 --------
@@ -346,7 +447,7 @@ NOT_COVERED     no rule reaches the control. Whether a scanner could ever is in 
 
 A scan that finished PARTIAL read less than the whole estate; its status is above, and so are
 the readings that came back incomplete.
-
+{fixes_paragraph}
 THIS ARCHIVE
 ------------
 {summary.payloads_included} payload(s) included, {summary.payloads_pruned} no longer stored,
@@ -425,6 +526,8 @@ def write_archive(
             )
         gaps = _gap_rows(package, items, payload_status)
         writer.add("gaps.csv", _csv(GAP_COLUMNS, gaps))
+        if package.fixes is not None:
+            writer.add("fixes.csv", _csv(FIX_COLUMNS, _fix_rows(package)))
         writer.add(
             "evidence/readings.csv", _csv(READING_COLUMNS, _reading_rows(items, payload_status))
         )

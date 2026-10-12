@@ -1,11 +1,16 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { ArrowDownIcon, SearchIcon, ShieldCheckIcon, XIcon } from "lucide-react";
+import { ArrowDownIcon, HistoryIcon, SearchIcon, ShieldCheckIcon, XIcon } from "lucide-react";
 import { ResourceIcon } from "@/components/security/ResourceIcon";
 
 import { api } from "@/lib/api";
-import type { Dashboard, Finding } from "@/lib/types";
+import type { Dashboard, Finding, FindingsMeta } from "@/lib/types";
+import { CONFIDENCE_LEVELS, confidenceLabel, isConfidenceLevel } from "@/lib/confidence";
+import { ConfidenceMark } from "@/components/security/ConfidenceMark";
+import { useScanWizard } from "@/components/scans/ScanWizardProvider";
+import { useIsDemo } from "@/lib/useDemo";
+import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { useT } from "@/i18n";
 import { StatusPill } from "@/components/security/StatusPill";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
@@ -85,6 +90,7 @@ export function FindingsPage() {
     page: "0",
     rule_id: "",
     evidence_id: "",
+    confidence: "all",
   });
   const severity = (SEVERITIES as readonly string[]).includes(filters.severity)
     ? filters.severity
@@ -97,6 +103,10 @@ export function FindingsPage() {
   const ruleId = filters.rule_id;
   const evidenceId = filters.evidence_id;
   const debouncedSearch = filters.q;
+  // Narrows, never reorders: the order is the risk's (DECISIONS.md §262).
+  const confidence = isConfidenceLevel(filters.confidence) ? filters.confidence : "all";
+  const scanWizard = useScanWizard();
+  const isDemo = useIsDemo();
 
   // What is typed is held here and written to the URL after a pause: a request
   // per keystroke would be six for "public", and a URL rewritten on every key
@@ -123,6 +133,7 @@ export function FindingsPage() {
   if (status !== "all") params.set("status", status);
   if (ruleId) params.set("rule_id", ruleId);
   if (evidenceId) params.set("evidence_id", evidenceId);
+  if (confidence !== "all") params.set("confidence", confidence);
   if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
   params.set("sort", sort);
   params.set("limit", String(PAGE_SIZE));
@@ -134,12 +145,27 @@ export function FindingsPage() {
   }
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["findings", severity, status, ruleId, evidenceId, debouncedSearch, sort, page],
+    queryKey: [
+      "findings",
+      severity,
+      status,
+      ruleId,
+      evidenceId,
+      confidence,
+      debouncedSearch,
+      sort,
+      page,
+    ],
     queryFn: () =>
-      api.get<Finding[]>(`/api/v1/findings?${params.toString()}`).then((r) => ({
-        findings: r.data,
-        total: (r.meta as { total?: number } | undefined)?.total ?? r.data.length,
-      })),
+      api.get<Finding[]>(`/api/v1/findings?${params.toString()}`).then((r) => {
+        // The list's own meta: the page's place in the set, and the set by confidence.
+        const meta = r.meta as Partial<FindingsMeta> | undefined;
+        return {
+          findings: r.data,
+          total: meta?.total ?? r.data.length,
+          byConfidence: meta?.confidence ?? null,
+        };
+      }),
     // Without this the table blanks on every page turn, which reads as the
     // findings having gone rather than as a page loading.
     placeholderData: keepPreviousData,
@@ -165,7 +191,17 @@ export function FindingsPage() {
   const pages = Math.ceil(total / PAGE_SIZE);
 
   const filtered =
-    search.trim().length > 0 || severity !== "all" || status !== "OPEN" || !!ruleId || !!evidenceId;
+    search.trim().length > 0 ||
+    severity !== "all" ||
+    status !== "OPEN" ||
+    confidence !== "all" ||
+    !!ruleId ||
+    !!evidenceId;
+  // Stale evidence is said above the queue, where the reader decides what to
+  // work on, and only of the queue: a fixed finding's evidence is meant to age.
+  const stale = data?.byConfidence?.LOW ?? 0;
+  const showStale =
+    stale > 0 && confidence !== "LOW" && (status === "OPEN" || status === "IN_PROGRESS");
 
   const emptyTitle = filtered ? "No findings match these filters" : t.findings.empty;
   const countLine =
@@ -256,6 +292,23 @@ export function FindingsPage() {
               })),
             ]}
           />
+          <SelectField
+            value={confidence}
+            onValueChange={(value) => refilter({ confidence: value || "all" })}
+            ariaLabel={t.confidence.filterLabel}
+            className="w-[160px]"
+            idleValue="all"
+            options={[
+              { value: "all", label: t.confidence.any },
+              ...CONFIDENCE_LEVELS.map((level) => ({
+                value: level,
+                // The count beside each level, once the list has said it.
+                label: data?.byConfidence
+                  ? `${confidenceLabel(t, level)} (${data.byConfidence[level]})`
+                  : confidenceLabel(t, level),
+              })),
+            ]}
+          />
         </div>
       </div>
 
@@ -291,9 +344,31 @@ export function FindingsPage() {
         </div>
       )}
 
+      {showStale && (
+        <Alert className="border-dashed border-unknown-border bg-unknown-bg">
+          <HistoryIcon className="text-unknown" aria-hidden />
+          <AlertDescription className="text-foreground">
+            {stale === 1
+              ? t.confidence.staleBannerOne
+              : t.confidence.staleBanner.replace("{count}", String(stale))}
+          </AlertDescription>
+          <AlertAction className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => refilter({ confidence: "LOW" })}>
+              {t.confidence.showThem}
+            </Button>
+            {/* A scan is a write, which the demo refuses. */}
+            {!isDemo && (
+              <Button size="sm" onClick={() => scanWizard.start()}>
+                {t.confidence.scanNow}
+              </Button>
+            )}
+          </AlertAction>
+        </Alert>
+      )}
+
       <LiveStatus quietFirst message={!data ? null : rows.length > 0 ? countLine : emptyTitle} />
 
-      {isLoading && <TableSkeleton columns={6} />}
+      {isLoading && <TableSkeleton columns={7} />}
 
       {error && (
         <ErrorState
@@ -328,6 +403,7 @@ export function FindingsPage() {
                     q: null,
                     rule_id: null,
                     evidence_id: null,
+                    confidence: null,
                   });
                 }}
               >
@@ -350,7 +426,7 @@ export function FindingsPage() {
                   risky -- with the asset under the title, rather than six
                   columns scrolled sideways under titles cut to fifteen
                   characters (DECISIONS.md §188). */}
-              <Table className="sm:min-w-[760px]">
+              <Table className="sm:min-w-[760px] lg:min-w-[840px]">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
                     <TableHead className="w-[45%]">Finding</TableHead>
@@ -369,6 +445,7 @@ export function FindingsPage() {
                       onSort={(key) => refilter({ sort: key })}
                     />
                     <TableHead className="max-sm:hidden">{t.common.status}</TableHead>
+                    <TableHead className="max-lg:hidden">{t.confidence.label}</TableHead>
                     <SortableHead
                       label={t.findings.lastSeen}
                       sortKey="recent"
@@ -464,6 +541,19 @@ export function FindingsPage() {
                       </TableCell>
                       <TableCell className="max-sm:hidden">
                         <StatusPill status={finding.status} />
+                      </TableCell>
+                      <TableCell className="max-lg:hidden">
+                        {/* Quiet at High: the column is for what needs a second
+                            look. A verified fix's evidence is meant to age, so a
+                            resolved row says nothing about it. */}
+                        {finding.confidence && finding.status !== "RESOLVED" ? (
+                          <ConfidenceMark
+                            confidence={finding.confidence}
+                            showLabel={finding.confidence.level !== "HIGH"}
+                          />
+                        ) : (
+                          <span className="text-caption text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                       <TableCell
                         className="text-right text-xs text-muted-foreground tabular-nums max-sm:hidden"

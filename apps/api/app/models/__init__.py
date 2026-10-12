@@ -5,13 +5,22 @@ from app.models.audit_package import AuditPackage, AuditPackageItem
 from app.models.base import Base
 from app.models.cloud_account import CloudAccount
 from app.models.cloud_connection import CloudConnection
-from app.models.context import ContextDeclarationRecord
+from app.models.code_integration import CodeIntegration
+from app.models.context import AssetDeclarationRecord, ContextDeclarationRecord
 from app.models.finding import Finding
+from app.models.fix_pull_request import (
+    FixPullRequest,
+    FixPullRequestAssignment,
+    FixPullRequestFinding,
+)
 from app.models.history import AssetChangeEvent, FindingEventRecord
+from app.models.iac import IacIndex, IacIndexEntry
 from app.models.organization import Organization, OrganizationInvitation, OrganizationMember
+from app.models.ownership import OwnershipRule
 from app.models.remediation import AuditLog, RemediationTask, RiskException
 from app.models.resource import ResourceRecord, ResourceRelationship
 from app.models.risk import Risk, RiskFinding
+from app.models.route_ledger import RouteEpisode, RouteEvent
 from app.models.rule import Rule
 from app.models.scan import (
     CloudSnapshot,
@@ -27,6 +36,7 @@ from app.models.webhook import WebhookDelivery, WebhookEndpoint
 
 __all__ = [
     "AssetChangeEvent",
+    "AssetDeclarationRecord",
     "AuditGrant",
     "AuditGrantEvent",
     "AuditLog",
@@ -36,14 +46,21 @@ __all__ = [
     "CloudAccount",
     "CloudConnection",
     "CloudSnapshot",
+    "CodeIntegration",
     "ContextDeclarationRecord",
     "Evidence",
     "EvidenceBlob",
     "Finding",
     "FindingEventRecord",
+    "FixPullRequest",
+    "FixPullRequestAssignment",
+    "FixPullRequestFinding",
+    "IacIndex",
+    "IacIndexEntry",
     "Organization",
     "OrganizationInvitation",
     "OrganizationMember",
+    "OwnershipRule",
     "RemediationTask",
     "RemediationVerification",
     "ResourceRecord",
@@ -52,6 +69,8 @@ __all__ = [
     "RiskException",
     "RiskFinding",
     "RiskHistory",
+    "RouteEpisode",
+    "RouteEvent",
     "Rule",
     "Scan",
     "ScanEvaluationGap",

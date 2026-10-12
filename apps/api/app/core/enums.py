@@ -129,6 +129,46 @@ _CONTEXT_CONFIDENCE: dict[ContextSource, float] = {
 }
 
 
+class Confidence(StrEnum):
+    """How sure Cleave is that a finding or a route is current and ranked right.
+
+    Its own axis rather than a dent in severity or risk (DECISIONS.md §262).
+    Severity is what the rule says about a class of mistake and never moves for
+    one reading; risk is where the finding ranks. Confidence is how far either
+    can be trusted today, and it decides what to do next -- fix it, or look again
+    first -- rather than where the finding sorts. Folding it into the score would
+    let a critical finding on week-old evidence sink below a fresh low one, which
+    is the order an attacker would choose.
+    """
+
+    HIGH = "HIGH"
+    MEDIUM = "MEDIUM"
+    LOW = "LOW"
+
+
+class Freshness(StrEnum):
+    """How old a reading is against how often its connection is meant to be read."""
+
+    FRESH = "FRESH"
+    AGING = "AGING"
+    STALE = "STALE"
+
+
+class ConfidenceReason(StrEnum):
+    """Why a finding or a route is short of HIGH confidence. Each names its remedy."""
+
+    # Read longer ago than the connection's schedule allows: rescan.
+    EVIDENCE_AGING = "EVIDENCE_AGING"
+    # Read so long ago it may describe an estate that no longer exists: rescan
+    # before acting on it.
+    EVIDENCE_STALE = "EVIDENCE_STALE"
+    # Ranked on a cautious default because nothing said how critical or how
+    # sensitive the asset is: declare it.
+    CONTEXT_UNKNOWN = "CONTEXT_UNKNOWN"
+    # Ranked on Cleave's guess from the asset's name: confirm it.
+    CONTEXT_INFERRED = "CONTEXT_INFERRED"
+
+
 class RuleState(StrEnum):
     PASS = "PASS"
     FAIL = "FAIL"
@@ -336,10 +376,36 @@ class RiskKind(StrEnum):
     ESCALATION = "ESCALATION"
 
 
+class RouteEventKind(StrEnum):
+    """What happened to a route between two readings (DECISIONS.md §244).
+
+    The route ledger records each route's episodes; these are the moments in
+    one. A route seen again unchanged writes nothing, so the history is a record
+    of movement rather than a log of having looked.
+    """
+
+    # A scan saw it, and no open episode of it existed.
+    OPENED = "OPENED"
+    # A scan saw it again by another way round: the same ends, different links.
+    # The change somebody made moved the attacker rather than stopped them.
+    REROUTED = "REROUTED"
+    # A scan that could have seen it did not.
+    CLOSED = "CLOSED"
+
+
+class RouteCloseReason(StrEnum):
+    """Why a route closed. A deleted asset must never read as a fix."""
+
+    # Every asset on it is still there, and nothing connects its ends.
+    LINK_REMOVED = "LINK_REMOVED"
+    # An asset on it is no longer in the environment.
+    ASSET_GONE = "ASSET_GONE"
+
+
 class NotificationKind(StrEnum):
     """What a notification is *about*, and the whole of the vocabulary.
 
-    Three, and the shortness is the design. A CSPM that notifies per finding
+    Few, and the shortness is the design. A CSPM that notifies per finding
     becomes a filter rule in the second week, and the product already made this
     decision one layer down: a rule may declare that forty failures are one
     problem, because forty rows saying the same sentence is not forty pieces of
@@ -363,6 +429,18 @@ class NotificationKind(StrEnum):
     # something narrower than it was yesterday, and saying nothing would let a
     # score hold steady while the evidence under it thinned out.
     COVERAGE_DROP = "COVERAGE_DROP"
+
+    # The two below are about the work, not the estate, and are derived from
+    # deadlines and the clock rather than from a scan's events (DECISIONS.md
+    # section 237). Each is one message for the whole organization, never one
+    # per finding, for the reason the three above are few.
+
+    # Monday's summary: what is overdue and due this week, by owner, and what a
+    # scan verified fixed in the week before.
+    WORK_DIGEST = "WORK_DIGEST"
+    # The fixes whose last day was yesterday. A channel subscribed to this is
+    # the escalation: whoever reads it is told the day a deadline is missed.
+    WORK_OVERDUE = "WORK_OVERDUE"
 
 
 class WebhookFormat(StrEnum):
@@ -429,6 +507,31 @@ class RiskStatus(StrEnum):
     IN_PROGRESS = "IN_PROGRESS"
     RESOLVED = "RESOLVED"
     ACCEPTED = "ACCEPTED"
+
+
+class OrganizationMode(StrEnum):
+    """Whether an organization is one person or a team (DECISIONS.md §236).
+
+    A solo organization has one member and no invitations, and the product leaves out what
+    only a team needs: members, ownership rules, owners on tasks.
+    """
+
+    SOLO = "SOLO"
+    TEAM = "TEAM"
+
+
+class OwnershipScope(StrEnum):
+    """Where an ownership rule applies, most specific last (DECISIONS.md §236).
+
+    A task nobody was assigned to is owned by the most specific rule its asset
+    matches: a tag, then its resource group, then its subscription, then the
+    organization's default.
+    """
+
+    DEFAULT = "DEFAULT"
+    SUBSCRIPTION = "SUBSCRIPTION"
+    RESOURCE_GROUP = "RESOURCE_GROUP"
+    TAG = "TAG"
 
 
 class RemediationStatus(StrEnum):
@@ -524,7 +627,12 @@ class CloudAccountStatus(StrEnum):
 
 
 class ExceptionStatus(StrEnum):
+    # Asked for, under the organization's second-approver policy, and waiting for somebody other
+    # than the person who asked (DECISIONS.md section 239). Changes nothing until decided.
+    PENDING = "PENDING"
     ACTIVE = "ACTIVE"
+    # The second person said no. The finding or route is as it was before the request.
+    REJECTED = "REJECTED"
     EXPIRED = "EXPIRED"
     REVOKED = "REVOKED"
 

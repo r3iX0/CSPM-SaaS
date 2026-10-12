@@ -225,6 +225,8 @@ class AzureClusterRbacRule(_ClusterRule):
                 equals=True,
                 describes="Kubernetes role-based access control is enabled",
                 terraform_attribute="role_based_access_control_enabled",
+                # azurerm replaces the cluster to change it: new clusters only.
+                terraform_replaces=True,
             ),
         ),
         cli=(

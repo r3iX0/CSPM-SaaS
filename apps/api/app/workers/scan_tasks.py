@@ -33,10 +33,12 @@ from app.services import change_events as change_service
 from app.services import guests as guests_service
 from app.services import notifications as notifications_service
 from app.services import orchestrator
+from app.services import pull_requests as pull_requests_service
 from app.services import retention as retention_service
 from app.services import scans as scans_service
 from app.services import verification as verification_service
 from app.services import webhooks as webhooks_service
+from app.services import work_digest as work_digest_service
 from app.services.scan import ScanPipeline
 from app.workers.celery_app import (
     ANALYZE_QUEUE,
@@ -332,6 +334,21 @@ def deliver_webhooks(self: object) -> dict:
     counts = asyncio.run(_deliver_all_webhooks())
     if any(counts.values()):
         log.info("webhooks.delivered", **counts)
+    return counts
+
+
+@celery_app.task(name="cloudguard.open_fix_pull_requests", bind=True, max_retries=0)
+def open_fix_pull_requests(self: object) -> dict:
+    """Open the Fix-as-Code pull requests members asked for (DECISIONS.md section 232).
+
+    A sweep rather than a task per request, as webhook deliveries are: each
+    request is claimed under a lease, so a worker that dies mid-way leaves it to
+    the next sweep, and GitHub is asked with no transaction open.
+    """
+    configure_logging()
+    counts = asyncio.run(pull_requests_service.open_due())
+    if counts.get("opened"):
+        log.info("fix_pr.swept", **counts)
     return counts
 
 
@@ -662,6 +679,15 @@ async def _derive_all_notifications() -> int:
             try:
                 async with scan_session(org_id) as session:
                     total += await notifications_service.derive(session, org_id)
+                    # The digest and the escalation (section 237), in a
+                    # savepoint for the same reason as the webhooks below.
+                    try:
+                        async with session.begin_nested():
+                            total += await work_digest_service.derive(
+                                session, org_id, datetime.now(UTC)
+                            )
+                    except Exception:
+                        log.exception("work_digest.derive_failed", organization_id=str(org_id))
                     # Owed in the same transaction as the notifications, so a
                     # notification is never written without its deliveries --
                     # but in a savepoint, so a fault in the webhooks can never

@@ -13,7 +13,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import TenantContext
 from app.core.enums import Level
 from app.core.logging import get_logger
-from app.models.context import ContextDeclarationRecord
+from app.models.context import AssetDeclarationRecord, ContextDeclarationRecord
+from app.services import assets as assets_service
 from app.services import cloud_accounts as accounts_service
 from app.services.findings import record_audit
 
@@ -149,3 +150,67 @@ async def list_declarations(
             )
         ).scalars()
     )
+
+
+async def get_asset_declaration(
+    session: AsyncSession, tenant: TenantContext, asset_id: UUID
+) -> AssetDeclarationRecord | None:
+    """What has been declared about one asset, if anything; 404 for another tenant's."""
+    await assets_service.get_asset_detail(session, tenant, asset_id)
+    return (
+        await session.execute(
+            select(AssetDeclarationRecord).where(
+                AssetDeclarationRecord.organization_id == tenant.organization_id,
+                AssetDeclarationRecord.resource_id == asset_id,
+            )
+        )
+    ).scalar_one_or_none()
+
+
+async def declare_asset(
+    session: AsyncSession,
+    tenant: TenantContext,
+    asset_id: UUID,
+    *,
+    data_sensitivity: Level | None,
+    note: str | None,
+) -> AssetDeclarationRecord | None:
+    """Say how sensitive one asset's data is, or withdraw it with ``None``.
+
+    Takes effect on the next evaluation, as a subscription's declaration does
+    (DECISIONS.md section 251), and for the same reason nothing is rescored or
+    re-routed here: a route is what a scan's graph holds.
+    """
+    existing = await get_asset_declaration(session, tenant, asset_id)
+    if data_sensitivity is None:
+        if existing is not None:
+            await session.delete(existing)
+        await record_audit(
+            session,
+            tenant,
+            action="asset_context.cleared",
+            resource_type="asset",
+            resource_id=asset_id,
+            metadata={},
+        )
+        return None
+
+    if existing is None:
+        existing = AssetDeclarationRecord(
+            organization_id=tenant.organization_id, resource_id=asset_id
+        )
+        session.add(existing)
+    existing.data_sensitivity = data_sensitivity
+    existing.note = note
+    existing.declared_by_user_id = tenant.user.id
+    await record_audit(
+        session,
+        tenant,
+        action="asset_context.declared",
+        resource_type="asset",
+        resource_id=asset_id,
+        metadata={"data_sensitivity": data_sensitivity.value},
+    )
+    await session.flush()
+    await session.refresh(existing)
+    return existing

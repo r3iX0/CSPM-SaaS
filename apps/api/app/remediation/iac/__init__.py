@@ -7,7 +7,8 @@ from app.remediation.iac.terraform import (
     Declined,
     Edit,
     Patched,
+    Renamed,
     edit_terraform,
 )
 
-__all__ = ["Change", "Decline", "Declined", "Edit", "Patched", "edit_terraform"]
+__all__ = ["Change", "Decline", "Declined", "Edit", "Patched", "Renamed", "edit_terraform"]

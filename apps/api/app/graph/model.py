@@ -24,7 +24,7 @@ from app.graph.access import (
 )
 from app.graph.facts import edge_facts
 from app.graph.identity import join
-from app.graph.severance import EdgeKey, removable, severed_pairs
+from app.graph.severance import EdgeKey, cut_cost, removable, severed_pairs
 
 # Exposure at or above which a node is somewhere an attacker could start.
 #
@@ -277,6 +277,32 @@ class Simulation:
     next: tuple[ChokePoint, ...]
 
 
+@dataclass(frozen=True)
+class PlannedCut:
+    """One change in a fix plan, and the routes it closes after the ones before it."""
+
+    step: PathStep
+    #: Routes that close with this change, given every earlier change in the
+    #: plan is made. Never counted against the estate as it stands today.
+    closes: tuple[Path, ...]
+
+
+@dataclass(frozen=True)
+class FixPlan:
+    """Changes that close the estate's routes, in the order to make them.
+
+    Picked greedily: each is the link that closes the most of what is left,
+    with the plan so far made. Not guaranteed to be the fewest changes, and
+    never said to be (DECISIONS.md section 245).
+    """
+
+    cuts: tuple[PlannedCut, ...]
+    #: Routes with nothing cut.
+    before: int
+    #: Routes still open once every change is made.
+    remaining: int
+
+
 def _ends(path: Path) -> tuple[str, str]:
     """A route named by its ends, as ``route_key`` names it."""
     return (path.entry.provider_resource_id, path.target.provider_resource_id)
@@ -349,6 +375,10 @@ class AssetGraph:
     _aliases: dict[str, str] = field(default_factory=dict, repr=False, compare=False)
     # What each role edge controls, read off the principal's metadata once.
     _lenses: dict[tuple[str, RelationshipType, str], Lens] = field(
+        default_factory=dict, repr=False, compare=False
+    )
+    # The fix plan by (limit, depth), worked out once per graph like severance.
+    _plans: dict[tuple[int, int], "FixPlan"] = field(
         default_factory=dict, repr=False, compare=False
     )
 
@@ -916,6 +946,58 @@ class AssetGraph:
                 else ()
             ),
         )
+
+    def fix_plan(self, *, limit: int = 10, max_depth: int = MAX_DEPTH) -> FixPlan:
+        """The changes that close every route, one at a time, most first.
+
+        Greedy over exact severance: the first change is the link that closes
+        the most routes, and each next one is the link that closes the most of
+        what is left with the plan so far made -- read from the severance of the
+        estate *without* the earlier links, so two changes that are each other's
+        way round are found in order rather than missed. Ties go to the cheaper
+        kind of change (``CUT_COST``), then to the plainer sentence, so the plan
+        is the same every time it is asked.
+
+        Stops at ``limit`` changes, or when no single further change closes
+        anything: what is left then needs two changes made together, which the
+        simulator answers and this does not guess at. ``remaining`` says how
+        many routes that leaves.
+        """
+        memo = (limit, max_depth)
+        if memo in self._plans:
+            return self._plans[memo]
+
+        before = self.attack_paths(max_depth)
+        open_ends = {_ends(path) for path in before}
+        cuts: list[PlannedCut] = []
+        removed: frozenset[EdgeKey] = frozenset()
+        graph: AssetGraph = self
+        while open_ends and len(cuts) < limit:
+            severance = graph.link_severance(max_depth)
+            candidates = [link for link, severed in severance.items() if severed]
+            if not candidates:
+                break
+            link = min(
+                candidates,
+                key=lambda each: (
+                    -len(severance[each]),
+                    cut_cost(RelationshipType(each[1])),
+                    self._step(each).describe(),
+                    each,
+                ),
+            )
+            removed = removed | {link}
+            graph = self.without(removed)
+            still = {_ends(path) for path in graph.attack_paths(max_depth)}
+            closes = tuple(
+                path for path in before if _ends(path) in open_ends and _ends(path) not in still
+            )
+            open_ends &= still
+            cuts.append(PlannedCut(step=self._step(link), closes=closes))
+
+        plan = FixPlan(cuts=tuple(cuts), before=len(before), remaining=len(open_ends))
+        self._plans[memo] = plan
+        return plan
 
     def _step(self, link: EdgeKey) -> PathStep:
         source, relationship, target = link

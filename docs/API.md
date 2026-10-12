@@ -69,19 +69,38 @@ GET    /scans/worker-status
 
 GET    /assets                             GET    /assets/{id}
 GET    /assets/hierarchy                   GET    /assets/resolve?provider_resource_id=
+GET    /assets/{id}/context                PUT    /assets/{id}/context   { data_sensitivity, note }
+DELETE /assets/{id}/context
 GET    /changes
 GET    /findings                           GET    /findings/{id}
 GET    /risks                              GET    /risks/{id}
 POST   /risks/{id}/status                  POST   /risks/status
+GET    /acceptances?status=&limit=1..200&offset=
+POST   /acceptances/{id}/approve           POST   /acceptances/{id}/reject  { note }
 
 POST   /remediation                        GET    /remediation
-PATCH  /remediation/{id}
+PATCH  /remediation/{id}                   GET    /remediation/progress?days=
+POST   /remediation/pull-requests          GET    /remediation/pull-requests?rule_id=
+GET    /ownership-rules                    POST   /ownership-rules
+PATCH  /ownership-rules/{id}               DELETE /ownership-rules/{id}
 POST   /findings/{id}/accept-risk          POST   /findings/{id}/status
 POST   /findings/{id}/rescan               POST   /findings/{id}/iac-diff  (multipart)
 GET    /findings/{id}/attack-paths         GET    /findings/{id}/provenance
+GET    /findings/{id}/evidence-package
+
+GET    /integrations/github                POST   /integrations/github/connect
+POST   /integrations/github/installations  DELETE /integrations/github/installations/{id}
+POST   /integrations/github/events  (GitHub's deliveries; HMAC-signed)
+PUT    /iac-indexes  (a job's GitHub Actions token)
+GET    /iac-guardrail/allowlist  (open)    POST   /iac-guardrail/plans  (a job's GitHub Actions token)
 
 GET    /attack-paths                       GET    /attack-paths/choke-points
 GET    /attack-paths/graph?limit=1..200
+GET    /attack-paths/history?days=1..90
+GET    /attack-paths/fix?source=&relationship=&target=
+GET    /attack-paths/inspect/{resource_id}
+POST   /attack-paths/pull-requests   { source, relationship, target }  (202)
+GET    /attack-paths/pull-requests?cut=
 GET    /attack-paths/blast-radius/{resource_id}
 GET    /attack-paths/access/{resource_id}
 GET    /attack-paths/neighborhood/{resource_id}?depth=1..3&expand=<fold id>
@@ -109,7 +128,7 @@ GET    /auditor/grants/{id}/archive        (a zip)
 GET    /notifications                      POST   /notifications/read
 DELETE /notifications                      DELETE /notifications/{id}
 
-GET    /dashboard
+GET    /dashboard                          GET    /dashboard/score-movement
 GET    /reports/{kind}?format=pdf|html&days=30&sections=a,b
 
 GET    /health                             GET    /health/ready   (outside /api/v1, unauthenticated)
@@ -173,6 +192,15 @@ capture supported but never lower it, so the worst a mistaken declaration can
 do is over-rank something. `GET /assets/{id}` returns a `context` block giving
 each value's source and confidence alongside it.
 
+`/assets/{id}/context` declares one asset's data sensitivity (DECISIONS.md
+§251), from the attack-path page or the asset's own page: a route ends only
+where data is sensitive, and only the customer knows that a storage account
+holds the payroll export. Sensitivity only; criticality and environment stay per
+subscription. It is applied by the next evaluation as a floor, like a
+subscription's declaration, so it can give a route an end and never hide one.
+`UNKNOWN` is refused (`422`), and the source an asset's `context` block shows is
+the customer, not the subscription.
+
 `/compliance/{framework_id}/export` answers with a document rather than the
 envelope, for the same reason `/reports/{kind}` does: the caller is saving a
 file, and an envelope would make every consumer unwrap a shape that means
@@ -188,14 +216,16 @@ compliance claim with no date on it.
 it was, for owners and administrators only (DECISIONS.md §208). There is no `PATCH` and no
 `DELETE`: a wrong package is sealed again and the old one stays what it was. `GET /{id}` gives the
 header, how each framework's controls came out and what they rest on, with how many payloads are
-still stored counted live. `/{id}/verification` rebuilds the manifest from the stored rows and
-returns both digests, so `verified: false` can be checked and not only believed. `/{id}/archive`
-answers with a zip rather than the envelope, as the export above does: a manifest that hashes to
-the sealed value, a CSV of controls per framework, the gaps, the readings, the captured payloads
-named by their own hash, and a `SHA256SUMS` that `sha256sum -c` accepts. It is a `GET` that
-writes an audit entry, because evidence leaving the system belongs on the trail; the build runs
-one at a time off the event loop, and a package whose evidence is over 256 MB answers `409`
-`ARCHIVE_TOO_LARGE`.
+still stored counted live, and `fixes`: how many findings a scan observed fixed in the audit period
+for the rules the controls rest on, and how many of them a verification confirmed or a pull request
+changed, or `null` for a package sealed before fixes were kept (§238). `/{id}/verification`
+rebuilds the manifest from the stored rows and returns both digests, so `verified: false` can be
+checked and not only believed. `/{id}/archive` answers with a zip rather than the envelope, as the
+export above does: a manifest that hashes to the sealed value, a CSV of controls per framework, the
+gaps, the fixes, the readings, the captured payloads named by their own hash, and a `SHA256SUMS`
+that `sha256sum -c` accepts. It is a `GET` that writes an audit entry, because evidence leaving the
+system belongs on the trail; the build runs one at a time off the event loop, and a package whose
+evidence is over 256 MB answers `409` `ARCHIVE_TOO_LARGE`.
 
 An auditor reads a package through a grant and not as a member (DECISIONS.md §211).
 `POST /audit-grants` names a package and an address and returns the link once, with `expires_in_days`
@@ -289,11 +319,79 @@ name is an expression, which a reviewer should confirm -- or
 `outcome: "declined"` with a stable `decline_reason` (such as
 `interpolated_name`, `multiple_matches`, `variable_value` or `too_large`) and a
 sentence in `detail`. A decline is an answer, not an error: the file was read
-and the edit would have needed a guess. `provider_version` comes from the lock
-file where one was sent, and `checked_against` names the azurerm releases the
-edit was held to. Nothing uploaded is stored and the finding does not change, so
-a viewer and the demo organization may ask; it counts against the costly
-allowance.
+and the edit would have needed a guess. `replaces_resource` is declined before
+the file is read: the argument is one azurerm sets only by recreating the
+resource, and each Terraform hint on `remediation_spec` says so as `replaces`
+(DECISIONS.md §228). A hint's `renamed` lists the argument's name and value from
+a later azurerm major release on (`since`); the edit writes the name the block
+already uses, else the lock file's release's, else `attribute` (§230).
+`provider_version` comes from the lock file where one was sent, and
+`checked_against` names the azurerm releases the edit was held to. Nothing
+uploaded is stored and the finding does not change, so a viewer and the demo
+organization may ask; it counts against the costly allowance.
+
+`GET /findings/{id}` carries `managed_in_code`: where the customer's own
+Terraform state index places the asset (`repository`, `working_directory`,
+`workspace`, `address`, `commit_sha`, `uploaded_at`), or an empty list when no
+index names it (DECISIONS.md §229).
+
+`/integrations/github` links Cleave's GitHub App to the organization
+(DECISIONS.md §231), and answers `404` until the deployment offers GitHub.
+`POST /integrations/github/connect` (owners and admins) answers the
+`install_url`, carrying a signed `state` bound to the caller. GitHub sends the
+person back to the web app with `installation_id`, a one-time `code` and that
+`state`, which it posts to `POST /integrations/github/installations`. The
+installation is linked only if GitHub lists it among the installations of the
+person's own token, exchanged from `code`; one already linked elsewhere is `409`.
+`DELETE /integrations/github/installations/{id}` unlinks it and leaves the App
+installed on GitHub. `POST /integrations/github/events` takes GitHub's
+deliveries, signed with the App's webhook secret (`X-Hub-Signature-256`), and
+unlinks an uninstalled App.
+
+`PUT /iac-indexes` takes a Terraform state index from
+`tools/iac/github/cleave-index.sh`, authenticated by the job's GitHub Actions
+OIDC token as `Authorization: Bearer`, with this API's URL as its audience. The
+body is `working_directory`, `workspace` and up to 4,000 `entries` of
+`address`, `type`, `index` and `id`; the repository and the commit come from the
+token. It is refused `403` unless the App is installed on the repository, that
+installation is linked, and the token's ref is the default branch.
+
+`GET /iac-guardrail/allowlist` lists, per azurerm resource type, every argument
+path the pull-request guardrail reads (DECISIONS.md §234). It is open and the
+same for everyone. `POST /iac-guardrail/plans` takes a pull request's plan from
+`tools/iac/github/cleave-guardrail.sh`, authenticated like the index, from a job
+whose token's ref is `refs/pull/<n>/merge`. The body is `working_directory`,
+`workspace` and up to 4,000 `resources` of `address`, `type`, `actions`, and
+`after`, `before` and `unknown` over allowlisted paths only; anything else is
+`422`. It answers `200` with each `verdict` (`PASS`, `FAIL`, `UNKNOWN`), whether
+the failure is `introduced` by the change, the `conclusion` (`failure` only for
+an introduced one), and the check run it posted on the pull request's head
+commit (`check_run_url`, or `check_run_detail` where GitHub refused it).
+
+`/ownership-rules` names who owns the work nobody was handed (DECISIONS.md §236): a
+`DEFAULT`, a `SUBSCRIPTION` (`cloud_account_id`), a `RESOURCE_GROUP`
+(`cloud_account_id`, `resource_group`) or a `TAG` (`tag_key`, `tag_value`), each with
+an `owner_id` who is a member. Owners and admins write them, one per scope (`409`
+for a second), and not in a solo organization (`409`). Each task in
+`GET /remediation` carries `owner_id`, its `assigned_to` or else the most specific
+rule its asset matches, and `owner_by_rule`, that rule's scope; `?owner=me`,
+`?owner=none` or `?owner=<member id>` narrows the queue to it. An organization's
+`mode` is `SOLO` or `TEAM` (`PATCH /organizations`); solo is refused with another
+member or an open invitation, and an invitation is refused in solo (`409`).
+
+`POST /remediation/pull-requests` (`{rule_id}`, any role that may write) asks for
+a rule's fix as pull requests, one per repository the organization's state
+indexes place its failing assets in (DECISIONS.md §232). It answers `202` with
+the requests, existing live ones included, and `not_indexed`, the failing
+findings no index names; with none indexed it is `422`. The worker opens each
+within a minute: it reads the repository's Terraform at the default branch,
+edits each block it can stand behind, and opens a pull request from a
+`cloudguard/fix-<rule>-<id>` branch. `GET /remediation/pull-requests?rule_id=`
+lists them, newest first, each with a `state` (`QUEUED`, `OPENING`, `OPEN`,
+`MERGED`, `CLOSED`, `DECLINED`, `FAILED`), `pr_url`, and per finding its
+`outcome` (`EDITED` with `path` and `line`, or `DECLINED` with a `reason`). A
+merge, reported by the App's webhook, marks the edited findings' tasks done and
+opens their verification; the next scan decides.
 
 `POST /organizations/demo/join` adds the caller to the one shared demo
 organization as `VIEWER`, whatever the request says, and
@@ -315,8 +413,10 @@ the caller is not a member yet.
 
 Webhooks (DECISIONS.md §164) are for owners and admins, up to twenty per
 organization. `format` is `GENERIC`, `SLACK` or `TEAMS`, and `kinds` is any of
-the three notification kinds (`REACHABLE_FINDING`, `VERIFIED_FIX`,
-`COVERAGE_DROP`). The URL must be HTTPS on port 443 and resolve only to public
+the five notification kinds: `REACHABLE_FINDING`, `VERIFIED_FIX` and
+`COVERAGE_DROP` from scans, and `WORK_OVERDUE` (each morning, the fixes whose
+last day was yesterday) and `WORK_DIGEST` (Monday's summary of overdue and due
+work by owner) from deadlines (§237). The URL must be HTTPS on port 443 and resolve only to public
 addresses, which is checked when the webhook is created and again at every send;
 redirects are not followed, and a refusal is 422 `VALIDATION_FAILED`. A
 `GENERIC` delivery is JSON signed with the endpoint's own secret:
@@ -378,6 +478,16 @@ and a carried reading keeps the time it was collected. The headline is the
 _oldest_ of those readings, because an average would let a hundred fresh
 listings hide the one subscription nobody has managed to read since Tuesday.
 
+`/dashboard/score-movement` splits `score_delta` into its causes (DECISIONS.md
+§235): `new_failures`, `fixes_verified`, `rules_changed`, `assets_appeared`,
+`assets_removed`, `acceptances_expired`, `accepted`, `by_hand`,
+`context_changed` and `unexplained`. Each carries whole `points`, which sum to
+`delta`, the `exact` share, how many `risks` it moved and up to five
+`findings`. It compares the same two points the delta does: the reading before
+the latest scan's, and the charges as they stand. `available` is false, with a
+`reason` of `first_reading` or `not_recorded`, until two readings that kept
+their ledger exist.
+
 `/assets` returns `provider_resource_id` on every row, not only on the detail.
 It is the one field that says where an asset _sits_: an ARM id spells out its
 own subscription and resource group, so a client can group an inventory by scope
@@ -401,6 +511,33 @@ CRITICAL first rather than alphabetically, and an unrecognised `sort` is
 rejected with 422 rather than quietly falling back to a different order than the
 one asked for. `search` matches a finding's title, its rule id, or the name of
 the resource it was found on; for a risk, its title or description.
+
+`/findings` takes `confidence` (`HIGH`, `MEDIUM` or `LOW`) and every row carries a
+`confidence` object: how current the finding is and how settled its rank
+(DECISIONS.md §262). `level` is LOW when the evidence is stale, MEDIUM when it is
+ageing or when the asset's criticality or data sensitivity is unknown or was
+guessed from its name, and HIGH otherwise; `reasons` names each shortfall and the
+context fields it concerns, and `observed_at`, `fresh_until` and `stale_at` date
+it against the connection's own scan interval (a day where it is scanned by
+hand). The filter narrows and never reorders. `meta.confidence` counts the whole
+filtered set by level, ignoring the `confidence` filter itself, so each count is
+what choosing that level would show. `GET /findings/{id}` carries the same
+`confidence` and `condition`: each expected state the rule declares, with the
+value the finding's excerpt recorded beside it (`observed_recorded` is false where
+the excerpt does not carry the field, which is not the same as null).
+
+`GET /findings/{id}/evidence-package` is the finding as one versioned document
+(`format: "cleave.evidence-package"`, `version: 1`) for a ticket or an auditor:
+the asset under its cloud identifier, the failed condition, the rule and the
+version that raised it beside today's, the excerpt, the citations with their
+permissions and read times, the confidence, `limitations` (no citation recorded,
+a capture no longer stored, an incomplete reading, a changed or retired rule, an
+undeclared condition), the remediation, how a fix is verified, and `build`, the
+deployed commit that assembled it. A read: viewers and the demo may ask.
+
+`/attack-paths/graph` dates every drawn node (`observed_at`, when a scan last saw
+the asset) and gives every route a `confidence`: as current as its least recently
+seen hop, and MEDIUM where its target's sensitivity was guessed from a name.
 
 Every list that pages takes `limit` between 1 and its ceiling and `offset` from
 0; anything outside is a 422, never clamped. Every order a page is cut from ends
@@ -506,6 +643,20 @@ verification. `CANCELLED` abandons the verification and returns an
 `IN_PROGRESS` finding to `OPEN`; a cancelled task cannot be moved again (422) --
 track the finding with a new task instead (DECISIONS.md §212).
 
+Every task carries `due_on` and `due_by_policy` (DECISIONS.md §225). `due_on` is
+`due_date` where a person set one; otherwise it is the organization's
+`fix_within_days` for the finding's severity, counted from the finding's first
+detection, and `due_by_policy` is true. With neither, `due_on` is `null`. Owners
+and admins set the policy with `PATCH /organizations` and `fix_within_days`
+(`critical`, `high`, `medium`, `low`, each 1 to 365 days or `null`), sent whole:
+a severity left out is cleared.
+
+`GET /remediation/progress?days=30` (7 to 365) counts the findings a scan
+resolved in the window, tracked or not, never tasks marked done. `by_severity`
+gives each severity's `fixed`, `median_days_to_fix` from first detection,
+`on_time` and `late`; a fix with no deadline is neither. `recent` names the
+latest ten.
+
 `/attack-paths/access/{id}` answers who holds access to an asset and what an
 identity holds (DECISIONS.md §125). `data.holders` lists every role assigned on
 the asset or on a container above it, each as `{principal, role, at,
@@ -569,6 +720,67 @@ leads with those same rows under the small endpoint, because it wants three
 rows and has no use for a route map, and one claim with two denominators is
 worse than a second request. The attack-paths page fills that endpoint's cache
 from this payload, so the two pages pay once between them.
+
+`/attack-paths/graph` also carries `plan`: the changes that close the routes,
+in the order to make them (DECISIONS.md §245). Each entry has the link's
+`description`, `detail`, `facts`, `relationship`, ends, its `cost` relative to
+the other kinds of change, the keys of the routes it `closes` given the earlier
+changes are made, and `closed_after`, the running count. `remaining` is how
+many routes stay open once every change is made; the plan stops at ten changes,
+or when no single further change closes a route. It is picked one change at a
+time and is not promised to be the fewest.
+
+`/attack-paths/fix` says how to make one cut (DECISIONS.md §246): `sentence`
+is the change in neutral words, `commands` the provider's own commands where
+one command removes the link exactly (empty otherwise; Azure role assignments
+and group memberships only, from the connector), `severs` what the cut closes
+alone, and `findings` the open findings on the link's two ends, worst first,
+with whether a live task tracks each. Those findings are the ones on the two
+assets, never a claim about what the change resolves. A link not in the estate,
+or one nobody can remove, is `404`. For a role cut, `code` lists each assignment it
+removes that the organization's state index places in a repository (repository,
+working directory, address): removing it in code is deleting that block (§257).
+`pull_request_offered` says whether the deletion can be asked for as a pull
+request on this deployment, and `pull_requests` lists the cut's requests so far.
+
+`POST /attack-paths/pull-requests` asks for a role-assignment cut as pull
+requests, one per repository whose state index defines any of its assignments
+(DECISIONS.md §258): `202` with `Location` at `GET /attack-paths/pull-requests`,
+which lists the organization's cut requests (narrowed to one with `cut`, the link
+as `source|relationship|target`), each with its assignments' outcomes. A link that
+is not a role assignment, or one no index names, is `422`; a request already in
+flight or open is answered rather than repeated. The worker deletes the blocks and
+opens the pull request; merging is a person's, and marks the cut made, never
+proved.
+
+`/attack-paths/inspect/{id}` is what the asset card reads beyond the drawing
+(DECISIONS.md §254): `defined_in` lists where the customer's Terraform state
+index defines the asset (repository, working directory, address), `changes` its
+latest change events, newest first, and `sign_in`, for an account only, its last
+sign-in as the capture recorded it; `read: false` means no reading covered the
+account, never that it has not signed in. An asset not in the graph is `404`.
+
+Each route on `/attack-paths/graph` also carries `risk` — the id, status,
+level and score of the risk that tracks it, or `null` where no risk does —
+joined on the server by the route's ends (DECISIONS.md §244). The page used to
+fetch up to 500 route risks and match them itself, so marks past the 500th were
+lost.
+
+`/attack-paths/history` reads the route ledger that ANALYZE writes (§244): one
+episode per stretch of time a route was open. `routes` holds every open episode
+and every episode closed within `days`, each with its `status` (`NEW` when the
+scan that last saw it is the scan that opened it, `OPEN` when a later scan saw it
+again, `CLOSED`), `reopened` when an earlier episode of the same route had
+closed, `rerouted_at` and `rerouted_from` (the way it ran before) when a scan saw
+the same ends by another way round, and `close_reason` (`LINK_REMOVED`, or
+`ASSET_GONE`, so a deleted asset never reads as a fix). `trend` counts the routes
+open at the end of each day, from the episodes' own times rather than per scan,
+because a scan may read part of one connection. `latest` names the most recent
+scan that moved the ledger, what it read and what it opened, closed and
+rerouted: there is no organization-wide "last scan" to compare against.
+`meta.recorded_since` is when the first episode opened, and `null` until a scan
+has written one; nothing before the ledger shipped is reconstructed. A route
+that crosses two connections is seen whole by no scan and has no episode.
 
 `POST /attack-paths/simulate` answers for several links removed together, which
 no sum of `severs` can: two links that are each other's way round close nothing
@@ -727,6 +939,18 @@ user. `/risks` rows carry `accepted_until`: the earliest running end date among
 a finding risk's accepted members, or a route's own. `GET /findings/{id}` carries
 `accepted_until` too: the running acceptance's end date, `null` when the finding
 is not accepted or has no end date.
+
+An organization may require a second approver for acceptances at or above a severity
+(`acceptance_approval_from` on `PATCH /organizations`, a team's only: `409` in solo; DECISIONS.md
+§239). An acceptance it covers, on the finding page or through the risks triage, changes nothing:
+it is written as a `PENDING` acceptance, and the finding or route comes back with its status
+unchanged, which is how a caller can tell. `GET /findings/{id}` carries it as
+`pending_acceptance`. `GET /acceptances` lists them by `status` (`PENDING` by default) for any
+member. An owner or an admin other than the person who asked approves, and the acceptance then
+takes effect with the approver named on it, or rejects with a `note` the person who asked is
+shown. Both are `403` for the person who asked and for other roles, and `409` once decided, once
+the date asked for has passed, or once the finding or route has moved on. Asking again replaces a
+waiting request, and the `expire-acceptances` sweep ends one whose date passes undecided.
 
 `GET /risks/{id}` returns `observed_at` on a scenario: when the route was last
 seen, resolved from the scan that saw it. `null` where that scan has been pruned

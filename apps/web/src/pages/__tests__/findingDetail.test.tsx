@@ -8,7 +8,7 @@
  * all-clear — what counts as sensitive is something the customer declares.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -430,5 +430,109 @@ describe("the provenance panel", () => {
     expect(await screen.findByRole("heading", { name: FINDING.title })).toBeInTheDocument();
     expect(screen.queryByText("How we know")).not.toBeInTheDocument();
     expect(screen.queryByText(/raised before Cleave recorded/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("what failed, how sure, and the evidence package (§262)", () => {
+  const READ = {
+    observed_at: "2026-08-01T00:00:00Z",
+    fresh_until: "2026-08-02T12:00:00Z",
+    stale_at: "2026-08-08T00:00:00Z",
+  };
+  const CONDITION = {
+    field: "allowBlobPublicAccess",
+    describes: "Anonymous blob access is turned off",
+    comparison: "equals",
+    expected: false,
+    also_accepts: [],
+    observed: true,
+    observed_recorded: true,
+  };
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("puts what was seen beside what is expected", async () => {
+    mount([], { ...FINDING, condition: [CONDITION] });
+
+    const card = (await screen.findByText("What failed")).closest("[data-slot=card]");
+    expect(card).not.toBeNull();
+    const scope = within(card as HTMLElement);
+    expect(scope.getByText("Anonymous blob access is turned off")).toBeInTheDocument();
+    expect(scope.getByText("false")).toBeInTheDocument();
+    expect(scope.getByText("true")).toBeInTheDocument();
+  });
+
+  it("says a field the excerpt does not carry is absent, not null", async () => {
+    mount([], {
+      ...FINDING,
+      condition: [{ ...CONDITION, observed: null, observed_recorded: false }],
+    });
+
+    expect(await screen.findByText("Not in the excerpt")).toBeInTheDocument();
+    expect(screen.queryByText("null")).not.toBeInTheDocument();
+  });
+
+  it("says how sure, why, and offers what would settle it", async () => {
+    mount([], {
+      ...FINDING,
+      resource: { ...FINDING.resource, cloud_account_id: "acct-1" },
+      confidence: {
+        ...READ,
+        level: "LOW",
+        freshness: "STALE",
+        reasons: [
+          { code: "EVIDENCE_STALE", fields: [] },
+          { code: "CONTEXT_INFERRED", fields: ["criticality"] },
+        ],
+      },
+    });
+
+    expect(await screen.findByText(/The estate may have changed since\./)).toBeInTheDocument();
+    expect(screen.getByText("Ranked on a guess from its name: criticality.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Rescan to refresh/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Declare its context" })).toHaveAttribute(
+      "href",
+      "/settings/context?account=acct-1",
+    );
+  });
+
+  it("says a settled finding is current, and offers nothing to do about it", async () => {
+    mount([], {
+      ...FINDING,
+      confidence: { ...READ, level: "HIGH", freshness: "FRESH", reasons: [] },
+    });
+
+    expect(
+      await screen.findByText("Current, and ranked on context that was declared or read."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Rescan to refresh/ })).not.toBeInTheDocument();
+  });
+
+  it("hands over the evidence package as a JSON file", async () => {
+    const created = vi.fn(() => "blob:package");
+    URL.createObjectURL = created;
+    URL.revokeObjectURL = vi.fn();
+    mount([]);
+    const fetched = vi.mocked(fetch);
+
+    fireEvent.click(await screen.findByRole("button", { name: /evidence package as JSON/ }));
+
+    await waitFor(() => expect(created).toHaveBeenCalledTimes(1));
+    expect(
+      fetched.mock.calls.some(([input]) =>
+        (typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url
+        ).endsWith("/evidence-package"),
+      ),
+    ).toBe(true);
   });
 });

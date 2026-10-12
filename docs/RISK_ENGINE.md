@@ -165,6 +165,16 @@ That makes the caution actionable rather than punitive. "9 of 12 open risks sit 
 classify — describe those subscriptions and the score will move" is work a customer can do; a
 silently lower number was not.
 
+### Why the score moved
+
+Each posture reading stores the risks it charged, each at its band, beside its total
+(`risk_history.charges`). A movement is then the risks whose charge changed between two readings,
+and each is given one cause from what Cleave recorded in between (DECISIONS.md §235). The curve is
+not a sum, so the points are split in its own terms: `ln S` is linear in `Σ deductions`, so a cause
+whose deductions changed by `Δ_i` takes `-L × Δ_i / k` of the change, where `L` is the logarithmic
+mean of the two scores. The parts are exact, do not depend on the order the causes happened in, and
+add up to the delta shown.
+
 ---
 
 ## 4. Priority
@@ -178,3 +188,21 @@ exposure + low effort surfaces first:
 | MFA gap | Critical | 30 min | Critical |
 | Logging | Medium | 120 min | Medium |
 | Architecture redesign | High | 2 days | Medium |
+
+## 5. Confidence
+
+How sure Cleave is that a finding or a route is current and ranked right, kept apart from both
+severity and risk (DECISIONS.md §262). It filters and never sorts: a stale critical stays at the top
+of the queue, marked to look again before anyone acts on it.
+
+| Level | When |
+|---|---|
+| HIGH | Evidence fresh, and the asset's criticality and data sensitivity were declared or read |
+| MEDIUM | Evidence ageing, or criticality or data sensitivity unknown or guessed from a name |
+| LOW | Evidence stale |
+
+Evidence age is judged against the connection's `scan_interval_hours` (a day for one scanned by
+hand): fresh for 1.5 intervals, stale after 3 intervals or 7 days, whichever is later. A finding is
+as old as its oldest citation; a route is as old as its least recently seen hop, and is MEDIUM where
+its target's sensitivity was guessed. The constants live in `app/risk/confidence.py`, and the
+findings list's SQL is built from them.

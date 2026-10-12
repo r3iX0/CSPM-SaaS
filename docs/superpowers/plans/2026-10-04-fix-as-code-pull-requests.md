@@ -1,5 +1,11 @@
 # Fix-as-Code pull requests implementation plan
 
+**Do not execute this plan as written.** `DECISIONS.md` §227 (8 October 2026) replaced three of
+its premises: blocks are located by the customer's CI index, not a model; a pull request covers a
+rule in a repository, not one finding; and the upload flow is kept. Its agent-locator and
+upload-removal tasks are dropped, and its per-finding tasks need rewriting. `docs/FIX_AS_CODE.md`
+Phase 2 is the current design.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use
 > checkbox (`- [ ]`) syntax for tracking.

@@ -1,5 +1,11 @@
 # Fix-as-Code pull requests: design
 
+> [!NOTE]
+> Superseded in part by `DECISIONS.md` §227 (8 October 2026): the customer's CI locates blocks
+> instead of a model, a pull request covers a rule in a repository instead of one finding, and the
+> upload flow stays until pull requests ship. The rest stands; `docs/FIX_AS_CODE.md` Phase 2 is
+> current.
+
 Status: draft for review, 2026-10-04. This is the design for Phase 2 of
 [Fix-as-Code](../../FIX_AS_CODE.md), changed by three decisions made while brainstorming: the
 upload flow is removed, Bicep is edited as well as Terraform, and a read-only agent locates the

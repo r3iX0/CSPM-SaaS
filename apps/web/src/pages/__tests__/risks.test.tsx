@@ -17,6 +17,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { RisksPage } from "../Risks";
 import { api } from "@/lib/api";
+import { endOfDayIso, tomorrowDay } from "@/lib/format";
+import { pickDay } from "@/test/pickDay";
 import type { Risk } from "@/lib/types";
 
 function findingRisk(overrides: Partial<Risk> = {}): Risk {
@@ -115,7 +117,9 @@ function mount(
             ? { data: [], meta: { total: untriaged } }
             : url.includes("/organizations")
               ? { data: [{ id: "org-1", name: "Contoso", is_demo: demo }], meta: {} }
-              : { data: risks, meta: {} },
+              : url.includes("/acceptances")
+                ? { data: [], meta: {} }
+                : { data: risks, meta: {} },
     ),
   );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -258,9 +262,8 @@ describe("RisksPage", () => {
       screen.getByLabelText("Why is this acceptable?"),
       "Accepted for the migration window",
     );
-    fireEvent.change(screen.getByLabelText("Until (optional)"), {
-      target: { value: "2099-03-31" },
-    });
+    // The calendar opens on the earliest day an acceptance may end on.
+    await pickDay("Until (optional)", tomorrowDay());
     expect(screen.getByText(/comes back to Needs triage on its own/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Accept" }));
 
@@ -269,7 +272,7 @@ describe("RisksPage", () => {
         risk_ids: ["r-finding"],
         status: "ACCEPTED",
         reason: "Accepted for the migration window",
-        expires_at: new Date("2099-03-31T23:59:59").toISOString(),
+        expires_at: endOfDayIso(tomorrowDay()),
       }),
     );
   });
@@ -474,13 +477,17 @@ describe("the risk ranking", () => {
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
         const url = String(input);
-        requested.push(url);
+        // Nothing waits for a second approver here; a risk row is not an acceptance.
+        const acceptances = url.includes("/acceptances");
+        if (!acceptances) requested.push(url);
         const params = new URL(url, "https://example.test").searchParams;
         const limit = Number(params.get("limit") ?? 100);
         const offset = Number(params.get("offset") ?? 0);
-        const page = Array.from({ length: Math.min(limit, TOTAL - offset) }, (_, i) =>
-          pagedRisk(offset + i),
-        );
+        const page = acceptances
+          ? []
+          : Array.from({ length: Math.min(limit, TOTAL - offset) }, (_, i) =>
+              pagedRisk(offset + i),
+            );
         return {
           ok: true,
           status: 200,

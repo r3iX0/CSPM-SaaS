@@ -160,6 +160,12 @@ class RiskHistory(UUIDPrimaryKey, TenantOwned, Base):
     # from the risks table; this is what makes "are there more than last week"
     # answerable at a glance.
     attack_path_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # What the score deducted for, risk by risk: each open finding risk's id to
+    # the band it was charged at, and each rule to the version that ran. The
+    # movement between two readings is the risks whose charge changed
+    # (DECISIONS.md §235). NULL on readings older than migration 0057.
+    charges: Mapped[dict | None] = mapped_column(JSONB)
+    rule_versions: Mapped[dict | None] = mapped_column(JSONB)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

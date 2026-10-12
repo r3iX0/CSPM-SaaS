@@ -6,6 +6,7 @@ import {
   PlugIcon,
   ShieldCheckIcon,
   SlidersHorizontalIcon,
+  UserRoundCheckIcon,
   UsersIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -17,6 +18,7 @@ export type SettingsSectionId =
   | "general"
   | "members"
   | "context"
+  | "ownership"
   | "integrations"
   | "audit"
   | "activity"
@@ -27,6 +29,15 @@ export interface SettingsSectionLink {
   readonly id: SettingsSectionId;
   readonly label: string;
   readonly icon: LucideIcon;
+}
+
+/**
+ * Whether the organization is a team (DECISIONS.md §236). A solo organization is one person,
+ * so what only a team needs -- members, ownership, owners on tasks -- is left out. An
+ * organization read before the mode existed is a team, as the column's default is.
+ */
+export function isTeam(organization: Organization | undefined): boolean {
+  return organization?.mode !== "SOLO";
 }
 
 /** Whether this reader manages the organization: owners and admins, never in the demo. */
@@ -54,9 +65,16 @@ export function settingsSections(
       id: "members",
       label: t.settings.nav.members,
       icon: UsersIcon,
-      shown: !organization.is_demo,
+      shown: !organization.is_demo && isTeam(organization),
     },
     { id: "context", label: t.settings.nav.context, icon: CrosshairIcon, shown: true },
+    // Owners are members, and the demo lists none (DECISIONS.md §236).
+    {
+      id: "ownership",
+      label: t.settings.nav.ownership,
+      icon: UserRoundCheckIcon,
+      shown: !organization.is_demo && isTeam(organization),
+    },
     {
       id: "integrations",
       label: t.settings.nav.integrations,

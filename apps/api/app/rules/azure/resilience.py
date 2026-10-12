@@ -76,6 +76,9 @@ SPECS = (
         field="automatic_failover",
         safe=True,
         describes="Automatic failover is enabled",
+        # The v4 name; azurerm 3.117 already accepts it beside ``enable_automatic_failover``.
+        terraform_attribute="automatic_failover_enabled",
+        terraform_resource_types=("azurerm_cosmosdb_account",),
         failure="does not fail over automatically",
     ),
     _spec(
@@ -184,6 +187,11 @@ SPECS = (
         field="geo_redundant_backup",
         safe="Enabled",
         describes="Geo-redundant backup is enabled",
+        terraform_attribute="geo_redundant_backup_enabled",
+        terraform_value=True,
+        terraform_resource_types=("azurerm_postgresql_flexible_server",),
+        # Azure sets it only at creation; azurerm replaces the server: new servers only.
+        terraform_replaces=True,
         failure="keeps its backups in one region",
     ),
     _spec(

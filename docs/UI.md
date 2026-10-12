@@ -225,6 +225,10 @@ most recent all mean descending, and an ascending security queue puts the least 
 finding's title previews in full on hover, because the column truncates and opening six rows to find
 the one you meant is not navigation.
 
+Confidence (DECISIONS.md §262) is a filter beside severity, each level with its count, and a column
+of three rising bars, quiet at High and never drawn in severity colours. When open findings rest on
+stale evidence, a banner above the queue says how many, with **Show them** and **Scan now**.
+
 Every paged list uses one pager (`common/Pager.tsx`) with real page numbers — first, last, and a
 window either side — so the end of a four-hundred-row list is one click rather than eight. The
 changes feed is windowed by date and has no total, so it gets Previous and Next and nothing that
@@ -291,6 +295,13 @@ the way in, a link in the middle, or the target. No route found is written as a 
 rather than as reassurance, because what counts as sensitive is something the customer declares.
 Evidence is the raw capture, clipped past about two screens with the rest one click away and
 copyable whole.
+
+**What failed** leads the main column: each condition the rule declares, expected beside what the
+excerpt recorded, and "Not in the excerpt" where it recorded nothing (never "null"). The rail says
+how sure Cleave is, when the evidence was read and until when that is current, each reason in a
+sentence with its remedy beside it (**Rescan to refresh**, **Declare its context**). **Evidence
+package** in the header downloads the finding as one JSON document, or copies it, for everyone,
+the demo included (DECISIONS.md §262).
 
 **Finding detail — how we know.** Under the evidence excerpt, the readings that
 excerpt came from: which listing, how long ago the _provider_ was read, the

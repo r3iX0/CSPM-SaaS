@@ -9,7 +9,9 @@ import { useIsGuest } from "@/lib/useAuth";
 import { ActivitySection } from "@/components/settings/Activity";
 import { AuditPackagesSection } from "@/components/settings/AuditPackages";
 import { ContextSettings } from "@/components/settings/ContextSettings";
+import { OwnershipSection } from "@/components/settings/Ownership";
 import { GeneralSettings } from "@/components/settings/GeneralSettings";
+import { GitHubCallback, GitHubSection } from "@/components/settings/GitHub";
 import { MembersSection } from "@/components/settings/Members";
 import { PreferencesSection } from "@/components/settings/Preferences";
 import { SecuritySection } from "@/components/settings/Security";
@@ -98,11 +100,23 @@ export function SettingsPage() {
               <Route path="members" element={<MembersSection organization={current} />} />
             )}
             <Route path="context" element={<ContextSettings organization={current} />} />
+            {shown.has("ownership") && (
+              <Route path="ownership" element={<OwnershipSection organization={current} />} />
+            )}
             {shown.has("integrations") && (
               <Route
                 path="integrations"
-                element={<WebhooksSection organizationId={current.id} />}
+                element={
+                  <div className="flex flex-col gap-10">
+                    <GitHubSection />
+                    <WebhooksSection organizationId={current.id} />
+                  </div>
+                }
               />
+            )}
+            {/* Where GitHub returns a person after installing the App (§231). */}
+            {shown.has("integrations") && (
+              <Route path="integrations/github" element={<GitHubCallback />} />
             )}
             {shown.has("audit") && (
               <Route path="audit" element={<AuditPackagesSection organizationId={current.id} />} />

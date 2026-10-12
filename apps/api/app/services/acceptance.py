@@ -39,6 +39,15 @@ def _due_exceptions(now: datetime) -> ColumnElement[bool]:
     )
 
 
+def _due_requests(now: datetime) -> ColumnElement[bool]:
+    """Requests still waiting for a second approver when the date they asked for passed (§239)."""
+    return and_(
+        RiskException.status == ExceptionStatus.PENDING,
+        RiskException.expires_at.is_not(None),
+        RiskException.expires_at <= now,
+    )
+
+
 def _due_routes(now: datetime) -> ColumnElement[bool]:
     return and_(
         Risk.kind != RiskKind.FINDING,
@@ -55,7 +64,9 @@ async def organizations_due(session: AsyncSession, now: datetime) -> list[UUID]:
     organization inside its own tenant-scoped session: the only cross-tenant
     question is *who*, never *what*.
     """
-    findings = select(RiskException.organization_id).where(_due_exceptions(now))
+    findings = select(RiskException.organization_id).where(
+        or_(_due_exceptions(now), _due_requests(now))
+    )
     routes = select(Risk.organization_id).where(_due_routes(now))
     return list((await session.execute(findings.union(routes))).scalars().all())
 
@@ -68,7 +79,7 @@ async def expire_due(
     Returns how many acceptances ran out. The caller commits.
     """
     now = now or datetime.now(UTC)
-    expired = 0
+    expired = await _expire_requests(session, organization_id, now)
 
     due = (
         await session.execute(
@@ -84,7 +95,7 @@ async def expire_due(
     # A finding another acceptance still covers is left alone. Accepting again
     # revokes the earlier exception, but rows written before that rule existed
     # can hold two, and the older date must not undo the newer decision.
-    still_covered: set[UUID] = set()
+    still_covered: set[UUID | None] = set()
     if due:
         still_covered = set(
             (
@@ -161,6 +172,36 @@ async def expire_due(
         expired += 1
 
     return expired
+
+
+async def _expire_requests(session: AsyncSession, organization_id: UUID, now: datetime) -> int:
+    """End requests nobody decided before their date: nothing was ever accepted, so nothing moves.
+
+    Approving one afterwards would accept something for a time already over, so it ends here and
+    the person who asked can ask again with a new date (DECISIONS.md section 239).
+    """
+    requests = (
+        await session.execute(
+            select(RiskException).where(
+                RiskException.organization_id == organization_id, _due_requests(now)
+            )
+        )
+    ).scalars()
+    count = 0
+    for request in requests:
+        request.status = ExceptionStatus.EXPIRED
+        request.decided_at = now
+        _audit(
+            session,
+            organization_id,
+            action="acceptance.request_expired",
+            resource_type="acceptance",
+            resource_id=request.id,
+            metadata={"expired_at": _iso(request.expires_at)},
+            now=now,
+        )
+        count += 1
+    return count
 
 
 def _audit(

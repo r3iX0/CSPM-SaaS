@@ -15,7 +15,13 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { layoutRouteMap, pairSpeakers, placeLabels } from "../graph/routeMapLayout";
+import {
+  layoutRouteMap,
+  pairSpeakers,
+  placeLabels,
+  READABLE_ZOOM,
+  readableFit,
+} from "../graph/routeMapLayout";
 import { COLUMN_GAP } from "../graph/neighborhoodLayout";
 import type { RouteMap } from "@/lib/types";
 
@@ -59,6 +65,7 @@ const MAP: RouteMap = {
   patterns: [],
   loose: [],
   choke_points: [],
+  plan: { cuts: [], total_routes: 0, remaining: 0 },
 };
 
 describe("the route map's layout", () => {
@@ -130,5 +137,27 @@ describe("the route map's labels", () => {
     ]);
 
     expect([...kept]).toEqual(["first", "below"]);
+  });
+});
+
+describe("the route map's first frame (§248)", () => {
+  const columns = (n: number) =>
+    new Map(Array.from({ length: n }, (_, i) => [`c${i}`, { x: i * COLUMN_GAP, y: 0 }]));
+
+  it("frames everything when it is readable whole", () => {
+    expect(readableFit(columns(2), 2000, 0.15)).toEqual(["c0", "c1"]);
+  });
+
+  it("frames the columns from the way in that fit at a readable zoom", () => {
+    const width = 1000;
+    const shown = readableFit(columns(6), width, 0.15);
+    expect(shown[0]).toBe("c0");
+    expect(shown.length).toBeLessThan(6);
+    const visible = (width * 0.7) / READABLE_ZOOM;
+    expect((shown.length - 1) * COLUMN_GAP).toBeLessThanOrEqual(visible);
+  });
+
+  it("always frames the way in, however narrow", () => {
+    expect(readableFit(columns(3), 100, 0.15)).toEqual(["c0"]);
   });
 });

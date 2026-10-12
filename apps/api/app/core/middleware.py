@@ -269,6 +269,14 @@ OPEN_PATHS = frozenset(
     {
         "/api/v1/cloud-connections/azure/consent/callback",
         "/api/v1/cloud-accounts/azure/permissions",
+        # GitHub's deliveries, signed with the App's webhook secret, and a job's
+        # state index or plan, signed by GitHub Actions: none carries a Cleave
+        # user (DECISIONS.md sections 231 and 234). The guardrail's allowlist is
+        # open on purpose: the same for everyone, and no secret.
+        "/api/v1/integrations/github/events",
+        "/api/v1/iac-indexes",
+        "/api/v1/iac-guardrail/allowlist",
+        "/api/v1/iac-guardrail/plans",
     }
 )
 OPEN_PREFIXES = ("/api/v1/events/",)

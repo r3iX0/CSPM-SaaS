@@ -31,7 +31,7 @@ producing a warning.
 
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any, Final
+from typing import Any, Final, TypedDict
 
 # Distinguishes "Terraform spells this the same way" from "Terraform spells it
 # ``false``". ``None`` cannot serve, because a Terraform argument genuinely set
@@ -62,6 +62,24 @@ class Comparison(StrEnum):
     NONE_MATCHING = "none_matching"
     # The collection holds at least one entry. ``example`` is a satisfying one.
     NOT_EMPTY = "not_empty"
+
+
+@dataclass(frozen=True)
+class TerraformRename:
+    """The argument under another name from a major azurerm release on.
+
+    azurerm renames arguments between majors, often turning the sense round as
+    it goes: v3's ``local_authentication_disabled = true`` is v4's
+    ``local_authentication_enabled = false``. Both names stay accepted until the
+    old one is removed, but a block may not set both, so a fix writing the old
+    name beside the new one fails ``terraform plan`` (DECISIONS.md §230).
+    """
+
+    #: The first major release that documents ``attribute``.
+    since: int
+    attribute: str
+    #: What to write under this name, in Terraform's terms.
+    value: Any
 
 
 @dataclass(frozen=True)
@@ -119,6 +137,17 @@ class ExpectedState:
     # provider says ``public_network_access_enabled = false``. Emitting the ARM
     # spelling into HCL would produce a line that does not mean what it says.
     terraform_value: Any = UNSET
+    # Whether changing ``terraform_attribute`` makes Terraform destroy the resource
+    # and create another (the provider's ``ForceNew``). The hint still says what new
+    # code should set, with the warning; the edit engine never writes it into
+    # existing code, because for a storage account the replacement is its data
+    # (DECISIONS.md §228). Held to the provider's documentation by
+    # ``test_terraform_hints_schema``.
+    terraform_replaces: bool = False
+    # The argument's later names, newest last. ``terraform_attribute`` stays the
+    # name every checked release accepts; the edit engine writes whichever name
+    # the block already uses, or the one the lock file's release documents.
+    terraform_renamed: tuple[TerraformRename, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -242,7 +271,23 @@ def _condition(state: ExpectedState) -> dict[str, Any]:
     return {"field": state.arm_alias, "notIn": [_policy_value(v) for v in accepted]}
 
 
-def terraform_hints(spec: RemediationSpec) -> list[dict[str, str]]:
+class TerraformRenamedHint(TypedDict):
+    since: int
+    attribute: str
+    value: str
+
+
+class TerraformHint(TypedDict):
+    """One argument to set, as the API and the edit engine read it."""
+
+    attribute: str
+    value: str
+    describes: str
+    replaces: bool
+    renamed: list[TerraformRenamedHint]
+
+
+def terraform_hints(spec: RemediationSpec) -> list[TerraformHint]:
     """The arguments to set, for a customer who manages this in code.
 
     Attributes rather than a resource block, deliberately. A generated block
@@ -257,6 +302,15 @@ def terraform_hints(spec: RemediationSpec) -> list[dict[str, str]]:
                 state.equals if state.terraform_value is UNSET else state.terraform_value
             ),
             "describes": state.describes,
+            "replaces": state.terraform_replaces,
+            "renamed": [
+                {
+                    "since": rename.since,
+                    "attribute": rename.attribute,
+                    "value": _hcl_value(rename.value),
+                }
+                for rename in state.terraform_renamed
+            ],
         }
         for state in spec.expected
         if state.terraform_attribute

@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BellIcon, CircleCheckIcon, EyeOffIcon, ShieldAlertIcon, XIcon } from "lucide-react";
+import { BellIcon, XIcon } from "lucide-react";
 
 import { api } from "@/lib/api";
+import { NOTIFICATION_ICONS } from "@/lib/icons";
 import type { AppNotification, NotificationKind } from "@/lib/types";
 import { useT } from "@/i18n";
 import { useValueChange } from "@/lib/motion";
+import { cn } from "@/lib/utils";
 import { formatDateTime, formatRelative } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -237,20 +239,25 @@ function Row({
 }
 
 /**
- * The severity tokens, not shadcn's chrome ones.
+ * The severity tokens, not shadcn's chrome ones; the shapes are `NOTIFICATION_ICONS`.
  *
  * A verified fix is the one piece of good news the product sends, and painting
  * it the same colour as a reachable finding would make the bell read as uniform
  * bad news — which is how people stop opening it.
  */
+const KIND_TONES: Record<NotificationKind, string> = {
+  REACHABLE_FINDING: "text-critical",
+  VERIFIED_FIX: "text-ok",
+  // UNKNOWN's colour, because that is what a failed reading produces: not a
+  // problem found, but a question CloudGuard could not answer.
+  COVERAGE_DROP: "text-unknown",
+  // A missed deadline is a promise broken, not an attacker's way in (§237).
+  WORK_OVERDUE: "text-high",
+  // The week's summary is neither good nor bad news on its own.
+  WORK_DIGEST: "text-muted-foreground",
+};
+
 function KindIcon({ kind }: { kind: NotificationKind }) {
-  if (kind === "VERIFIED_FIX") {
-    return <CircleCheckIcon className="mt-0.5 size-4 shrink-0 text-ok" />;
-  }
-  if (kind === "COVERAGE_DROP") {
-    // UNKNOWN's colour, because that is what a failed reading produces: not a
-    // problem found, but a question CloudGuard could not answer.
-    return <EyeOffIcon className="mt-0.5 size-4 shrink-0 text-unknown" />;
-  }
-  return <ShieldAlertIcon className="mt-0.5 size-4 shrink-0 text-critical" />;
+  const Icon = NOTIFICATION_ICONS[kind];
+  return <Icon className={cn("mt-0.5 size-4 shrink-0", KIND_TONES[kind])} />;
 }

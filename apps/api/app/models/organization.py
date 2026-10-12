@@ -1,11 +1,20 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, UniqueConstraint, false, func
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    SmallInteger,
+    String,
+    UniqueConstraint,
+    false,
+    func,
+)
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.enums import Role
+from app.core.enums import OrganizationMode, Role, Severity
 from app.models.base import Base, StrEnumType, Timestamps, UUIDPrimaryKey
 
 
@@ -22,6 +31,33 @@ class Organization(UUIDPrimaryKey, Timestamps, Base):
     is_demo: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=false()
     )
+    # How many days after first detection a finding of each severity is due, when its task has
+    # no due date of its own. NULL is no deadline (migration 0053, DECISIONS.md section 225).
+    fix_within_days_critical: Mapped[int | None] = mapped_column(SmallInteger)
+    fix_within_days_high: Mapped[int | None] = mapped_column(SmallInteger)
+    fix_within_days_medium: Mapped[int | None] = mapped_column(SmallInteger)
+    fix_within_days_low: Mapped[int | None] = mapped_column(SmallInteger)
+    # The lowest severity whose acceptance waits for a second owner or admin; NULL for none
+    # (migration 0062, DECISIONS.md section 239). Applies to a team only: solo has nobody else.
+    acceptance_approval_from: Mapped[Severity | None] = mapped_column(StrEnumType(Severity, 8))
+    # One person or a team (migration 0059, DECISIONS.md section 236). Solo has one member and
+    # no invitations; the product then leaves out members, ownership rules and owners on tasks.
+    mode: Mapped[OrganizationMode] = mapped_column(
+        StrEnumType(OrganizationMode, 8),
+        nullable=False,
+        default=OrganizationMode.TEAM,
+        server_default=OrganizationMode.TEAM.value,
+    )
+
+    @property
+    def fix_within_days(self) -> dict[str, int | None]:
+        """The four columns as the API names them, highest severity first."""
+        return {
+            "critical": self.fix_within_days_critical,
+            "high": self.fix_within_days_high,
+            "medium": self.fix_within_days_medium,
+            "low": self.fix_within_days_low,
+        }
 
     members: Mapped[list["OrganizationMember"]] = relationship(
         back_populates="organization", cascade="all, delete-orphan"

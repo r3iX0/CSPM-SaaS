@@ -29,11 +29,19 @@ import { MemoryRouter, useLocation } from "react-router-dom";
 
 import { AttackPathsPage } from "../AttackPaths";
 import { api } from "@/lib/api";
-import type { MappedRoute, Risk, RouteMap, RouteMapMeta, Simulation } from "@/lib/types";
+import type {
+  MappedRoute,
+  RouteHistory,
+  RouteMap,
+  RouteMapMeta,
+  RouteRisk,
+  Simulation,
+} from "@/lib/types";
 
 const ROUTE: MappedRoute = {
   key: "vm|storage",
   pattern: null,
+  risk: null,
   entry: {
     id: "vm",
     name: "jump-01",
@@ -117,7 +125,15 @@ const node = (id: string, name: string, column: number) => ({
 });
 
 function emptyMap(): RouteMap {
-  return { nodes: [], edges: [], routes: [], patterns: [], loose: [], choke_points: [] };
+  return {
+    nodes: [],
+    edges: [],
+    routes: [],
+    patterns: [],
+    loose: [],
+    choke_points: [],
+    plan: { cuts: [], total_routes: 0, remaining: 0 },
+  };
 }
 
 /** One route, and the link that severs it, as the graph endpoint sends them. */
@@ -199,17 +215,63 @@ function simulateWith(result: Simulation) {
     .mockImplementation(() => Promise.resolve({ data: result, meta: {} }));
 }
 
+/** How to make the plan's change: one untracked finding on its ends (§246). */
+const FIX = {
+  sentence: "Stop jump-01 running as mi-jump-01.",
+  description: "jump-01 runs as mi-jump-01",
+  detail: "jump-01 runs as mi-jump-01 (managed identity)",
+  relationship: "has_identity",
+  source: { id: "vm", name: "jump-01", resource_type: "virtual_machine", asset_id: "row-vm" },
+  target: { id: "mi", name: "mi-jump-01", resource_type: "service_principal", asset_id: null },
+  provider: "AZURE",
+  cost: 3,
+  severs: 1,
+  commands: [],
+  code: [],
+  pull_request_offered: false,
+  pull_requests: [],
+  findings: [
+    {
+      id: "finding-vm",
+      rule_id: "AZ-VM-001",
+      title: "RDP open to the internet",
+      severity: "CRITICAL",
+      status: "OPEN",
+      asset_name: "jump-01",
+      asset_id: "row-vm",
+      tracked: false,
+    },
+  ],
+};
+
+/** The route ledger before any scan has written to it (§244). */
+const EMPTY_HISTORY = {
+  data: { routes: [], trend: [], latest: null },
+  meta: { days: 30, recorded_since: null },
+};
+const RECORDED = { days: 30, recorded_since: "2026-10-01T09:00:00Z" };
+
+/** The risk the server joins to a route by its ends (DECISIONS.md §244). */
+const TRACKED: RouteRisk = { id: "r-route", status: "OPEN", risk_level: "HIGH", risk_score: 70 };
+
 function mount(
   map: RouteMap,
   meta: Partial<RouteMapMeta> & { total: number },
-  risks: Partial<Risk>[] = [],
+  tracked: Record<string, RouteRisk> = {},
   at = "/attack-paths",
+  history?: RouteHistory,
 ) {
+  const joined = {
+    ...map,
+    routes: map.routes.map((route) => ({ ...route, risk: tracked[route.key] ?? null })),
+  };
   vi.spyOn(api, "get").mockImplementation((url: string) =>
     Promise.resolve(
-      url.includes("/risks")
-        ? { data: risks, meta: {} }
-        : { data: map, meta: { drawn: map.routes.length, ...meta } },
+      url.includes("/history")
+        ? { data: history ?? EMPTY_HISTORY.data, meta: history ? RECORDED : EMPTY_HISTORY.meta }
+        : url.includes("/attack-paths/fix")
+          ? { data: FIX, meta: {} }
+          : { data: joined, meta: { drawn: map.routes.length, ...meta } },
     ),
   );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -236,18 +298,161 @@ describe("AttackPathsPage", () => {
     vi.restoreAllMocks();
   });
 
-  it("links a route to the risk that tracks it", async () => {
-    // Matched by its ends, which name a route on both pages (DECISIONS.md §103).
-    mount(oneRoute(), { total: 1, entry_points: 1, sensitive_targets: 1 }, [
+  it("leads with the changes that close the routes, and tries them as a plan", async () => {
+    const post = simulateWith(closingAll());
+    mount(
       {
-        id: "r-route",
-        kind: "ATTACK_PATH",
-        path: [
-          { ...ROUTE.steps[0], source_id: ROUTE.entry.id },
-          { ...ROUTE.steps[3], target_id: ROUTE.target.id },
-        ],
+        ...oneRoute(),
+        plan: {
+          cuts: [
+            {
+              ...CHOKE,
+              source: { id: "vm", name: "jump-01", resource_type: "virtual_machine" },
+              target: { id: "mi", name: "mi-jump-01", resource_type: "service_principal" },
+              relationship: "has_identity",
+              detail: "jump-01 runs as mi-jump-01 (managed identity)",
+              cost: 3,
+              closes: ["vm|storage"],
+              closed_after: 1,
+            },
+          ],
+          total_routes: 1,
+          remaining: 0,
+        },
       },
-    ]);
+      { total: 1, entry_points: 1, sensitive_targets: 1 },
+    );
+
+    const card = await screen.findByRole("region", { name: "1 change closes the only route" });
+    // The sentence reads whole, with the assets in it set apart (§259).
+    const step = within(card).getByText(
+      (_, element) =>
+        element?.tagName === "P" &&
+        element.textContent === "jump-01 runs as mi-jump-01 (managed identity)",
+    );
+    expect(step).toBeVisible();
+    expect(within(step).getByText("mi-jump-01")).toHaveClass("font-semibold");
+    expect(within(card).getByText("closes 1 route")).toBeVisible();
+    expect(
+      within(card).getByText("1 route from 1 exposed asset to 1 sensitive asset."),
+    ).toBeVisible();
+
+    await userEvent.click(within(card).getByRole("button", { name: "Try this plan" }));
+
+    expect(screen.getByTestId("where").textContent).toContain("cut=vm%7Chas_identity%7Cmi");
+    await waitFor(() => expect(post).toHaveBeenCalled());
+    expect(within(card).getByRole("button", { name: "Trying this plan" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("tracks the findings on the plan's changes in one step", async () => {
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: { id: "task-1" }, meta: {} });
+    mount(
+      {
+        ...oneRoute(),
+        plan: {
+          cuts: [
+            {
+              ...CHOKE,
+              source: { id: "vm", name: "jump-01", resource_type: "virtual_machine" },
+              target: { id: "mi", name: "mi-jump-01", resource_type: "service_principal" },
+              relationship: "has_identity",
+              cost: 3,
+              closes: ["vm|storage"],
+              closed_after: 1,
+            },
+          ],
+          total_routes: 1,
+          remaining: 0,
+        },
+      },
+      { total: 1, entry_points: 1, sensitive_targets: 1 },
+    );
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Track the findings on these changes" }),
+    );
+
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith("/api/v1/remediation", { finding_id: "finding-vm" }),
+    );
+  });
+
+  it("says what the latest scan moved, and marks a route that came back", async () => {
+    const episode = {
+      id: "e-1",
+      key: ROUTE.key,
+      entry: { id: "vm", name: "jump-01" },
+      target: { id: "storage", name: "customerdata", data_sensitivity: "HIGH" as const },
+      hops: 4,
+      steps: [],
+      status: "NEW" as const,
+      reopened: true,
+      opened_at: "2026-10-09T09:00:00Z",
+      opened_scan_id: "s-2",
+      last_seen_at: "2026-10-09T09:00:00Z",
+      last_seen_scan_id: "s-2",
+      rerouted_at: null,
+      rerouted_from: null,
+      closed_at: null,
+      closed_scan_id: null,
+      close_reason: null,
+    };
+    const gone = {
+      ...episode,
+      id: "e-2",
+      key: "web|vault",
+      entry: { id: "web", name: "web-02" },
+      target: { id: "vault", name: "kv-prod", data_sensitivity: "HIGH" as const },
+      status: "CLOSED" as const,
+      reopened: false,
+      closed_at: "2026-10-09T09:00:00Z",
+      close_reason: "ASSET_GONE" as const,
+    };
+    mount(oneRoute(), { total: 1, entry_points: 1, sensitive_targets: 1 }, {}, "/attack-paths", {
+      routes: [episode, gone],
+      trend: [
+        { day: "2026-10-08", open: 2 },
+        { day: "2026-10-09", open: 1 },
+      ],
+      latest: {
+        scan_id: "s-2",
+        observed_at: "2026-10-09T09:00:00Z",
+        scope_name: "Production",
+        opened: 1,
+        closed: 1,
+        rerouted: 0,
+      },
+    });
+
+    expect(await screen.findByText(/Production: 1 new, 1 closed\./)).toBeVisible();
+    const panel = await routesPanel();
+    expect(await within(panel).findByText("Back")).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "1 closed in 30 days" }));
+    expect(screen.getByText(/an asset on it is gone/)).toBeVisible();
+  });
+
+  it("says when no single change closes a route", async () => {
+    mount(
+      { ...oneRoute(), plan: { cuts: [], total_routes: 1, remaining: 1 } },
+      { total: 1, entry_points: 1, sensitive_targets: 1 },
+    );
+
+    const card = await screen.findByRole("region", { name: "No single change closes a route" });
+    expect(within(card).getByText(/Each of the 1 routes has another way round/)).toBeVisible();
+    expect(within(card).queryByRole("button", { name: "Try this plan" })).toBeNull();
+  });
+
+  it("links a route to the risk that tracks it", async () => {
+    // Joined by its ends on the server, which name a route on both pages (§103, §244).
+    mount(
+      oneRoute(),
+      { total: 1, entry_points: 1, sensitive_targets: 1 },
+      { [ROUTE.key]: TRACKED },
+    );
 
     await userEvent.click(await within(await routesPanel()).findByText(/jump-01/));
 
@@ -403,8 +608,13 @@ describe("AttackPathsPage", () => {
     const panel = screen.getByRole("complementary", { name: "The routes" });
 
     expect(within(panel).getByText("The changes that close the most")).toBeInTheDocument();
+    // Read whole, with its two assets set apart (§260).
     expect(
-      within(panel).getByText("mi-jump-01 can act over sub-1 (Contributor)"),
+      within(panel).getByText(
+        (_, element) =>
+          element?.tagName === "P" &&
+          element.textContent === "mi-jump-01 can act over sub-1 (Contributor)",
+      ),
     ).toBeInTheDocument();
     expect(within(panel).getByText("4")).toBeInTheDocument();
     expect(within(panel).getByText(/of 4$/)).toBeInTheDocument();
@@ -536,16 +746,7 @@ describe("AttackPathsPage", () => {
         ],
       },
       { total: 3, entry_points: 3, sensitive_targets: 1 },
-      [
-        {
-          id: "r-route",
-          kind: "ATTACK_PATH",
-          path: [
-            { ...ROUTE.steps[0], source_id: ROUTE.entry.id },
-            { ...ROUTE.steps[3], target_id: ROUTE.target.id },
-          ],
-        },
-      ],
+      { [ROUTE.key]: TRACKED },
     );
     const rail = await screen.findByRole("complementary", { name: "The routes" });
     const row = (await within(rail).findByText(/3 virtual machines reach/)).closest("button")!;
@@ -577,7 +778,7 @@ describe("AttackPathsPage", () => {
     mount(
       oneRoute(),
       { total: 1, entry_points: 1, sensitive_targets: 1 },
-      [],
+      {},
       "/attack-paths?trace=vm%7Cstorage",
     );
 
@@ -601,15 +802,39 @@ describe("AttackPathsPage", () => {
     expect(within(navigator).getByText("Cutting it closes this route.")).toBeInTheDocument();
     expect(within(navigator).getByText("managed identity")).toBeInTheDocument();
 
+    // Walked from a hop, the focus follows the hop being read, so the next key
+    // steps on from there (it used to stay behind on the first).
+    within(hops)
+      .getByRole("button", { name: /^Hop 1 of 4/ })
+      .focus();
     fireEvent.keyDown(navigator, { key: "ArrowDown" });
     expect(screen.getByTestId("where")).toHaveTextContent("hop=1");
     expect(within(hops).getByRole("button", { name: /^Hop 2 of 4/ })).toHaveAttribute(
       "aria-current",
       "step",
     );
-    expect(within(hops).getByRole("button", { name: /^Hop 2 of 4/ })).toHaveTextContent(
-      "mi-jump-01 can act over sub-1 (Contributor)",
+    await waitFor(() =>
+      expect(within(hops).getByRole("button", { name: /^Hop 2 of 4/ })).toHaveFocus(),
     );
+    // Every hop's row keeps its short line; the hop being read says the rest
+    // in the dock under the list, so walking moves a highlight, not the list.
+    expect(within(hops).getByRole("button", { name: /^Hop 2 of 4/ })).toHaveTextContent(
+      "mi-jump-01 can act over sub-1",
+    );
+    expect(within(navigator).getByText("Hop 2 of 4")).toBeInTheDocument();
+    expect(
+      within(navigator).getByText(
+        (_, element) =>
+          element?.tagName === "P" &&
+          element.textContent === "mi-jump-01 can act over sub-1 (Contributor)",
+      ),
+    ).toBeInTheDocument();
+
+    // The dock steps along the route too.
+    await userEvent.click(within(navigator).getByRole("button", { name: "Next hop" }));
+    expect(screen.getByTestId("where")).toHaveTextContent("hop=2");
+    await userEvent.click(within(navigator).getByRole("button", { name: "Previous hop" }));
+    expect(screen.getByTestId("where")).toHaveTextContent("hop=1");
 
     await userEvent.click(within(hops).getByRole("button", { name: /^Hop 4 of 4/ }));
     expect(screen.getByTestId("where")).toHaveTextContent("hop=3");
@@ -641,7 +866,7 @@ describe("AttackPathsPage", () => {
     mount(
       map,
       { total: 1, entry_points: 1, sensitive_targets: 1 },
-      [],
+      {},
       "/attack-paths?trace=vm%7Cstorage&hop=1",
     );
 
@@ -666,7 +891,7 @@ describe("AttackPathsPage", () => {
     mount(
       { ...oneRoute(), routes: [ROUTE, second], loose: [ROUTE.key, second.key] },
       { total: 2, entry_points: 2, sensitive_targets: 1 },
-      [],
+      {},
       "/attack-paths?trace=vm%7Cstorage&hop=2",
     );
 
@@ -696,7 +921,7 @@ describe("AttackPathsPage", () => {
     mount(
       oneRoute(),
       { total: 1, entry_points: 1, sensitive_targets: 1 },
-      [],
+      {},
       "/attack-paths?trace=vm%7Cstorage",
     );
 
@@ -719,7 +944,9 @@ describe("AttackPathsPage", () => {
   it("finds routes by any asset on them, and says when nothing is so named", async () => {
     mount(oneRoute(), { total: 1, entry_points: 1, sensitive_targets: 1 });
     const panel = await screen.findByRole("complementary", { name: "The routes" });
-    const search = await within(panel).findByRole("searchbox", { name: "Search routes" });
+    // In the query bar above the drawing, which narrows the list and the drawing (§253).
+    const bar = await screen.findByRole("search", { name: "Narrow the routes" });
+    const search = within(bar).getByRole("searchbox", { name: "Search routes" });
 
     // An asset in the middle of the route, not only its ends.
     await userEvent.type(search, "sub-1");
@@ -733,6 +960,28 @@ describe("AttackPathsPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("narrows by a facet kept in the URL, and clears it", async () => {
+    const critical: MappedRoute = {
+      ...ROUTE,
+      key: "web|vault",
+      entry: { ...ROUTE.entry, id: "web", name: "web-02" },
+      target: { ...ROUTE.target, id: "vault", name: "kv-prod", data_sensitivity: "CRITICAL" },
+    };
+    mount(
+      { ...oneRoute(), routes: [ROUTE, critical], loose: [ROUTE.key, critical.key] },
+      { total: 2, entry_points: 2, sensitive_targets: 2 },
+      {},
+      "/attack-paths?reaches=CRITICAL",
+    );
+    const panel = await routesPanel();
+    expect(await within(panel).findByText(/kv-prod/)).toBeInTheDocument();
+    expect(within(panel).queryByText(/customerdata/)).toBeNull();
+
+    await userEvent.click(screen.getByRole("button", { name: "Clear" }));
+    expect(await within(panel).findByText(/customerdata/)).toBeInTheDocument();
+    expect(screen.getByTestId("where").textContent).not.toContain("reaches=");
+  });
+
   it("sorts by what a route reaches, and marks the ones a risk tracks", async () => {
     const critical: MappedRoute = {
       ...ROUTE,
@@ -743,16 +992,7 @@ describe("AttackPathsPage", () => {
     mount(
       { ...oneRoute(), routes: [ROUTE, critical], loose: [ROUTE.key, critical.key] },
       { total: 2, entry_points: 2, sensitive_targets: 2 },
-      [
-        {
-          id: "r-route",
-          kind: "ATTACK_PATH",
-          path: [
-            { ...ROUTE.steps[0], source_id: ROUTE.entry.id },
-            { ...ROUTE.steps[3], target_id: ROUTE.target.id },
-          ],
-        },
-      ],
+      { [ROUTE.key]: TRACKED },
       "/attack-paths?sort=sensitive",
     );
     const panel = await screen.findByRole("complementary", { name: "The routes" });
@@ -778,7 +1018,7 @@ describe("AttackPathsPage", () => {
     mount(
       oneRoute(),
       { total: 1, entry_points: 1, sensitive_targets: 1 },
-      [],
+      {},
       "/attack-paths?trace=vm%7Cstorage",
     );
 
@@ -793,7 +1033,7 @@ describe("AttackPathsPage", () => {
     mount(
       oneRoute(),
       { total: 1, entry_points: 1, sensitive_targets: 1 },
-      [],
+      {},
       "/attack-paths?trace=gone%7Cstorage",
     );
 
@@ -807,7 +1047,7 @@ describe("AttackPathsPage", () => {
     mount(
       oneRoute(),
       { total: 1, entry_points: 1, sensitive_targets: 1 },
-      [],
+      {},
       "/attack-paths?trace=vm%7Cstorage",
     );
     const panel = await screen.findByRole("complementary", {
@@ -829,7 +1069,7 @@ describe("AttackPathsPage", () => {
     mount(
       oneRoute(),
       { total: 1, entry_points: 1, sensitive_targets: 1 },
-      [],
+      {},
       "/attack-paths?scope=sub-1",
     );
     const panel = await screen.findByRole("complementary", {
@@ -846,7 +1086,7 @@ describe("AttackPathsPage", () => {
     mount(
       oneRoute(),
       { total: 1, entry_points: 1, sensitive_targets: 1 },
-      [],
+      {},
       "/attack-paths?scope=sub-1&group=elsewhere",
     );
     const panel = await screen.findByRole("complementary", {
@@ -919,7 +1159,7 @@ describe("AttackPathsPage", () => {
     mount(
       oneRoute(),
       { total: 1, entry_points: 1, sensitive_targets: 1 },
-      [],
+      {},
       "/attack-paths?cut=vm%7Chas_identity%7Cmi&cut=mi%7Cgrants_role%7Csub",
     );
 
@@ -947,7 +1187,7 @@ describe("AttackPathsPage", () => {
     mount(
       oneRoute(),
       { total: 1, entry_points: 1, sensitive_targets: 1 },
-      [],
+      {},
       "/attack-paths?cut=gone%7Cnetwork_access%7Cvm",
     );
 
@@ -968,6 +1208,44 @@ describe("AttackPathsPage", () => {
     expect(screen.queryByText("The changes that close the most")).toBeNull();
   });
 
+  it("fills the screen with the drawing, and gives it back on Escape", async () => {
+    mount(oneRoute(), { total: 1, entry_points: 1, sensitive_targets: 1 });
+
+    await userEvent.click(await screen.findByRole("button", { name: "Full screen" }));
+    expect(screen.getByRole("button", { name: "Leave full screen" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(document.querySelector("[data-graph-frame]")).toHaveClass("fixed");
+    expect(document.documentElement.style.overflow).toBe("hidden");
+
+    await userEvent.keyboard("{Escape}");
+    expect(screen.getByRole("button", { name: "Full screen" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    expect(document.querySelector("[data-graph-frame]")).not.toHaveClass("fixed");
+    expect(document.documentElement.style.overflow).toBe("");
+  });
+
+  it("keeps the facets behind one control that counts them", async () => {
+    mount(
+      oneRoute(),
+      { total: 1, entry_points: 1, sensitive_targets: 1 },
+      {},
+      "/attack-paths?reaches=CRITICAL&hops_max=3",
+    );
+
+    const filters = await screen.findByRole("button", { name: /^Filters/ });
+    expect(filters).toHaveTextContent("2");
+    expect(screen.queryByRole("combobox", { name: "What it reaches" })).toBeNull();
+
+    await userEvent.click(filters);
+    expect(await screen.findByRole("combobox", { name: "What it reaches" })).toHaveTextContent(
+      "Critical",
+    );
+  });
+
   it("says nothing about cutting when there is nothing to cut", async () => {
     mount(emptyMap(), { total: 0, entry_points: 3, sensitive_targets: 0 });
 
@@ -975,5 +1253,50 @@ describe("AttackPathsPage", () => {
       expect(screen.getByText("Nothing has been classified as sensitive")).toBeInTheDocument(),
     );
     expect(screen.queryByText("The changes that close the most")).not.toBeInTheDocument();
+  });
+  // How current a route is (§262): marked in the list only when short of
+  // High, and always dated where one route is read.
+  it("marks a stale route in the list and dates it where it is read", async () => {
+    const stale: MappedRoute = {
+      ...ROUTE,
+      confidence: {
+        level: "LOW",
+        freshness: "STALE",
+        observed_at: "2026-01-01T00:00:00Z",
+        fresh_until: "2026-01-02T12:00:00Z",
+        stale_at: "2026-01-08T00:00:00Z",
+        reasons: [{ code: "EVIDENCE_STALE", fields: [] }],
+      },
+    };
+    mount({ ...oneRoute(), routes: [stale] }, { total: 1 });
+
+    const panel = await routesPanel();
+    expect(
+      await within(panel).findByRole("img", { name: /^Confidence: Low\. Read / }),
+    ).toBeInTheDocument();
+    expect(within(panel).getByText("Stale")).toBeInTheDocument();
+
+    fireEvent.click(within(panel).getByRole("button", { name: /jump-01.*customerdata/i }));
+    const navigator = await screen.findByRole("group", { name: /attack path from/i });
+    expect(within(navigator).getByText(/^seen /)).toBeInTheDocument();
+  });
+
+  it("leaves a current route unmarked in the list", async () => {
+    const current: MappedRoute = {
+      ...ROUTE,
+      confidence: {
+        level: "HIGH",
+        freshness: "FRESH",
+        observed_at: new Date().toISOString(),
+        fresh_until: new Date(Date.now() + 86_400_000).toISOString(),
+        stale_at: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+        reasons: [],
+      },
+    };
+    mount({ ...oneRoute(), routes: [current] }, { total: 1 });
+
+    const panel = await routesPanel();
+    await within(panel).findByRole("button", { name: /jump-01.*customerdata/i });
+    expect(within(panel).queryByRole("img", { name: /^Confidence:/ })).not.toBeInTheDocument();
   });
 });

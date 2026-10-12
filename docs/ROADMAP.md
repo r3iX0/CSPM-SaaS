@@ -3,6 +3,9 @@
 Architecturally anticipated, **not implemented in the MVP** — extension points only. Nothing in this
 file should influence what gets built now; see `PRODUCT_SPEC.md` §5 for explicit non-goals.
 
+What comes next for remediation (Jira sync, Fix-as-Code pull requests, and what follows them)
+is in [the remediation plan](REMEDIATION_PLAN.md).
+
 ---
 
 ## Compliance — **partly built**

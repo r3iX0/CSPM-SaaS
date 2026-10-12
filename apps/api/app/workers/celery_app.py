@@ -99,6 +99,12 @@ celery_app.conf.beat_schedule = {
         "task": "cloudguard.deliver_webhooks",
         "schedule": 60.0,
     },
+    # A minute. A member who asked for a fix as a pull request is waiting on the
+    # link; the sweep does nothing where GitHub is not offered (section 232).
+    "open-fix-pull-requests": {
+        "task": "cloudguard.open_fix_pull_requests",
+        "schedule": 60.0,
+    },
     # Five minutes. An acceptance ends on a date somebody chose, and the risk
     # coming back to the queue within minutes of it is what makes the date
     # mean something. The sweep asks one indexed question across tenants and

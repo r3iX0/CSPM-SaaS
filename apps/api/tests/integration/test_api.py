@@ -1145,6 +1145,224 @@ class TestAssetList:
             )
             await session.commit()
 
+    async def test_a_finding_says_where_the_state_index_defines_its_asset(
+        self, client, cleanup_orgs
+    ) -> None:
+        """An uploaded index marks its asset managed in code, for its organization only (§229)."""
+        from sqlalchemy import select
+
+        from app.core.db import service_session
+        from app.core.enums import FindingStatus, Severity
+        from app.models.finding import Finding
+        from app.models.resource import ResourceRecord
+        from app.remediation.iac.index import entries_from_upload
+        from app.services.iac_index import replace_index
+
+        user, stranger = uuid.uuid4(), uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Indexed Ltd"))
+        other_id = uuid.UUID(await make_org(client, stranger, "Elsewhere Ltd"))
+        cleanup_orgs.extend([org_id, other_id])
+
+        arm_id = (
+            "/subscriptions/00000000-0000-0000-0000-000000000001"
+            "/resourceGroups/prod/providers/Microsoft.Storage/storageAccounts/payroll"
+        )
+        await self._asset_in_a_subscription(org_id, arm_id)
+
+        def index(address: str) -> list:
+            # The id as Terraform writes it, in another case than Azure listed it.
+            return entries_from_upload(
+                [{"address": address, "type": "azurerm_storage_account", "id": arm_id.upper()}]
+            )
+
+        now = datetime.now(UTC)
+        async with service_session() as session:
+            resource = (
+                await session.execute(
+                    select(ResourceRecord).where(ResourceRecord.organization_id == org_id)
+                )
+            ).scalar_one()
+            finding = Finding(
+                organization_id=org_id,
+                resource_id=resource.id,
+                rule_id="AZ-STO-002",
+                severity=Severity.HIGH,
+                status=FindingStatus.OPEN,
+                title="TLS 1.0 is accepted",
+                description="",
+                first_detected_at=now,
+                last_detected_at=now,
+            )
+            session.add(finding)
+            for organization, address in [
+                (org_id, "module.storage.azurerm_storage_account.main"),
+                # Another organization indexing the same id is not this one's code.
+                (other_id, "azurerm_storage_account.theirs"),
+            ]:
+                for _ in range(2):  # a second upload replaces the first
+                    await replace_index(
+                        session,
+                        organization,
+                        repository_id=42,
+                        repository="contoso/infra",
+                        working_directory="infra",
+                        workspace="default",
+                        commit_sha="a" * 40,
+                        entries=index(address),
+                    )
+            finding_id = finding.id
+            await session.commit()
+
+        response = await client.get(f"/api/v1/findings/{finding_id}", headers=auth_header(user))
+
+        assert response.status_code == 200, response.text
+        [location] = response.json()["data"]["managed_in_code"]
+        assert (location["repository"], location["address"]) == (
+            "contoso/infra",
+            "module.storage.azurerm_storage_account.main",
+        )
+
+    async def test_a_rules_pull_request_is_queued_once_and_a_merge_claims_its_fix(
+        self, client, cleanup_orgs, monkeypatch
+    ) -> None:
+        """One request per rule and repository; a merge marks done and verifies (§232)."""
+        from sqlalchemy import select, update
+
+        from app.core.config import settings
+        from app.core.db import service_session
+        from app.core.enums import (
+            FindingStatus,
+            Priority,
+            RemediationStatus,
+            Severity,
+            VerificationStatus,
+        )
+        from app.models.finding import Finding
+        from app.models.fix_pull_request import FixPullRequest, FixPullRequestFinding
+        from app.models.remediation import RemediationTask
+        from app.models.resource import ResourceRecord
+        from app.models.verification import RemediationVerification
+        from app.remediation.iac.index import entries_from_upload
+        from app.services import pull_requests
+        from app.services.iac_index import replace_index
+
+        for name, value in {
+            "github_app_id": "1",
+            "github_app_slug": "cleave",
+            "github_app_client_id": "Iv1.x",
+            "github_app_client_secret": "s",
+            "github_app_private_key": "k",
+            "github_app_webhook_secret": "w",
+            "fix_prs_enabled": True,
+        }.items():
+            monkeypatch.setattr(settings, name, value)
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Pull Ltd"))
+        cleanup_orgs.append(org_id)
+        arm_id = (
+            "/subscriptions/00000000-0000-0000-0000-000000000001"
+            "/resourceGroups/prod/providers/Microsoft.Storage/storageAccounts/payroll"
+        )
+        await self._asset_in_a_subscription(org_id, arm_id)
+
+        now = datetime.now(UTC)
+        async with service_session() as session:
+            resource = (
+                await session.execute(
+                    select(ResourceRecord).where(ResourceRecord.organization_id == org_id)
+                )
+            ).scalar_one()
+            finding = Finding(
+                organization_id=org_id,
+                resource_id=resource.id,
+                rule_id="AZ-STO-002",
+                severity=Severity.HIGH,
+                status=FindingStatus.IN_PROGRESS,
+                title="TLS 1.0 is accepted",
+                description="",
+                first_detected_at=now,
+                last_detected_at=now,
+            )
+            session.add(finding)
+            await session.flush()
+            session.add(
+                RemediationTask(
+                    organization_id=org_id,
+                    finding_id=finding.id,
+                    status=RemediationStatus.TODO,
+                    priority=Priority.HIGH,
+                    estimated_effort_minutes=15,
+                )
+            )
+            await replace_index(
+                session,
+                org_id,
+                repository_id=42,
+                repository="contoso/infra",
+                working_directory="infra",
+                workspace="default",
+                commit_sha="a" * 40,
+                entries=entries_from_upload(
+                    [
+                        {
+                            "address": "azurerm_storage_account.payroll",
+                            "type": "azurerm_storage_account",
+                            "id": arm_id,
+                        }
+                    ]
+                ),
+            )
+            finding_id = finding.id
+            await session.commit()
+
+        asked = [
+            await client.post(
+                "/api/v1/remediation/pull-requests",
+                json={"rule_id": "AZ-STO-002"},
+                headers=auth_header(user),
+            )
+            for _ in range(2)
+        ]
+        assert [response.status_code for response in asked] == [202, 202], asked[0].text
+        first, second = (response.json()["data"] for response in asked)
+        assert first["not_indexed"] == 0
+        [queued] = first["pull_requests"]
+        assert (queued["state"], queued["repository"]) == ("QUEUED", "contoso/infra")
+        assert second["pull_requests"][0]["id"] == queued["id"], "asked twice, queued once"
+
+        # What the worker records once GitHub has the pull request open.
+        async with service_session() as session:
+            await session.execute(
+                update(FixPullRequest)
+                .where(FixPullRequest.id == uuid.UUID(queued["id"]))
+                .values(state="OPEN", pr_number=5)
+            )
+            await session.execute(
+                update(FixPullRequestFinding)
+                .where(FixPullRequestFinding.finding_id == finding_id)
+                .values(outcome="EDITED", path="infra/main.tf", line=3)
+            )
+            await session.commit()
+
+        await pull_requests.pull_request_closed(42, 5, merged=True)
+
+        async with service_session() as session:
+            task = (
+                await session.execute(
+                    select(RemediationTask).where(RemediationTask.finding_id == finding_id)
+                )
+            ).scalar_one()
+            verification = (
+                await session.execute(
+                    select(RemediationVerification).where(
+                        RemediationVerification.finding_id == finding_id
+                    )
+                )
+            ).scalar_one()
+        assert task.status == RemediationStatus.DONE
+        assert verification.status == VerificationStatus.PENDING
+
     async def test_a_listed_asset_names_itself_in_the_provider(self, client, cleanup_orgs) -> None:
         import uuid as uuid_module
 
@@ -2651,6 +2869,202 @@ class TestAssetNeighborhood:
         assert [row["finding_id"] for row in queue] == expected
         assert [row["on_routes"] for row in queue] == [1, 0, 0]
 
+    async def test_work_is_due_by_policy_and_fixes_are_counted_against_it(
+        self, client, cleanup_orgs
+    ) -> None:
+        """A task with no date is due by the policy; progress counts verified fixes (§225)."""
+        from datetime import timedelta
+
+        from app.core.db import service_session
+        from app.core.enums import FindingStatus, Priority, RemediationStatus, Severity
+        from app.models.finding import Finding
+        from app.models.remediation import RemediationTask
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Deadline Ltd"))
+        cleanup_orgs.append(org_id)
+
+        policy = await client.patch(
+            "/api/v1/organizations",
+            json={"fix_within_days": {"critical": 7, "high": 30}},
+            headers=auth_header(user),
+        )
+        assert policy.status_code == 200, policy.text
+        assert policy.json()["data"]["fix_within_days"] == {
+            "critical": 7,
+            "high": 30,
+            "medium": None,
+            "low": None,
+        }
+
+        now = datetime.now(UTC)
+
+        def finding(
+            severity: Severity, status: FindingStatus, age: int, fixed: int | None = None
+        ) -> Finding:
+            return Finding(
+                organization_id=org_id,
+                resource_id=None,
+                rule_id=f"AZ-TEST-{severity}-{age}",
+                severity=severity,
+                status=status,
+                title=f"{severity} first seen {age} days ago",
+                description="",
+                first_detected_at=now - timedelta(days=age),
+                last_detected_at=now,
+                resolved_at=None if fixed is None else now - timedelta(days=fixed),
+            )
+
+        async with service_session() as session:
+            late = finding(Severity.CRITICAL, FindingStatus.IN_PROGRESS, age=10)
+            on_time = finding(Severity.HIGH, FindingStatus.RESOLVED, age=20, fixed=2)
+            unheld = finding(Severity.LOW, FindingStatus.RESOLVED, age=40, fixed=1)
+            session.add_all([late, on_time, unheld])
+            await session.flush()
+            session.add(
+                RemediationTask(
+                    organization_id=org_id,
+                    finding_id=late.id,
+                    status=RemediationStatus.TODO,
+                    priority=Priority.CRITICAL,
+                    estimated_effort_minutes=30,
+                )
+            )
+            due = (late.first_detected_at.astimezone(UTC).date() + timedelta(days=7)).isoformat()
+            await session.commit()
+
+        queue = await client.get("/api/v1/remediation", headers=auth_header(user))
+        assert queue.status_code == 200, queue.text
+        [task] = queue.json()["data"]
+        assert (task["due_date"], task["due_on"], task["due_by_policy"]) == (None, due, True)
+
+        progress = await client.get("/api/v1/remediation/progress", headers=auth_header(user))
+        assert progress.status_code == 200, progress.text
+        body = progress.json()["data"]
+        assert (body["days"], body["fixed"], body["on_time"], body["late"]) == (30, 2, 1, 0)
+        by_severity = {row["severity"]: row for row in body["by_severity"]}
+        assert by_severity["HIGH"]["median_days_to_fix"] == 18.0
+        assert [fix["on_time"] for fix in body["recent"]] == [None, True]
+
+        refused = await client.patch(
+            "/api/v1/organizations",
+            json={"fix_within_days": {"critical": 0}},
+            headers=auth_header(user),
+        )
+        assert refused.status_code == 422
+
+    async def test_unassigned_work_is_owned_by_the_rule_its_place_matches(
+        self, client, cleanup_orgs
+    ) -> None:
+        """A task nobody was handed is owned by the ownership rules, derived on read (§236)."""
+        from app.core.db import service_session
+        from app.core.enums import FindingStatus, Priority, RemediationStatus, Severity
+        from app.models.finding import Finding
+        from app.models.remediation import RemediationTask
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Owners Ltd"))
+        cleanup_orgs.append(org_id)
+        now = datetime.now(UTC)
+        async with service_session() as session:
+            finding = Finding(
+                organization_id=org_id,
+                resource_id=None,
+                rule_id="AZ-IAM-002",
+                severity=Severity.HIGH,
+                status=FindingStatus.OPEN,
+                title="Nobody was handed this",
+                description="",
+                first_detected_at=now,
+                last_detected_at=now,
+            )
+            session.add(finding)
+            await session.flush()
+            session.add(
+                RemediationTask(
+                    organization_id=org_id,
+                    finding_id=finding.id,
+                    status=RemediationStatus.TODO,
+                    priority=Priority.HIGH,
+                    estimated_effort_minutes=30,
+                )
+            )
+            await session.commit()
+
+        before = await client.get("/api/v1/remediation?owner=none", headers=auth_header(user))
+        assert len(before.json()["data"]) == 1, before.text
+
+        rule = await client.post(
+            "/api/v1/ownership-rules",
+            json={"scope": "DEFAULT", "owner_id": str(user)},
+            headers=auth_header(user),
+        )
+        assert rule.status_code == 201, rule.text
+        assert rule.headers["Location"].endswith(rule.json()["data"]["id"])
+
+        mine = await client.get("/api/v1/remediation?owner=me", headers=auth_header(user))
+        [task] = mine.json()["data"]
+        assert (task["assigned_to"], task["owner_id"], task["owner_by_rule"]) == (
+            None,
+            str(user),
+            "DEFAULT",
+        )
+        unowned = await client.get("/api/v1/remediation?owner=none", headers=auth_header(user))
+        assert unowned.json()["data"] == []
+
+        again = await client.post(
+            "/api/v1/ownership-rules",
+            json={"scope": "DEFAULT", "owner_id": str(user)},
+            headers=auth_header(user),
+        )
+        assert again.status_code == 409, again.text
+
+        stranger = await client.post(
+            "/api/v1/ownership-rules",
+            json={"scope": "DEFAULT", "owner_id": str(uuid.uuid4())},
+            headers=auth_header(user),
+        )
+        assert stranger.status_code == 422, stranger.text
+
+        listed = await client.get("/api/v1/ownership-rules", headers=auth_header(user))
+        assert listed.json()["meta"] == {"total": 1}
+
+    async def test_solo_is_one_person_and_refuses_what_only_a_team_needs(
+        self, client, cleanup_orgs
+    ) -> None:
+        """Solo with nobody else; no invitation and no ownership rule in it (§236)."""
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Just Me Ltd"))
+        cleanup_orgs.append(org_id)
+        headers = auth_header(user)
+
+        invited = await client.post(
+            "/api/v1/invitations", json={"email": "colleague@example.com"}, headers=headers
+        )
+        assert invited.status_code == 201, invited.text
+        solo_body = {"mode": "SOLO"}
+        refused = await client.patch("/api/v1/organizations", json=solo_body, headers=headers)
+        assert refused.status_code == 409, refused.text
+
+        revoke = await client.delete(
+            f"/api/v1/invitations/{invited.json()['data']['id']}", headers=headers
+        )
+        assert revoke.status_code == 200, revoke.text
+        solo = await client.patch("/api/v1/organizations", json=solo_body, headers=headers)
+        assert solo.status_code == 200, solo.text
+        assert solo.json()["data"]["mode"] == "SOLO"
+
+        again = await client.post(
+            "/api/v1/invitations", json={"email": "colleague@example.com"}, headers=headers
+        )
+        assert again.status_code == 409, again.text
+        rule = await client.post(
+            "/api/v1/ownership-rules",
+            json={"scope": "DEFAULT", "owner_id": str(user)},
+            headers=headers,
+        )
+        assert rule.status_code == 409, rule.text
+
     async def test_who_holds_an_asset_names_the_workload_behind_the_identity(
         self, client, cleanup_orgs
     ) -> None:
@@ -2834,6 +3248,451 @@ class TestAssetNeighborhood:
         response = await client.get("/api/v1/attack-paths/estate", headers=auth_header(stranger))
         assert response.status_code == 200, response.text
         assert response.json()["data"]["boxes"] == []
+
+    async def test_a_tracked_route_carries_its_risk(self, client, cleanup_orgs) -> None:
+        """Joined on the server by the route's ends (DECISIONS.md section 244)."""
+        from app.core.db import service_session
+        from app.core.enums import Level, RiskKind, RiskStatus
+        from app.models.risk import Risk
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Graph Ltd"))
+        cleanup_orgs.append(org_id)
+        await self._estate(org_id)
+        async with service_session() as session:
+            risk = Risk(
+                organization_id=org_id,
+                kind=RiskKind.ATTACK_PATH,
+                scenario_key=f"{self.VM}->{self.STORAGE}",
+                title="jump-01 can reach payroll",
+                risk_score=81,
+                risk_level=Level.CRITICAL,
+                status=RiskStatus.OPEN,
+                severity="HIGH",
+                asset_criticality=Level.HIGH,
+                data_sensitivity=Level.HIGH,
+                internet_exposure=Level.HIGH,
+            )
+            session.add(risk)
+            await session.commit()
+            risk_id = risk.id
+
+        response = await client.get("/api/v1/attack-paths/graph", headers=auth_header(user))
+
+        assert response.status_code == 200, response.text
+        [route] = response.json()["data"]["routes"]
+        assert route["risk"] == {
+            "id": str(risk_id),
+            "status": "OPEN",
+            "risk_level": "CRITICAL",
+            "risk_score": 81.0,
+        }
+
+    async def test_the_route_history_starts_empty_and_reads_the_ledger(
+        self, client, cleanup_orgs
+    ) -> None:
+        from datetime import UTC, datetime, timedelta
+
+        from app.core.db import service_session
+        from app.core.enums import Level, RouteCloseReason, RouteEventKind
+        from app.models.route_ledger import RouteEpisode, RouteEvent
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Ledger Ltd"))
+        cleanup_orgs.append(org_id)
+
+        empty = await client.get("/api/v1/attack-paths/history", headers=auth_header(user))
+        assert empty.status_code == 200, empty.text
+        assert empty.json()["data"] == {"routes": [], "trend": [], "latest": None}
+        assert empty.json()["meta"] == {"days": 30, "recorded_since": None}
+
+        now = datetime.now(UTC)
+        async with service_session() as session:
+            for key, closed in (("a|b", None), ("c|d", now - timedelta(hours=1))):
+                episode = RouteEpisode(
+                    organization_id=org_id,
+                    route_key=key,
+                    entry_id=key[0],
+                    entry_name=key[0],
+                    target_id=key[2],
+                    target_name=key[2],
+                    target_sensitivity=Level.HIGH,
+                    hops=1,
+                    opened_at=now - timedelta(days=2),
+                    last_seen_at=now - timedelta(days=2),
+                    closed_at=closed,
+                    close_reason=RouteCloseReason.ASSET_GONE if closed else None,
+                )
+                session.add(episode)
+                await session.flush()
+                session.add(
+                    RouteEvent(
+                        organization_id=org_id,
+                        episode_id=episode.id,
+                        kind=RouteEventKind.CLOSED if closed else RouteEventKind.OPENED,
+                        observed_at=closed or now - timedelta(days=2),
+                        reason=RouteCloseReason.ASSET_GONE if closed else None,
+                    )
+                )
+            await session.commit()
+
+        response = await client.get(
+            "/api/v1/attack-paths/history?days=7", headers=auth_header(user)
+        )
+
+        assert response.status_code == 200, response.text
+        body = response.json()
+        by_key = {route["key"]: route for route in body["data"]["routes"]}
+        assert by_key["a|b"]["status"] == "OPEN"
+        assert by_key["c|d"]["status"] == "CLOSED"
+        assert by_key["c|d"]["close_reason"] == "ASSET_GONE"
+        assert body["data"]["latest"]["closed"] == 1
+        assert body["data"]["trend"][-1]["open"] == 1
+        assert body["meta"]["recorded_since"] is not None
+
+        other = uuid.uuid4()
+        stranger = uuid.UUID(await make_org(client, other, "Elsewhere Ltd"))
+        cleanup_orgs.append(stranger)
+        theirs = await client.get("/api/v1/attack-paths/history", headers=auth_header(other))
+        assert theirs.json()["data"]["routes"] == []
+
+        bad = await client.get("/api/v1/attack-paths/history?days=0", headers=auth_header(user))
+        assert bad.status_code == 422
+
+    async def test_a_cut_says_how_to_make_it(self, client, cleanup_orgs) -> None:
+        """The change, and the findings on the two ends (DECISIONS.md section 246)."""
+        from urllib.parse import urlencode
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Graph Ltd"))
+        cleanup_orgs.append(org_id)
+        vm_row = await self._estate(org_id)
+
+        query = urlencode(
+            {"source": self.VM, "relationship": "has_identity", "target": self.IDENTITY}
+        )
+        response = await client.get(f"/api/v1/attack-paths/fix?{query}", headers=auth_header(user))
+
+        assert response.status_code == 200, response.text
+        body = response.json()["data"]
+        assert body["sentence"].startswith("Stop jump-01 running as mi-jump-01")
+        assert body["severs"] == 1
+        assert body["commands"] == []
+        [finding] = body["findings"]
+        assert finding["asset_id"] == str(vm_row)
+        assert finding["tracked"] is False
+
+        missing = urlencode(
+            {"source": self.VM, "relationship": "network_access", "target": self.IDENTITY}
+        )
+        gone = await client.get(f"/api/v1/attack-paths/fix?{missing}", headers=auth_header(user))
+        assert gone.status_code == 404
+
+    async def test_an_asset_can_be_declared_sensitive_and_withdrawn(
+        self, client, cleanup_orgs
+    ) -> None:
+        """Per-asset sensitivity, applied by the next scan (DECISIONS.md section 251)."""
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Context Ltd"))
+        cleanup_orgs.append(org_id)
+        vm_row = await self._estate(org_id)
+        url = f"/api/v1/assets/{vm_row}/context"
+
+        nothing = await client.get(url, headers=auth_header(user))
+        assert nothing.status_code == 200, nothing.text
+        assert nothing.json()["data"] is None
+
+        declared = await client.put(
+            url,
+            json={"data_sensitivity": "HIGH", "note": "holds the payroll export"},
+            headers=auth_header(user),
+        )
+        assert declared.status_code == 200, declared.text
+        assert declared.json()["data"]["data_sensitivity"] == "HIGH"
+        assert (await client.get(url, headers=auth_header(user))).json()["data"]["note"] == (
+            "holds the payroll export"
+        )
+
+        unknown = await client.put(
+            url, json={"data_sensitivity": "UNKNOWN"}, headers=auth_header(user)
+        )
+        assert unknown.status_code == 422
+
+        cleared = await client.delete(url, headers=auth_header(user))
+        assert cleared.status_code == 200
+        assert (await client.get(url, headers=auth_header(user))).json()["data"] is None
+
+        other = uuid.uuid4()
+        stranger = uuid.UUID(await make_org(client, other, "Elsewhere Ltd"))
+        cleanup_orgs.append(stranger)
+        theirs = await client.put(
+            url, json={"data_sensitivity": "HIGH"}, headers=auth_header(other)
+        )
+        assert theirs.status_code == 404
+
+    async def test_the_inspector_reads_an_assets_code_and_changes(
+        self, client, cleanup_orgs
+    ) -> None:
+        """Where it is defined, and what happened to it (DECISIONS.md section 254)."""
+        from urllib.parse import quote
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Inspect Ltd"))
+        cleanup_orgs.append(org_id)
+        vm_row = await self._estate(org_id)
+
+        response = await client.get(
+            f"/api/v1/attack-paths/inspect/{quote(self.VM, safe='')}", headers=auth_header(user)
+        )
+
+        assert response.status_code == 200, response.text
+        body = response.json()["data"]
+        assert body["asset_id"] == str(vm_row)
+        assert body["defined_in"] == []
+        assert body["sign_in"] is None
+
+        missing = await client.get(
+            f"/api/v1/attack-paths/inspect/{quote('/nowhere', safe='')}", headers=auth_header(user)
+        )
+        assert missing.status_code == 404
+
+    async def test_a_role_cut_names_the_block_that_defines_it(self, client, cleanup_orgs) -> None:
+        """Removing it in code is deleting that block (DECISIONS.md section 257)."""
+        from urllib.parse import urlencode
+
+        from sqlalchemy import update
+
+        from app.core.db import service_session
+        from app.models.iac import IacIndex, IacIndexEntry
+        from app.models.resource import ResourceRecord
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Code Ltd"))
+        cleanup_orgs.append(org_id)
+        await self._estate(org_id)
+        assignment = f"{self.STORAGE}/providers/Microsoft.Authorization/roleAssignments/ra-1"
+        async with service_session() as session:
+            await session.execute(
+                update(ResourceRecord)
+                .where(
+                    ResourceRecord.organization_id == org_id,
+                    ResourceRecord.provider_resource_id == self.IDENTITY,
+                )
+                .values(
+                    resource_metadata={
+                        "roles": [
+                            {
+                                "role": "Storage Blob Data Owner",
+                                "scope": self.STORAGE,
+                                "target": self.STORAGE,
+                                "assignment_id": assignment,
+                            }
+                        ]
+                    }
+                )
+            )
+            index = IacIndex(
+                organization_id=org_id,
+                repository_id=1,
+                repository="acme/infra",
+                working_directory="prod",
+                commit_sha="0" * 40,
+            )
+            session.add(index)
+            await session.flush()
+            session.add(
+                IacIndexEntry(
+                    organization_id=org_id,
+                    index_id=index.id,
+                    address="azurerm_role_assignment.payroll",
+                    type="azurerm_role_assignment",
+                    resource_id=assignment.lower(),
+                )
+            )
+            await session.commit()
+        from app.services import graph as graph_service
+
+        graph_service.forget_cached_graphs()
+
+        query = urlencode(
+            {"source": self.IDENTITY, "relationship": "grants_role", "target": self.STORAGE}
+        )
+        response = await client.get(f"/api/v1/attack-paths/fix?{query}", headers=auth_header(user))
+
+        assert response.status_code == 200, response.text
+        assert response.json()["data"]["code"] == [
+            {
+                "assignment_id": assignment.lower(),
+                "repository": "acme/infra",
+                "working_directory": "prod",
+                "address": "azurerm_role_assignment.payroll",
+            }
+        ]
+
+    async def test_a_cut_is_opened_as_a_pull_request_deleting_its_block(
+        self, client, cleanup_orgs, monkeypatch
+    ) -> None:
+        """Asked, opened by the sweep against a stubbed GitHub, and merged (section 258)."""
+        import random
+        from typing import Any
+        from urllib.parse import urlencode
+
+        from sqlalchemy import select, update
+
+        from app.core.config import settings
+        from app.core.db import service_session
+        from app.integrations import github
+        from app.models.code_integration import CodeIntegration
+        from app.models.fix_pull_request import FixPullRequest, FixPullRequestAssignment
+        from app.models.iac import IacIndex, IacIndexEntry
+        from app.models.resource import ResourceRecord
+        from app.services import graph as graph_service
+        from app.services import pull_requests
+
+        for name, value in {
+            "github_app_id": "1",
+            "github_app_slug": "cleave",
+            "github_app_client_id": "Iv1.x",
+            "github_app_client_secret": "s",
+            "github_app_private_key": "k",
+            "github_app_webhook_secret": "w",
+            "fix_prs_enabled": True,
+        }.items():
+            monkeypatch.setattr(settings, name, value)
+
+        user = uuid.uuid4()
+        org_id = uuid.UUID(await make_org(client, user, "Cut Ltd"))
+        cleanup_orgs.append(org_id)
+        await self._estate(org_id)
+        assignment = f"{self.STORAGE}/providers/Microsoft.Authorization/roleAssignments/ra-9"
+        installation = random.randint(10**9, 2 * 10**9)
+        repository_id = random.randint(10**6, 10**7)
+        async with service_session() as session:
+            await session.execute(
+                update(ResourceRecord)
+                .where(
+                    ResourceRecord.organization_id == org_id,
+                    ResourceRecord.provider_resource_id == self.IDENTITY,
+                )
+                .values(
+                    resource_metadata={
+                        "roles": [
+                            {
+                                "role": "Owner",
+                                "scope": self.STORAGE,
+                                "target": self.STORAGE,
+                                "assignment_id": assignment,
+                            }
+                        ]
+                    }
+                )
+            )
+            index = IacIndex(
+                organization_id=org_id,
+                repository_id=repository_id,
+                repository="contoso/infra",
+                working_directory="infra",
+                commit_sha="0" * 40,
+            )
+            session.add(index)
+            session.add(
+                CodeIntegration(
+                    organization_id=org_id,
+                    installation_id=installation,
+                    account_login="contoso",
+                    account_type="Organization",
+                    connected_by=user,
+                )
+            )
+            await session.flush()
+            session.add(
+                IacIndexEntry(
+                    organization_id=org_id,
+                    index_id=index.id,
+                    address="azurerm_role_assignment.payroll",
+                    type="azurerm_role_assignment",
+                    resource_id=assignment.lower(),
+                )
+            )
+            await session.commit()
+        graph_service.forget_cached_graphs()
+        link = {"source": self.IDENTITY, "relationship": "grants_role", "target": self.STORAGE}
+
+        asked = await client.post(
+            "/api/v1/attack-paths/pull-requests", json=link, headers=auth_header(user)
+        )
+        assert asked.status_code == 202, asked.text
+        assert "Location" in asked.headers
+        [queued] = asked.json()["data"]["pull_requests"]
+        assert queued["state"] == "QUEUED"
+        again = await client.post(
+            "/api/v1/attack-paths/pull-requests", json=link, headers=auth_header(user)
+        )
+        assert again.json()["data"]["pull_requests"][0]["id"] == queued["id"]
+
+        fix = await client.get(
+            f"/api/v1/attack-paths/fix?{urlencode(link)}", headers=auth_header(user)
+        )
+        body = fix.json()["data"]
+        assert body["pull_request_offered"] is True
+        assert [pr["id"] for pr in body["pull_requests"]] == [queued["id"]]
+
+        files = {
+            "infra/main.tf": (
+                'resource "azurerm_role_assignment" "payroll" {\n'
+                "  scope                = azurerm_storage_account.payroll.id\n"
+                '  role_definition_name = "Owner"\n'
+                "  principal_id         = var.mi\n"
+                "}\n"
+            )
+        }
+        opened: list[dict[str, Any]] = []
+
+        async def repository_installation(full_name: str) -> int:
+            return installation
+
+        async def repository(full_name: str, installation_id: int) -> github.Repository:
+            return github.Repository(repository_id, full_name, "main")
+
+        async def installation_token(installation_id: int) -> str:
+            return "t"
+
+        async def terraform_files(full_name: str, branch: str, token: str) -> Any:
+            return "head", files
+
+        async def open_pull_request(full_name: str, **kwargs: Any) -> github.OpenedPullRequest:
+            opened.append(kwargs)
+            return github.OpenedPullRequest(31, "https://github.com/contoso/infra/pull/31")
+
+        for name, stub in {
+            "repository_installation": repository_installation,
+            "repository": repository,
+            "installation_token": installation_token,
+            "terraform_files": terraform_files,
+            "open_pull_request": open_pull_request,
+        }.items():
+            monkeypatch.setattr(github, name, stub)
+
+        await pull_requests.open_due()
+
+        assert opened and opened[0]["files"]["infra/main.tf"] == ""
+        async with service_session() as session:
+            pr = await session.get(FixPullRequest, uuid.UUID(queued["id"]))
+            assert (pr.state, pr.pr_number) == ("OPEN", 31)
+            [row] = (
+                await session.execute(
+                    select(FixPullRequestAssignment).where(
+                        FixPullRequestAssignment.pull_request_id == pr.id
+                    )
+                )
+            ).scalars()
+            assert (row.outcome, row.path) == ("REMOVED", "infra/main.tf")
+
+        await pull_requests.pull_request_closed(repository_id, 31, merged=True)
+        listed = await client.get("/api/v1/attack-paths/pull-requests", headers=auth_header(user))
+        [merged] = listed.json()["data"]
+        assert merged["state"] == "MERGED"
+        assert merged["assignments"][0]["outcome"] == "REMOVED"
 
 
 class TestReports:

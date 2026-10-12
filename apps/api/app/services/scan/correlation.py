@@ -20,6 +20,7 @@ from app.models.risk import Risk, RiskFinding
 from app.risk.scorer import default_scorer
 from app.risk.triage import route_status_on_observation
 from app.services.scan.context import AnalyzeContext
+from app.services.scan.ledger import record_routes
 from app.services.scan.scope import asset_scope
 from app.services.scan.writer import ScanWriter
 
@@ -85,6 +86,10 @@ async def correlate_paths(
         kind=RiskKind.ESCALATION,
         paths=graph.escalation_chains(),
     )
+    # Every route, misconfigured or not, into the ledger: the page's record of
+    # which routes existed at each reading (DECISIONS.md §244). From this same
+    # graph, so a route and its risk are statements about one reading.
+    await record_routes(ctx, graph)
     await ctx.writer.commit()
 
 

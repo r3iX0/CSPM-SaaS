@@ -14,7 +14,7 @@ from typing import ClassVar
 
 import pytest
 from sqlalchemy import text
-from sqlalchemy.exc import DBAPIError, ProgrammingError
+from sqlalchemy.exc import DBAPIError, IntegrityError, ProgrammingError
 
 from app.core.config import settings
 from app.core.db import rls_session, scan_session, service_session
@@ -566,3 +566,141 @@ class TestWorkerTenancy:
                 )
             ).scalar_one()
         assert inherited is False
+
+
+class TestIacIndexIsolation:
+    """The state index says where an asset is defined in a customer's code (§229).
+
+    Members read their own; nobody writes it through the request role, because the
+    upload is authenticated by the customer's pipeline, not by a person.
+    """
+
+    async def _index(self, org_id: uuid.UUID, address: str) -> None:
+        async with service_session() as session:
+            await session.execute(
+                text(
+                    "INSERT INTO iac_indexes (id, organization_id, repository_id, repository, "
+                    "commit_sha) VALUES (:id, :org, 42, 'contoso/infra', 'abc')"
+                ),
+                {"id": (index_id := uuid.uuid4()), "org": org_id},
+            )
+            await session.execute(
+                text(
+                    "INSERT INTO iac_index_entries "
+                    "(index_id, organization_id, address, type, resource_id) "
+                    "VALUES (:index, :org, :address, 'azurerm_key_vault', '/subscriptions/x')"
+                ),
+                {"index": index_id, "org": org_id, "address": address},
+            )
+            await session.commit()
+
+    async def test_an_index_is_read_only_by_its_own_organization(self, two_orgs) -> None:
+        org_a, org_b = two_orgs
+        await self._index(org_a, "azurerm_key_vault.a")
+        await self._index(org_b, "azurerm_key_vault.b")
+
+        async with rls_session(USER_A) as session:
+            addresses = (
+                (await session.execute(text("SELECT address FROM iac_index_entries")))
+                .scalars()
+                .all()
+            )
+
+        assert addresses == ["azurerm_key_vault.a"], "one tenant read another's code layout"
+
+    async def test_a_member_cannot_write_an_index(self, two_orgs) -> None:
+        org_a, _ = two_orgs
+
+        with pytest.raises((DBAPIError, ProgrammingError)) as exc:
+            async with rls_session(USER_A) as session:
+                await session.execute(
+                    text(
+                        "INSERT INTO iac_indexes (organization_id, repository_id, repository, "
+                        "commit_sha) VALUES (:org, 1, 'x/y', 'abc')"
+                    ),
+                    {"org": org_a},
+                )
+        assert "permission denied" in str(exc.value).lower()
+
+
+class TestCodeIntegrationIsolation:
+    """A linked GitHub installation is one organization's, and invisible to others (§231)."""
+
+    async def test_a_link_is_read_only_by_its_own_organization(self, two_orgs) -> None:
+        org_a, org_b = two_orgs
+        async with service_session() as session:
+            for org, installation in ((org_a, 101), (org_b, 202)):
+                await session.execute(
+                    text(
+                        "INSERT INTO code_integrations (organization_id, installation_id, "
+                        "account_login, account_type, connected_by) "
+                        "VALUES (:org, :installation, 'contoso', 'Organization', :user)"
+                    ),
+                    {"org": org, "installation": installation, "user": USER_A},
+                )
+            await session.commit()
+
+        async with rls_session(USER_A) as session:
+            seen = (
+                (await session.execute(text("SELECT installation_id FROM code_integrations")))
+                .scalars()
+                .all()
+            )
+
+        assert seen == [101], "one tenant saw another's GitHub installation"
+
+
+class TestOwnershipRuleIsolation:
+    """An ownership rule is one organization's, and only its owners and admins write it (§236)."""
+
+    async def _rule(self, org: uuid.UUID, owner: uuid.UUID) -> None:
+        async with service_session() as session:
+            await session.execute(
+                text(
+                    "INSERT INTO ownership_rules (organization_id, scope, owner_id, created_by) "
+                    "VALUES (:org, 'DEFAULT', :owner, :owner)"
+                ),
+                {"org": org, "owner": owner},
+            )
+            await session.commit()
+
+    async def test_a_rule_is_read_only_by_its_own_organization(self, two_orgs) -> None:
+        org_a, org_b = two_orgs
+        await self._rule(org_a, USER_A)
+        await self._rule(org_b, USER_B)
+
+        async with rls_session(USER_A) as session:
+            seen = (
+                (await session.execute(text("SELECT owner_id FROM ownership_rules")))
+                .scalars()
+                .all()
+            )
+
+        assert seen == [USER_A], "one tenant read another's ownership rules"
+
+    async def test_one_scope_has_one_rule(self, two_orgs) -> None:
+        org_a, _ = two_orgs
+        await self._rule(org_a, USER_A)
+        with pytest.raises(IntegrityError):
+            await self._rule(org_a, USER_A)
+
+    async def test_the_worker_reads_its_own_organization_members_and_rules(self, two_orgs) -> None:
+        """The digest's reads (§237, migration 0060): this organization's, and nobody else's."""
+        org_a, org_b = two_orgs
+        await self._rule(org_a, USER_A)
+        await self._rule(org_b, USER_B)
+
+        async with scan_session(org_a) as session:
+            orgs = set((await session.execute(text("SELECT id FROM organizations"))).scalars())
+            members = set(
+                (
+                    await session.execute(text("SELECT organization_id FROM organization_members"))
+                ).scalars()
+            )
+            rules = set(
+                (await session.execute(text("SELECT owner_id FROM ownership_rules"))).scalars()
+            )
+
+        assert orgs == {org_a}
+        assert members == {org_a}
+        assert rules == {USER_A}

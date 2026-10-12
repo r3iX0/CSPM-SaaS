@@ -22,7 +22,8 @@ facing the customer.
 """
 
 from collections import OrderedDict
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
@@ -30,16 +31,29 @@ import anyio
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.enums import FindingStatus, RelationshipType, Severity
+from app.core.enums import ContextSource, FindingStatus, RelationshipType, RiskKind, Severity
 from app.domain.resource import CloudResource
-from app.graph import AssetGraph, ChokePoint, DeadEnd, Neighborhood, Path, Simulation
+from app.graph import (
+    AssetGraph,
+    ChokePoint,
+    DeadEnd,
+    FixPlan,
+    Neighborhood,
+    Path,
+    Simulation,
+)
 from app.graph.access import AccessGrant, AccessHolder
 from app.graph.estate import DIRECTORY_SCOPE, EstateMap
 from app.graph.model import ENTRY_EXPOSURE, RELATIONSHIP_VERBS, SENSITIVE_DATA
 from app.graph.patterns import PatternKind, route_patterns
+from app.graph.severance import cut_cost
+from app.models.cloud_connection import CloudConnection
 from app.models.finding import Finding
 from app.models.resource import ResourceRecord, ResourceRelationship
+from app.models.risk import Risk
+from app.risk.confidence import assess_route, evidence_window
 from app.schemas.attack_path import (
+    MAX_SIMULATED_CUTS,
     AccessByTypeOut,
     AccessGrantOut,
     AccessHolderOut,
@@ -56,6 +70,8 @@ from app.schemas.attack_path import (
     EstateLinkOut,
     EstateOut,
     FindingTallyOut,
+    FixPlanCutOut,
+    FixPlanOut,
     FoldBoxOut,
     FoldedGroupOut,
     GraphEdgeOut,
@@ -75,11 +91,13 @@ from app.schemas.attack_path import (
     RouteMapNodeOut,
     RouteMapOut,
     RoutePatternOut,
+    RouteRiskOut,
     ScopeBoxOut,
     SimulatedCutOut,
     SimulatedRouteOut,
     SimulationOut,
 )
+from app.schemas.confidence import ConfidenceOut
 from app.services.placement import Placements
 
 # Graphs held in memory, keyed by tenant, each remembered with the version of
@@ -315,6 +333,28 @@ def serialize_choke_point(choke: ChokePoint, total_routes: int) -> ChokePointOut
             for path in choke.severed
         ],
     )
+
+
+def serialize_fix_plan(plan: FixPlan) -> FixPlanOut:
+    """The fix plan, each change with what it closes and the running count."""
+    cuts = []
+    closed = 0
+    for cut in plan.cuts:
+        closed += len(cut.closes)
+        cuts.append(
+            FixPlanCutOut(
+                description=cut.step.describe(),
+                detail=cut.step.detail(),
+                facts=list(cut.step.facts),
+                relationship=cut.step.relationship,
+                source=_link_end(cut.step.source),
+                target=_link_end(cut.step.target),
+                cost=cut_cost(cut.step.relationship),
+                closes=[route_key(path) for path in cut.closes],
+                closed_after=closed,
+            )
+        )
+    return FixPlanOut(cuts=cuts, total_routes=plan.before, remaining=plan.remaining)
 
 
 def _link_end(resource: CloudResource) -> LinkEndOut:
@@ -579,6 +619,70 @@ async def asset_ids(
     return dict(rows.tuples().all())
 
 
+@dataclass(frozen=True)
+class NodeReading:
+    """When an asset on a route was last seen, on what schedule, and how its sensitivity was judged.
+
+    What a route's confidence is weighed from (DECISIONS.md §262). Read before
+    the drawing goes off the loop, which never holds a session.
+    """
+
+    observed_at: datetime
+    interval_hours: int | None
+    data_sensitivity_source: ContextSource
+
+
+async def node_readings(
+    session: AsyncSession, organization_id: UUID, asset_ids: Sequence[UUID]
+) -> dict[UUID, NodeReading]:
+    """Each drawn asset's last sighting and its connection's schedule, in one query."""
+    if not asset_ids:
+        return {}
+    rows = await session.execute(
+        select(
+            ResourceRecord.id,
+            ResourceRecord.last_seen_at,
+            CloudConnection.scan_interval_hours,
+            ResourceRecord.data_sensitivity_source,
+        )
+        .outerjoin(CloudConnection, CloudConnection.id == ResourceRecord.connection_id)
+        .where(
+            ResourceRecord.organization_id == organization_id,
+            ResourceRecord.id.in_(asset_ids),
+        )
+    )
+    return {
+        row_id: NodeReading(seen, interval, source)
+        for row_id, seen, interval, source in rows.tuples().all()
+    }
+
+
+def _route_confidence(
+    path: Path,
+    ids: dict[str, UUID],
+    readings: Mapping[UUID, NodeReading],
+    now: datetime,
+) -> ConfidenceOut | None:
+    """A route's confidence from the readings of the assets it walks."""
+    walked = [path.entry.provider_resource_id] + [
+        step.target.provider_resource_id for step in path.steps
+    ]
+
+    def reading_of(node: str) -> NodeReading | None:
+        asset = ids.get(node)
+        return readings.get(asset) if asset is not None else None
+
+    seen = [reading for node in walked if (reading := reading_of(node)) is not None]
+    target = reading_of(path.target.provider_resource_id)
+    assessment = assess_route(
+        [evidence_window(reading.observed_at, reading.interval_hours) for reading in seen],
+        path.target.data_sensitivity,
+        target.data_sensitivity_source if target else ContextSource.NONE,
+        now,
+    )
+    return ConfidenceOut.of(assessment) if assessment else None
+
+
 # Worst first, for naming the most severe open finding on an asset.
 _SEVERITY_RANK = {
     Severity.CRITICAL: 0,
@@ -621,6 +725,38 @@ async def open_findings(
         if worst is None or _SEVERITY_RANK[severity] < _SEVERITY_RANK[Severity(worst)]:
             entry["worst"] = severity.value
     return found
+
+
+async def tracked_routes(
+    session: AsyncSession, organization_id: UUID, paths: Sequence[Path]
+) -> dict[str, RouteRiskOut]:
+    """The risk tracking each of these routes, by route key (DECISIONS.md section 244).
+
+    Joined here by the route's ends, which is what names a route on both sides
+    (section 103): a risk's ``scenario_key`` is ``entry->target`` and the page's
+    key is ``entry|target``. The browser used to fetch up to 500 route risks and
+    match them itself, so a tenant with more lost marks past the 500th.
+    """
+    by_scenario = {
+        f"{path.entry.provider_resource_id}->{path.target.provider_resource_id}": route_key(path)
+        for path in paths
+    }
+    if not by_scenario:
+        return {}
+    rows = await session.execute(
+        select(Risk.id, Risk.scenario_key, Risk.status, Risk.risk_level, Risk.risk_score).where(
+            Risk.organization_id == organization_id,
+            Risk.kind == RiskKind.ATTACK_PATH,
+            Risk.scenario_key.in_(list(by_scenario)),
+        )
+    )
+    return {
+        by_scenario[scenario_key]: RouteRiskOut(
+            id=risk_id, status=status, risk_level=level, risk_score=float(score)
+        )
+        for risk_id, scenario_key, status, level, score in rows.tuples().all()
+        if scenario_key in by_scenario
+    }
 
 
 def fold_id(parent: str, relationship: RelationshipType, layer: int) -> str:
@@ -909,6 +1045,9 @@ def serialize_route_map(
     total_routes: int,
     placements: Placements | None = None,
     choke_limit: int = 5,
+    risks: dict[str, RouteRiskOut] | None = None,
+    readings: Mapping[UUID, NodeReading] | None = None,
+    now: datetime | None = None,
 ) -> RouteMapOut:
     """Every route in the estate as one drawable graph, with what each link holds up.
 
@@ -932,7 +1071,11 @@ def serialize_route_map(
     the way the estate map reads it: the page says which subscription and group
     each hop is in, links there, and narrows to the routes through one
     (section 138). Without ``placements`` every node sits in the directory.
+
+    ``readings`` say when each node was last seen, which dates each node and
+    weighs each route's confidence (section 262); without them, nothing is dated.
     """
+    readings = readings or {}
     columns: dict[str, int] = {}
     through: dict[str, int] = {}
     for path in paths:
@@ -972,6 +1115,11 @@ def serialize_route_map(
                 sensitive=resource.data_sensitivity in SENSITIVE_DATA,
                 routes=through.get(node_id, 0),
                 findings=_tally(findings, asset_id),
+                observed_at=(
+                    readings[asset_id].observed_at
+                    if asset_id is not None and asset_id in readings
+                    else None
+                ),
             )
         )
 
@@ -1020,6 +1168,10 @@ def serialize_route_map(
                 **serialize_path(path).model_dump(),
                 key=route_key(path),
                 pattern=of_pattern.get(route_key(path)),
+                risk=(risks or {}).get(route_key(path)),
+                confidence=(
+                    _route_confidence(path, ids, readings, now) if now is not None else None
+                ),
             )
             for path in paths
         ],
@@ -1034,4 +1186,6 @@ def serialize_route_map(
             serialize_choke_point(choke, total_routes)
             for choke in graph.choke_points(limit=choke_limit)
         ],
+        # What to do first, against every route the estate has (section 245).
+        plan=serialize_fix_plan(graph.fix_plan(limit=MAX_SIMULATED_CUTS)),
     )

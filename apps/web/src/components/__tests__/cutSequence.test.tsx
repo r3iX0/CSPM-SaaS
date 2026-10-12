@@ -12,6 +12,7 @@ import type { MappedRoute } from "@/lib/types";
 const route = (key: string, entry: string, target: string): MappedRoute => ({
   key,
   pattern: null,
+  risk: null,
   entry: { id: entry, name: entry, resource_type: "virtual_machine", public_exposure: "CRITICAL" },
   target: { id: target, name: target, resource_type: "storage_account", data_sensitivity: "HIGH" },
   hops: 1,

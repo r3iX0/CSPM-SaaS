@@ -14,14 +14,15 @@ import {
   useUpdateTask,
   type TaskChange,
 } from "@/lib/remediation";
-import { useIsDemo } from "@/lib/useDemo";
+import { useCurrentOrganization, useIsDemo } from "@/lib/useDemo";
+import { isTeam } from "@/components/settings/sections";
+import { DatePicker } from "@/components/common/DatePicker";
 import { SelectField } from "@/components/common/SelectField";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { formatDate, formatEffort } from "@/lib/format";
+import { formatDate, formatDay, formatEffort } from "@/lib/format";
 
 /**
  * The work on a fix: track it, then say it is done.
@@ -33,8 +34,9 @@ import { formatDate, formatEffort } from "@/lib/format";
  * and the Terraform it was a scroll nobody made, and a reader looking for the
  * way to queue a fix concluded there was none (§205). Neither closes the
  * finding: tracking moves it to IN_PROGRESS, done starts the verification
- * (§18), and only a scan observing the fix resolves it. The caption says so
- * where the button is.
+ * (§18), and only a scan observing the fix resolves it. The queue says so once
+ * under its rows, and marking done says so in its toast; the sheet over the
+ * queue does not say it a third time (§224).
  *
  * Tracked work is worked here too: started, handed to a member, given a due
  * date, reopened when it was marked done too soon, and dropped from the queue
@@ -58,6 +60,8 @@ export function TrackFix({
   const update = useUpdateTask();
   const track = useTrack();
   const assignees = useAssignees();
+  // One person has every task, so a solo organization is not asked who (§236).
+  const team = isTeam(useCurrentOrganization());
 
   if (tasks.isLoading) return <Skeleton className="h-9 w-48" />;
 
@@ -114,39 +118,57 @@ export function TrackFix({
         </div>
         {open && (
           <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor={`owner-${task.id}`} className="text-caption text-muted-foreground">
-                {t.remediation.owner}
-              </Label>
-              <SelectField
-                id={`owner-${task.id}`}
-                value={task.assigned_to ?? ""}
-                disabled={isDemo || busy}
-                onValueChange={(value) => change({ assigned_to: value === "" ? null : value })}
-                ariaLabel={t.remediation.owner}
-                size="default"
-                className="w-56"
-                fallbackLabel={() => memberName(undefined)}
-                options={[
-                  { value: "", label: t.remediation.unassigned },
-                  ...(assignees.data ?? []).map((member) => ({
-                    value: member.user_id,
-                    label: memberName(member),
-                  })),
-                ]}
-              />
-            </div>
+            {team && (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor={`owner-${task.id}`} className="text-caption text-muted-foreground">
+                  {t.remediation.owner}
+                </Label>
+                <SelectField
+                  id={`owner-${task.id}`}
+                  value={task.assigned_to ?? ""}
+                  disabled={isDemo || busy}
+                  onValueChange={(value) => change({ assigned_to: value === "" ? null : value })}
+                  ariaLabel={t.remediation.owner}
+                  size="default"
+                  className="w-56"
+                  fallbackLabel={() => memberName(undefined)}
+                  options={[
+                    {
+                      value: "",
+                      // Unassigned work still has an owner where a rule names one (§236).
+                      label:
+                        task.owner_by_rule && task.owner_id
+                          ? t.remediation.routedTo(
+                              memberName(assignees.data?.find((m) => m.user_id === task.owner_id)),
+                              t.remediation.ownerScope[task.owner_by_rule],
+                            )
+                          : t.remediation.unassigned,
+                    },
+                    ...(assignees.data ?? []).map((member) => ({
+                      value: member.user_id,
+                      label: memberName(member),
+                    })),
+                  ]}
+                />
+              </div>
+            )}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor={`due-${task.id}`} className="text-caption text-muted-foreground">
                 {t.remediation.due}
               </Label>
-              <Input
+              {/* With no date of its own, the policy's is said in the box, so
+                  the reader sees what clearing a date falls back to (§225). */}
+              <DatePicker
                 id={`due-${task.id}`}
-                type="date"
-                className="h-8 w-fit"
                 disabled={isDemo || busy}
                 value={task.due_date ?? ""}
-                onChange={(event) => change({ due_date: event.target.value || null })}
+                placeholder={
+                  task.due_by_policy && task.due_on
+                    ? t.remediation.dueByPolicy(formatDay(task.due_on))
+                    : undefined
+                }
+                className="w-44"
+                onChange={(day) => change({ due_date: day })}
               />
             </div>
             {!isDemo && (
@@ -163,7 +185,6 @@ export function TrackFix({
             )}
           </div>
         )}
-        {open && <p className="text-xs text-muted-foreground">{t.remediation.doneNote}</p>}
       </div>
     );
   }

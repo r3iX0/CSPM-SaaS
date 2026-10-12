@@ -13,6 +13,22 @@ export interface Organization {
   role?: string;
   /** The shared, read-only demo estate (DECISIONS.md §99). */
   is_demo?: boolean;
+  /** Days after first detection a finding is due, by severity; null is none (§225). */
+  fix_within_days?: FixWithinDays;
+  /** One person or a team (§236); solo leaves out members, ownership and task owners. */
+  mode?: OrganizationMode;
+  /** The lowest severity whose acceptance waits for a second approver; null for none (§239). */
+  acceptance_approval_from?: Severity | null;
+}
+
+export type OrganizationMode = "SOLO" | "TEAM";
+
+/** An organization's deadline policy, sent and read whole (DECISIONS.md §225). */
+export interface FixWithinDays {
+  critical: number | null;
+  high: number | null;
+  medium: number | null;
+  low: number | null;
 }
 
 /**
@@ -59,6 +75,8 @@ export interface ResourceSummary {
   criticality: Level;
   data_sensitivity: Level;
   public_exposure: Level;
+  /** The subscription it sits in, where its context is declared; null in the directory. */
+  cloud_account_id?: string | null;
 }
 
 export interface Asset extends ResourceSummary {
@@ -189,6 +207,81 @@ export interface Finding {
   resolved_at: string | null;
   resolved_by_scan_id: string | null;
   resource: ResourceSummary | null;
+  /** How current it is and how settled its rank (DECISIONS.md §262). */
+  confidence?: ConfidenceInfo | null;
+}
+
+export type ConfidenceLevel = "HIGH" | "MEDIUM" | "LOW";
+export type Freshness = "FRESH" | "AGING" | "STALE";
+export type ConfidenceReasonCode =
+  "EVIDENCE_AGING" | "EVIDENCE_STALE" | "CONTEXT_UNKNOWN" | "CONTEXT_INFERRED";
+/** A context field a finding's rank multiplies that a customer can declare. */
+export type ContextField = "criticality" | "data_sensitivity";
+
+/**
+ * How sure Cleave is of a finding or a route (DECISIONS.md §262): how current
+ * its evidence is against its connection's schedule, and whether the context it
+ * was ranked on was established. The server alone decides what current means;
+ * the dates are here so the page can say it without holding the thresholds.
+ */
+export interface ConfidenceInfo {
+  level: ConfidenceLevel;
+  freshness: Freshness;
+  observed_at: string;
+  fresh_until: string;
+  stale_at: string;
+  /** Empty at HIGH. Evidence first, then context. */
+  reasons: { code: ConfidenceReasonCode; fields: ContextField[] }[];
+}
+
+/** One thing that must be true for a finding to close, beside what was seen. */
+export interface FindingCondition {
+  field: string;
+  describes: string;
+  comparison: "equals" | "none_matching" | "not_empty";
+  /** The value for `equals`; the witness for a collection check. */
+  expected: unknown;
+  also_accepts: unknown[];
+  observed: unknown;
+  /** False where the excerpt does not carry the field — not the same as null. */
+  observed_recorded: boolean;
+}
+
+/** What `GET /findings` says about the whole filtered set. */
+export interface FindingsMeta {
+  total: number;
+  limit: number;
+  offset: number;
+  /** The set by level, counted without the confidence filter itself. */
+  confidence: Record<ConfidenceLevel, number>;
+}
+
+export type LimitationCode =
+  | "NOT_CITED"
+  | "PAYLOAD_PRUNED"
+  | "READING_INCOMPLETE"
+  | "RULE_CHANGED"
+  | "RULE_RETIRED"
+  | "CONDITION_UNDECLARED";
+
+/** A finding as one versioned document for a ticket or an auditor (DECISIONS.md §262). */
+export interface EvidencePackage {
+  format: "cleave.evidence-package";
+  version: 1;
+  generated_at: string;
+  build: string | null;
+  finding: {
+    id: string;
+    title: string;
+    status: FindingStatus;
+    severity: Severity;
+    risk_score: number | null;
+  };
+  resource: { provider: string; provider_resource_id: string; name: string } | null;
+  rule: { rule_id: string; version: string; current_version: string | null };
+  condition: FindingCondition[];
+  confidence: ConfidenceInfo;
+  limitations: { code: LimitationCode; detail: string }[];
 }
 
 /** One transition in a finding's life, and who or what caused it. */
@@ -232,7 +325,17 @@ export interface RemediationSpec {
     example?: unknown;
   }[];
   cli: string[];
-  terraform: { attribute: string; value: string; describes: string }[];
+  /**
+   * `replaces`: changing it makes Terraform recreate the resource (DECISIONS.md §228).
+   * `renamed`: its name and value from a later azurerm major release on (§230).
+   */
+  terraform: {
+    attribute: string;
+    value: string;
+    describes: string;
+    replaces?: boolean;
+    renamed?: { since: number; attribute: string; value: string }[];
+  }[];
   azure_policy: Record<string, unknown> | null;
   enforceable: boolean;
   applies_when?: Record<string, unknown>;
@@ -260,12 +363,61 @@ export interface IacDiff {
   matched_by?: "name" | "sole_block" | null;
 }
 
+/** A GitHub App installation linked to the organization (DECISIONS.md §231). */
+export interface GitHubInstallation {
+  installation_id: number;
+  account_login: string;
+  account_type: string;
+  connected_at: string;
+}
+
+export interface GitHubStatus {
+  /** Whether this deployment offers GitHub at all. */
+  available: boolean;
+  installations: GitHubInstallation[];
+}
+
+/** One rule's fix as a pull request on one repository (DECISIONS.md §232). */
+export interface FixPullRequest {
+  id: string;
+  rule_id: string;
+  repository: string;
+  state: "QUEUED" | "OPENING" | "OPEN" | "MERGED" | "CLOSED" | "DECLINED" | "FAILED";
+  pr_number: number | null;
+  pr_url: string | null;
+  decline_reason: string | null;
+  detail: string | null;
+  created_at: string;
+  findings: {
+    finding_id: string;
+    address: string;
+    outcome: "PENDING" | "EDITED" | "DECLINED";
+    reason: string | null;
+    path: string | null;
+    line: number | null;
+  }[];
+}
+
+/** Where the customer's own Terraform state defines an asset (DECISIONS.md §229). */
+export interface IacLocation {
+  repository: string;
+  working_directory: string;
+  workspace: string;
+  address: string;
+  commit_sha: string;
+  uploaded_at: string;
+}
+
 export interface FindingDetail extends Finding {
+  /** Empty unless an uploaded state index names the asset (§229). */
+  managed_in_code?: IacLocation[];
   /**
    * When an accepted finding comes back to the queue. `null` when it is not
    * accepted, or accepted with no end date (DECISIONS.md §104).
    */
   accepted_until?: string | null;
+  /** An acceptance waiting for a second approver (DECISIONS.md §239). */
+  pending_acceptance?: PendingAcceptance | null;
   /** From the rule registry; `null` once the finding's rule has left it. */
   rule_name?: string | null;
   rationale?: string | null;
@@ -277,6 +429,8 @@ export interface FindingDetail extends Finding {
   remediation_spec?: RemediationSpec | null;
   verification?: Verification | null;
   timeline?: FindingEvent[];
+  /** The failed condition, expected beside observed. Empty where the rule declares none. */
+  condition?: FindingCondition[];
 }
 
 export interface Scan {
@@ -318,6 +472,38 @@ export interface Scan {
    * evidence about last month, and "verified fixed" may not rest on it.
    */
   evaluation_only?: boolean;
+}
+
+/** What moved the score since the reading before the latest scan (DECISIONS.md §235). */
+export type MovementCause =
+  | "new_failures"
+  | "fixes_verified"
+  | "rules_changed"
+  | "assets_appeared"
+  | "assets_removed"
+  | "acceptances_expired"
+  | "accepted"
+  | "by_hand"
+  | "context_changed"
+  | "unexplained";
+
+export interface ScoreMovement {
+  /** False for a first reading, or one recorded before readings kept their charges. */
+  available: boolean;
+  reason: "first_reading" | "not_recorded" | null;
+  since: string | null;
+  from_score: number | null;
+  to_score: number | null;
+  delta: number | null;
+  /** Whole points that sum to `delta`, largest share first. */
+  causes: {
+    cause: MovementCause;
+    points: number;
+    /** The exact share; under a point where `points` is 0. */
+    exact: number;
+    risks: number;
+    findings: { id: string; title: string; severity: string; rule_id: string; status: string }[];
+  }[];
 }
 
 /** What the posture was, one scan at a time. */
@@ -490,6 +676,68 @@ export interface RemediationTask {
    * queue listing.
    */
   on_routes?: number;
+  /**
+   * When the work is due: `due_date` where a person set one, else the
+   * organization's policy for the finding's severity (DECISIONS.md §225).
+   */
+  due_on?: string | null;
+  /** True where `due_on` came from the policy rather than a person. */
+  due_by_policy?: boolean;
+  /**
+   * Who has the work: `assigned_to` where a person handed it out, else the owner the
+   * organization's ownership rules name for the asset's place (DECISIONS.md §236).
+   */
+  owner_id?: string | null;
+  /** The rule's scope where routed; null where a person assigned it, or nobody has it. */
+  owner_by_rule?: OwnershipScope | null;
+}
+
+/** Where an ownership rule applies, most specific last (DECISIONS.md §236). */
+export type OwnershipScope = "DEFAULT" | "SUBSCRIPTION" | "RESOURCE_GROUP" | "TAG";
+
+export interface OwnershipRule {
+  id: string;
+  scope: OwnershipScope;
+  cloud_account_id: string | null;
+  resource_group: string | null;
+  tag_key: string | null;
+  tag_value: string | null;
+  owner_id: string;
+  /** False once the owner has left: the rule is skipped when routing. */
+  owner_is_member: boolean;
+  created_at: string;
+}
+
+/** A finding a scan observed fixed, as `GET /remediation/progress` names it (§225). */
+export interface FixedFinding {
+  finding_id: string;
+  title: string;
+  rule_id: string;
+  severity: Severity;
+  first_detected_at: string;
+  resolved_at: string;
+  due_on: string | null;
+  days_to_fix: number;
+  /** Null where the fix had no deadline. */
+  on_time: boolean | null;
+}
+
+export interface SeverityProgress {
+  severity: Severity;
+  fixed: number;
+  median_days_to_fix: number | null;
+  on_time: number;
+  late: number;
+}
+
+/** What a scan observed fixed in a window, and how it went against deadlines (§225). */
+export interface FixProgress {
+  days: number;
+  fixed: number;
+  on_time: number;
+  late: number;
+  by_severity: SeverityProgress[];
+  recent: FixedFinding[];
 }
 
 /** Compliance coverage. Mirrors app/compliance/coverage.py::ControlStatus. */
@@ -761,6 +1009,35 @@ export interface RouteMap {
   /** Routes belonging to no pattern. With the patterns, these are every route. */
   loose: string[];
   choke_points: ChokePoint[];
+  /** What to do first: the changes that close the routes, in order (§245). */
+  plan: FixPlan;
+}
+
+/** One change in the fix plan, and what it closes after the ones before it. */
+export interface FixPlanCut {
+  description: string;
+  detail: string;
+  facts: string[];
+  relationship: string;
+  source: { id: string; name: string; resource_type: string };
+  target: { id: string; name: string; resource_type: string };
+  /** What making it costs, relative to the others: lower is cheaper. */
+  cost: number;
+  /** Keys of the routes it closes, given the earlier changes are made. */
+  closes: string[];
+  /** Routes closed once it is made, counting the earlier changes. */
+  closed_after: number;
+}
+
+/**
+ * Changes that close the routes, picked one at a time and checked by finding
+ * the routes again after each, so every count is exact. Never "the fewest".
+ */
+export interface FixPlan {
+  cuts: FixPlanCut[];
+  total_routes: number;
+  /** Routes still open once every change is made. */
+  remaining: number;
 }
 
 export interface RouteMapNode {
@@ -785,6 +1062,8 @@ export interface RouteMapNode {
   /** How many routes run through it. */
   routes: number;
   findings: { open: number; worst: Level | null };
+  /** When a scan last saw it; null where never recorded. */
+  observed_at?: string | null;
 }
 
 export interface RouteMapEdge {
@@ -809,9 +1088,24 @@ export interface RouteMapEdge {
 }
 
 /** A route, with the name it is known by elsewhere and the pattern it belongs to. */
+/**
+ * The risk that tracks a route, joined on the server by the route's ends
+ * (DECISIONS.md §244). Most routes have none: a risk is raised only where
+ * something on the route fails a check.
+ */
+export interface RouteRisk {
+  id: string;
+  status: string;
+  risk_level: Level;
+  risk_score: number;
+}
+
 export interface MappedRoute extends AttackPath {
   key: string;
   pattern: string | null;
+  risk: RouteRisk | null;
+  /** As current as its least recently seen hop (DECISIONS.md §262); null with no reading. */
+  confidence?: ConfidenceInfo | null;
 }
 
 /**
@@ -1426,7 +1720,8 @@ export interface AzurePermissions {
   writes_performed: string;
 }
 
-export type NotificationKind = "REACHABLE_FINDING" | "VERIFIED_FIX" | "COVERAGE_DROP";
+export type NotificationKind =
+  "REACHABLE_FINDING" | "VERIFIED_FIX" | "COVERAGE_DROP" | "WORK_DIGEST" | "WORK_OVERDUE";
 
 /**
  * One thing worth telling somebody, as it was true when it happened.
@@ -1568,9 +1863,21 @@ export interface AuditPackageEvidence {
   payloads_stored: number;
 }
 
+/** The fixes a package carries (DECISIONS.md §238), counted; the archive lists them. */
+export interface AuditPackageFixes {
+  window_from: string;
+  window_to: string;
+  total: number;
+  listed: number;
+  verified: number;
+  with_pull_request: number;
+}
+
 export interface AuditPackageDetail extends AuditPackage {
   assessment: AuditPackageAssessment[];
   evidence: AuditPackageEvidence;
+  /** `null` for a package sealed before fixes were kept. */
+  fixes: AuditPackageFixes | null;
 }
 
 export interface AuditPackageVerification {
@@ -1620,4 +1927,197 @@ export interface AuditorGrant {
   email: string;
   opened_at: string;
   expires_at: string;
+}
+
+/** An acceptance that asked for a second approver, and what became of it (DECISIONS.md §239). */
+export interface Acceptance {
+  id: string;
+  /** The finding it is about, or else the route or escalation; never both. */
+  finding_id: string | null;
+  risk_id: string | null;
+  subject_title: string;
+  subject_severity: string;
+  subject_status: string;
+  reason: string;
+  expires_at: string | null;
+  status: "PENDING" | "ACTIVE" | "REJECTED" | "EXPIRED" | "REVOKED";
+  requested_by: string;
+  requested_by_email: string | null;
+  created_at: string;
+  decided_by: string | null;
+  decided_by_email: string | null;
+  decided_at: string | null;
+  decision_note: string | null;
+}
+
+/** An acceptance of a finding waiting for a second approver (§239). */
+export interface PendingAcceptance {
+  id: string;
+  requested_by: string;
+  reason: string;
+  expires_at: string | null;
+  created_at: string;
+}
+
+/** One end of a cut, with its row id where Cleave holds one (§246). */
+export interface CutEnd {
+  id: string;
+  name: string;
+  resource_type: string;
+  asset_id: string | null;
+}
+
+/** An open finding on one end of a cut, and whether a live task tracks it. */
+export interface CutFinding {
+  id: string;
+  rule_id: string;
+  title: string;
+  severity: Severity;
+  status: FindingStatus;
+  asset_name: string;
+  asset_id: string | null;
+  tracked: boolean;
+}
+
+/**
+ * How to make one cut (`GET /attack-paths/fix`, DECISIONS.md §246): the change
+ * said once, the provider's commands where one command removes the link
+ * exactly, and the open findings on its two ends -- never claimed to be what
+ * the change resolves.
+ */
+export interface CutFix {
+  sentence: string;
+  description: string;
+  detail: string;
+  relationship: string;
+  source: CutEnd;
+  target: CutEnd;
+  provider: string;
+  cost: number;
+  severs: number;
+  commands: string[];
+  findings: CutFinding[];
+  /** Whether this deployment can open the deletion as a pull request (§258). */
+  pull_request_offered: boolean;
+  /** The cut's pull requests so far, newest first. */
+  pull_requests: CutPullRequest[];
+  /** Where the role assignments it removes are defined in code (§257). */
+  code: { assignment_id: string; repository: string; working_directory: string; address: string }[];
+}
+
+/** One hop of a route as the ledger stored it, readable after its assets go. */
+export interface LedgerStep {
+  source: string;
+  source_id: string;
+  relationship: string;
+  target: string;
+  target_id: string;
+  description: string;
+}
+
+/**
+ * One stretch of time a route was open (`GET /attack-paths/history`,
+ * DECISIONS.md §244). NEW when the scan that last saw it opened it.
+ */
+export interface RouteEpisode {
+  id: string;
+  key: string;
+  entry: { id: string; name: string };
+  target: { id: string; name: string; data_sensitivity: Level };
+  hops: number;
+  steps: LedgerStep[];
+  status: "NEW" | "OPEN" | "CLOSED";
+  /** An earlier episode of the same route closed: it came back. */
+  reopened: boolean;
+  opened_at: string;
+  opened_scan_id: string | null;
+  last_seen_at: string;
+  last_seen_scan_id: string | null;
+  rerouted_at: string | null;
+  rerouted_from: LedgerStep[] | null;
+  closed_at: string | null;
+  closed_scan_id: string | null;
+  close_reason: "LINK_REMOVED" | "ASSET_GONE" | null;
+}
+
+/** The latest scan that moved the ledger, and what it moved. */
+export interface LedgerScan {
+  scan_id: string | null;
+  observed_at: string;
+  scope_name: string | null;
+  opened: number;
+  closed: number;
+  rerouted: number;
+}
+
+export interface RouteHistory {
+  routes: RouteEpisode[];
+  /** Routes open at the end of each day, oldest first. */
+  trend: { day: string; open: number }[];
+  latest: LedgerScan | null;
+}
+
+export interface RouteHistoryMeta {
+  days: number;
+  /** When the first episode opened; null until a scan has written one. */
+  recorded_since: string | null;
+}
+
+/** What a customer has said about one asset's data (DECISIONS.md §251). */
+export interface AssetDeclaration {
+  resource_id: string;
+  data_sensitivity: Level;
+  note: string | null;
+  declared_by_user_id: string | null;
+  declared_at: string;
+}
+
+/**
+ * What the inspector reads about one asset beyond the drawing
+ * (`GET /attack-paths/inspect/{id}`, DECISIONS.md §254).
+ */
+export interface AssetInspection {
+  asset_id: string | null;
+  /** Where the customer's Terraform state defines it; empty when none does. */
+  defined_in: { repository: string; working_directory: string; address: string }[];
+  /** The latest changes, newest first. */
+  changes: {
+    change: string;
+    previous_value: string | null;
+    current_value: string | null;
+    observed_at: string;
+  }[];
+  /** An account's last sign-in; `read` false is no reading, never "never signed in". */
+  sign_in: { read: boolean; last_sign_in: string | null; days_since: number | null } | null;
+}
+
+/** One asset a compromise of another would reach (`/attack-paths/blast-radius`). */
+export interface BlastAsset {
+  id: string;
+  asset_id: string | null;
+  name: string;
+  resource_type: string;
+  data_sensitivity: Level;
+}
+
+/** A cut asked for as a pull request on one repository (§258). */
+export interface CutPullRequest {
+  id: string;
+  cut_key: string;
+  repository: string;
+  /** QUEUED, OPENING, OPEN, MERGED, CLOSED, DECLINED or FAILED. */
+  state: string;
+  pr_number: number | null;
+  pr_url: string | null;
+  decline_reason: string | null;
+  detail: string | null;
+  created_at: string;
+  assignments: {
+    assignment_id: string;
+    address: string;
+    outcome: string;
+    reason: string | null;
+    path: string | null;
+    line: number | null;
+  }[];
 }

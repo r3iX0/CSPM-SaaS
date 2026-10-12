@@ -1,19 +1,25 @@
+from datetime import date, datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.enums import (
     AccessKind,
+    AssetChange,
+    FindingStatus,
     Level,
     Provider,
     RelationshipType,
     ResourceType,
+    RiskStatus,
+    RouteCloseReason,
     Severity,
 )
 from app.graph.model import DeadEndReason
 from app.graph.patterns import PatternKind
 from app.schemas.common import RequestModel
+from app.schemas.confidence import ConfidenceOut
 
 #: Links one simulation may remove. Each is weighed against the rest by
 #: rebuilding the estate without it, so the cost grows with the plan -- and a
@@ -502,6 +508,8 @@ class RouteMapNodeOut(BaseModel):
     sensitive: bool
     routes: int
     findings: FindingTallyOut
+    #: When a scan last saw this asset; ``None`` where it was never recorded.
+    observed_at: datetime | None = None
 
 
 class RouteMapEdgeOut(BaseModel):
@@ -521,10 +529,29 @@ class RouteMapEdgeOut(BaseModel):
     alternate: bool
 
 
+class RouteRiskOut(BaseModel):
+    """The risk that tracks a route, joined to it on the server by its ends.
+
+    A route has a risk only where something on it is misconfigured
+    (``correlation.py``); most routes have none, which is a real answer.
+    """
+
+    id: UUID
+    status: RiskStatus
+    risk_level: Level
+    risk_score: float
+
+
 class MappedRouteOut(AttackPathOut):
     key: str
     #: The pattern it belongs to; ``None`` for a route in none.
     pattern: str | None
+    #: The risk tracking it, or ``None`` for a route no risk tracks.
+    risk: RouteRiskOut | None = None
+    #: How current the route is -- its least recently seen hop -- and whether its
+    #: target's sensitivity was guessed (DECISIONS.md §262). ``None`` where no hop
+    #: has a reading on record.
+    confidence: ConfidenceOut | None = None
 
 
 class PatternEndOut(BaseModel):
@@ -548,6 +575,36 @@ class RoutePatternOut(BaseModel):
     varies: list[PatternEndOut]
 
 
+class FixPlanCutOut(BaseModel):
+    """One change in the fix plan, and what it closes after the ones before it."""
+
+    description: str
+    detail: str
+    facts: list[str]
+    relationship: RelationshipType
+    source: LinkEndOut
+    target: LinkEndOut
+    #: What making this change costs, relative to the others (``CUT_COST``).
+    cost: int
+    #: The keys of the routes this change closes, given the earlier ones are made.
+    closes: list[str]
+    #: Routes the plan has closed once this change is made, counting the earlier ones.
+    closed_after: int
+
+
+class FixPlanOut(BaseModel):
+    """Changes that close the routes, in order (DECISIONS.md section 245).
+
+    Picked greedily and confirmed by enumerating the routes again after each
+    change, so every count is exact; never said to be the fewest changes.
+    """
+
+    cuts: list[FixPlanCutOut]
+    total_routes: int
+    #: Routes still open once every change is made: zero closes everything.
+    remaining: int
+
+
 class RouteMapOut(BaseModel):
     nodes: list[RouteMapNodeOut]
     edges: list[RouteMapEdgeOut]
@@ -556,9 +613,227 @@ class RouteMapOut(BaseModel):
     #: Routes in no pattern. With the patterns, these are every route.
     loose: list[str]
     choke_points: list[ChokePointOut]
+    plan: FixPlanOut
 
 
 class RouteMapMeta(ReachCountsMeta):
     total: int
     #: What the drawing holds, said rather than implied.
     drawn: int
+
+
+# -- The route ledger (DECISIONS.md section 244) -------------------------------
+
+#: How a route stands in the ledger. NEW is an open episode that began in the
+#: scan that last saw it; OPEN is one seen again since; CLOSED is closed.
+RouteLedgerStatus = Literal["NEW", "OPEN", "CLOSED"]
+
+
+class LedgerStepOut(BaseModel):
+    """One hop of a route as the ledger stored it, readable after its assets go."""
+
+    source: str
+    source_id: str
+    relationship: RelationshipType
+    target: str
+    target_id: str
+    description: str
+
+
+class RouteEpisodeOut(BaseModel):
+    """One stretch of time a route was open, and how it ended if it did."""
+
+    id: UUID
+    key: str
+    entry: RouteEndOut
+    target: RouteTargetEndOut
+    hops: int
+    steps: list[LedgerStepOut]
+    status: RouteLedgerStatus
+    #: An earlier episode of the same route closed: it came back.
+    reopened: bool
+    opened_at: datetime
+    opened_scan_id: UUID | None
+    last_seen_at: datetime
+    last_seen_scan_id: UUID | None
+    #: When a scan last saw it by another way round, and the way it ran before.
+    rerouted_at: datetime | None
+    rerouted_from: list[LedgerStepOut] | None
+    closed_at: datetime | None
+    closed_scan_id: UUID | None
+    close_reason: RouteCloseReason | None
+
+
+class RouteTrendPointOut(BaseModel):
+    """Routes open at the end of one day, counted from the episodes' times."""
+
+    day: date
+    open: int
+
+
+class LedgerScanOut(BaseModel):
+    """The latest scan that moved the ledger, and what it moved.
+
+    Named rather than "since the last scan": connections scan on their own
+    schedules, so an organization has no single last scan to compare against.
+    """
+
+    scan_id: UUID | None
+    observed_at: datetime
+    scope_name: str | None
+    opened: int
+    closed: int
+    rerouted: int
+
+
+class RouteHistoryOut(BaseModel):
+    #: Every open episode, and every episode closed within the window.
+    routes: list[RouteEpisodeOut]
+    trend: list[RouteTrendPointOut]
+    latest: LedgerScanOut | None
+
+
+class RouteHistoryMeta(BaseModel):
+    days: int
+    #: When the ledger's first episode opened; ``None`` before any scan wrote one.
+    recorded_since: datetime | None
+
+
+# -- How to make a cut (DECISIONS.md section 246) ------------------------------
+
+
+class CutEndOut(LinkEndOut):
+    """One end of a cut, with its row id where Cleave holds one to link to."""
+
+    asset_id: UUID | None
+
+
+class CutFindingOut(BaseModel):
+    """An open finding on one end of a cut, and whether a live task tracks it."""
+
+    id: UUID
+    rule_id: str
+    title: str
+    severity: Severity
+    status: FindingStatus
+    asset_name: str
+    asset_id: UUID | None
+    tracked: bool
+
+
+class CutCodeOut(BaseModel):
+    """A role assignment the cut removes, where the customer's Terraform defines it.
+
+    Removing it in code is deleting that block (DECISIONS.md section 257).
+    """
+
+    assignment_id: str
+    repository: str
+    working_directory: str
+    address: str
+
+
+class CutPullRequestAssignmentOut(BaseModel):
+    """A role assignment a cut's pull request removes (DECISIONS.md section 258)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    assignment_id: str
+    address: str
+    #: PENDING until the worker has read the repository, then REMOVED or DECLINED.
+    outcome: str
+    reason: str | None = None
+    path: str | None = None
+    line: int | None = None
+
+
+class CutPullRequestOut(BaseModel):
+    """One cut, asked for as a pull request on one repository, from queued to merged."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    cut_key: str
+    repository: str
+    #: QUEUED, OPENING, OPEN, MERGED, CLOSED, DECLINED or FAILED.
+    state: str
+    pr_number: int | None = None
+    pr_url: str | None = None
+    decline_reason: str | None = None
+    detail: str | None = None
+    created_at: datetime
+    assignments: list[CutPullRequestAssignmentOut] = []
+
+
+class CutPullRequestsQueuedOut(BaseModel):
+    pull_requests: list[CutPullRequestOut]
+    #: Role assignments the cut removes that no uploaded state index names.
+    not_indexed: int
+
+
+class CutFixOut(BaseModel):
+    """How to make one cut: the change said once, the provider's commands where
+    one command removes the link exactly, and the open findings on its two ends.
+
+    The findings are those on the two assets, never claimed to be what the
+    change resolves: only the next scan says that.
+    """
+
+    sentence: str
+    description: str
+    detail: str
+    relationship: RelationshipType
+    source: CutEndOut
+    target: CutEndOut
+    provider: Provider
+    cost: int
+    #: Routes this cut closes on its own, across the estate.
+    severs: int
+    commands: list[str]
+    findings: list[CutFindingOut]
+    #: Where the assignments it removes are defined in code; empty where none is indexed.
+    code: list[CutCodeOut] = []
+    #: Whether this deployment can open the deletion as a pull request (section 258).
+    pull_request_offered: bool = False
+    #: The cut's pull requests so far, newest first.
+    pull_requests: list[CutPullRequestOut] = []
+
+
+# -- The inspector (DECISIONS.md section 254) ----------------------------------
+
+
+class CodeHomeOut(BaseModel):
+    """Where the customer's Terraform state says an asset is defined."""
+
+    repository: str
+    working_directory: str
+    address: str
+
+
+class InspectChangeOut(BaseModel):
+    change: AssetChange
+    previous_value: str | None
+    current_value: str | None
+    observed_at: datetime
+
+
+class SignInOut(BaseModel):
+    """An account's last sign-in as the capture recorded it.
+
+    ``read`` false: no reading covered the account, which the tenant's licence
+    may rule out -- never shown as "never signed in".
+    """
+
+    read: bool
+    last_sign_in: str | None
+    days_since: int | None
+
+
+class InspectOut(BaseModel):
+    asset_id: UUID | None
+    #: Empty when no indexed repository defines it.
+    defined_in: list[CodeHomeOut]
+    #: The latest changes, newest first.
+    changes: list[InspectChangeOut]
+    #: For an account; ``None`` for anything else.
+    sign_in: SignInOut | None

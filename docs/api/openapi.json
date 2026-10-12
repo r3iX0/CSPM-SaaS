@@ -7213,6 +7213,297 @@
         }
       }
     },
+    "/api/v1/assets/{asset_id}/context": {
+      "get": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Get Asset Context",
+        "description": "What has been declared about this asset's data, or null if nothing has.",
+        "operationId": "assets_get_asset_context",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Asset Id"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_Union_AssetDeclarationOut__NoneType__NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Declare Asset Context",
+        "description": "Declare how sensitive this asset's data is (DECISIONS.md section 251).\n\nA floor applied by the next scan: it can raise what the capture showed and\nnever lower it, so it can give a route an end but never hide one.",
+        "operationId": "assets_declare_asset_context",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Asset Id"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetDeclarationIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_Union_AssetDeclarationOut__NoneType__NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Clear Asset Context",
+        "description": "Withdraw what was declared about this asset.",
+        "operationId": "assets_clear_asset_context",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Asset Id"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_NoneType_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
     "/api/v1/changes": {
       "get": {
         "tags": [
@@ -7903,6 +8194,103 @@
         }
       }
     },
+    "/api/v1/attack-paths/history": {
+      "get": {
+        "tags": [
+          "attack-paths"
+        ],
+        "summary": "Route History View",
+        "description": "Which routes are new, which closed and why, and how many were open each day.\n\nRead from the route ledger that ANALYZE writes (DECISIONS.md section 244),\nnever rebuilt: past graphs are not kept, so only the ledger knows what a\nroute was before the latest reading. Empty until the first scan after the\nledger shipped, and said so through ``recorded_since``, rather than\nreconstructed.",
+        "operationId": "attack_paths_route_history_view",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 90,
+              "minimum": 1,
+              "default": 30,
+              "title": "Days"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_RouteHistoryOut_RouteHistoryMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
     "/api/v1/attack-paths/choke-points": {
       "get": {
         "tags": [
@@ -8141,6 +8529,100 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Envelope_AccessOut_AccessMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/api/v1/attack-paths/inspect/{resource_id}": {
+      "get": {
+        "tags": [
+          "attack-paths"
+        ],
+        "summary": "Inspect Asset",
+        "description": "Where an asset is defined in code, and what has happened to it lately.\n\nFor the inspector beside the drawing (DECISIONS.md section 254). Who holds\naccess to it, and what it holds, stay with ``/access``.",
+        "operationId": "attack_paths_inspect_asset",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "resource_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Resource Id"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_InspectOut_NoMeta_"
                 }
               }
             }
@@ -8544,6 +9026,316 @@
         }
       }
     },
+    "/api/v1/attack-paths/fix": {
+      "get": {
+        "tags": [
+          "attack-paths"
+        ],
+        "summary": "How To Fix",
+        "description": "How to make one cut: the change, its commands, and the findings on its ends.\n\nWherever the page shows a cut -- the fix plan, a hop being read, a change in\nthe simulator -- it used to stop at \"what if\" (DECISIONS.md section 246).\nThe commands are the provider's own, from its connector, and only where one\ncommand removes the link exactly.",
+        "operationId": "attack_paths_how_to_fix",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "source",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048,
+              "title": "Source"
+            }
+          },
+          {
+            "name": "relationship",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/RelationshipType"
+            }
+          },
+          {
+            "name": "target",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048,
+              "title": "Target"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_CutFixOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/api/v1/attack-paths/pull-requests": {
+      "post": {
+        "tags": [
+          "attack-paths"
+        ],
+        "summary": "Request Cut Pull Requests",
+        "description": "Ask for a role-assignment cut as pull requests, one per repository defining it.\n\nMatched through the organization's state indexes by the assignments' ids;\none no index names is counted in ``not_indexed``. Queued for the worker,\nwhich reads the repository, deletes the blocks it can stand behind and opens\nthe pull request (DECISIONS.md section 258). A request already in flight or\nopen is answered, not repeated. Merging stays a person's review.",
+        "operationId": "attack_paths_request_cut_pull_requests",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimulatedLink"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_CutPullRequestsQueuedOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "attack-paths"
+        ],
+        "summary": "List Cut Pull Requests",
+        "description": "The organization's cut pull requests, newest first, narrowed to one cut when given.",
+        "operationId": "attack_paths_list_cut_pull_requests",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cut",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 6200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cut"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_list_CutPullRequestOut__NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
     "/api/v1/attack-paths/simulate": {
       "post": {
         "tags": [
@@ -8645,7 +9437,7 @@
           "findings"
         ],
         "summary": "List Findings",
-        "description": "Findings, filtered and ordered by the database rather than by the client.\n\n``search`` and ``sort`` are here because the alternative is worse than a\nmissing feature. A page that filters and orders the rows it happens to hold\nsearches one page of an estate and reports \"nothing matches\" for the rest --\na false negative wearing an answer's clothes, in the one product where that\nis least acceptable.",
+        "description": "Findings, filtered and ordered by the database rather than by the client.\n\n``search`` and ``sort`` are here because the alternative is worse than a\nmissing feature. A page that filters and orders the rows it happens to hold\nsearches one page of an estate and reports \"nothing matches\" for the rest --\na false negative wearing an answer's clothes, in the one product where that\nis least acceptable.\n\n``confidence`` narrows to findings Cleave is that sure of, and never\nreorders them (DECISIONS.md \u00a7262); ``meta.confidence`` counts the whole set\nby level, so the page can say how much of the queue needs a fresh look.",
         "operationId": "findings_list_findings",
         "security": [
           {
@@ -8768,6 +9560,22 @@
             }
           },
           {
+            "name": "confidence",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Confidence"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Confidence"
+            }
+          },
+          {
             "name": "sort",
             "in": "query",
             "required": false,
@@ -8824,7 +9632,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Envelope_list_FindingOut__PageMeta_"
+                  "$ref": "#/components/schemas/Envelope_list_FindingOut__FindingsPageMeta_"
                 }
               }
             }
@@ -9109,6 +9917,101 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Envelope_FindingDetail_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/api/v1/findings/{finding_id}/evidence-package": {
+      "get": {
+        "tags": [
+          "findings"
+        ],
+        "summary": "Finding Evidence Package",
+        "description": "Everything this finding rests on, as one versioned document (DECISIONS.md \u00a7262).\n\nThe affected asset under its cloud identifier, the condition that failed\nwith its expected and observed values, the rule and the version that raised\nit, where and when the evidence was read and under which permissions, what\nthe record cannot show, how sure Cleave is, the fix, and how the fix is\nverified. JSON in the envelope rather than a file, so it is typed in the\ncontract like every other answer; the page saves it as a file. A read: a\nviewer and the demo organization may ask.",
+        "operationId": "findings_finding_evidence_package",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "finding_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Finding Id"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_EvidencePackageOut_NoMeta_"
                 }
               }
             }
@@ -10049,6 +10952,343 @@
         }
       }
     },
+    "/api/v1/acceptances": {
+      "get": {
+        "tags": [
+          "acceptances"
+        ],
+        "summary": "List Acceptances",
+        "description": "Acceptances that asked for a second approver, in one status, newest first.",
+        "operationId": "acceptances_list_acceptances",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ExceptionStatus",
+              "default": "PENDING"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_list_AcceptanceOut__PageMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/api/v1/acceptances/{acceptance_id}/approve": {
+      "post": {
+        "tags": [
+          "acceptances"
+        ],
+        "summary": "Approve Acceptance",
+        "description": "Approve a waiting acceptance; it takes effect with the approver named on it.\n\n``403`` for the person who asked, or anyone but an owner or an admin. ``409`` once it is\ndecided, its date has passed, or the finding or route has moved on since.",
+        "operationId": "acceptances_approve_acceptance",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "acceptance_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Acceptance Id"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AcceptanceOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/api/v1/acceptances/{acceptance_id}/reject": {
+      "post": {
+        "tags": [
+          "acceptances"
+        ],
+        "summary": "Reject Acceptance",
+        "description": "Turn a waiting acceptance down, saying why; nothing about the finding or route changes.",
+        "operationId": "acceptances_reject_acceptance",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "acceptance_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Acceptance Id"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptanceReject"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AcceptanceOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        }
+      }
+    },
     "/api/v1/remediation": {
       "post": {
         "tags": [
@@ -10148,7 +11388,7 @@
           "remediation"
         ],
         "summary": "List Tasks",
-        "description": "The queue, in the order the page says it is in.\n\nIt said \"ordered by impact against effort\" and was ordered by when each\ntask was created. Now: open work first, then priority, then how many attack\npaths run through the finding's asset, then the finding's own score\n(DECISIONS.md section 127). ``service.queue`` holds the ordering.",
+        "description": "The queue, in the order the page says it is in.\n\nIt said \"ordered by impact against effort\" and was ordered by when each\ntask was created. Now: open work first, then priority, then how many attack\npaths run through the finding's asset, then the finding's own score\n(DECISIONS.md section 127). ``service.queue`` holds the ordering. Each task\nsays when it is due, by its own date or the organization's policy (\u00a7225),\nand who has it, by assignment or the ownership rules (\u00a7236).\n\n``owner`` narrows to one person's work, as the queue derives it. The owner is\nderived from the rules, not stored, so it is narrowed after deriving rather\nthan in the query.",
         "operationId": "remediation_list_tasks",
         "security": [
           {
@@ -10156,6 +11396,25 @@
           }
         ],
         "parameters": [
+          {
+            "name": "owner",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(me|none|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`me`, `none`, or a member's id: the work that person has, however it came.",
+              "title": "Owner"
+            },
+            "description": "`me`, `none`, or a member's id: the work that person has, however it came."
+          },
           {
             "name": "x-organization-id",
             "in": "header",
@@ -10180,6 +11439,298 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Envelope_list_RemediationOut__NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/api/v1/remediation/progress": {
+      "get": {
+        "tags": [
+          "remediation"
+        ],
+        "summary": "Progress",
+        "description": "What a scan observed fixed in the last ``days`` days, and how it went against deadlines.\n\nFinished work used to leave the queue and the page with it. Counted from the findings a scan\nresolved, never from tasks marked done, since only an observation closes a finding: each\nseverity's count and median days from first detection to the fix, how many met their\ndeadline, and the latest few by name (DECISIONS.md \u00a7225).",
+        "operationId": "remediation_progress",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 7,
+              "default": 30,
+              "title": "Days"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_FixProgressOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/api/v1/remediation/pull-requests": {
+      "post": {
+        "tags": [
+          "remediation"
+        ],
+        "summary": "Request Pull Requests",
+        "description": "Ask for a rule's fix as pull requests, one per repository its failing assets are in.\n\nMatched through the organization's state indexes; a failing asset no index\nnames is counted in ``not_indexed``. Queued for the worker, which reads the\nrepository, edits what it can stand behind and opens the pull request\n(DECISIONS.md \u00a7232). A request already in flight or open is answered, not\nrepeated.",
+        "operationId": "remediation_request_pull_requests",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FixPullRequestIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_FixPullRequestsQueuedOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "remediation"
+        ],
+        "summary": "List Pull Requests",
+        "description": "The organization's latest fix pull requests, with each finding's outcome.",
+        "operationId": "remediation_list_pull_requests",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "rule_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rule Id"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_list_FixPullRequestOut__NoMeta_"
                 }
               }
             }
@@ -10285,6 +11836,771 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Envelope_RemediationUpdatedOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/api/v1/ownership-rules": {
+      "get": {
+        "tags": [
+          "remediation"
+        ],
+        "summary": "List Ownership Rules",
+        "description": "Every rule, most general scope first. Not paged: at most 500 (``MAX_RULES``).",
+        "operationId": "remediation_list_ownership_rules",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_list_OwnershipRuleOut__TotalMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "remediation"
+        ],
+        "summary": "Create Ownership Rule",
+        "description": "Name an owner for a scope. Owners and admins. One rule per scope: a second is ``409``.",
+        "operationId": "remediation_create_ownership_rule",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnershipRuleIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_OwnershipRuleOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/api/v1/ownership-rules/{rule_id}": {
+      "patch": {
+        "tags": [
+          "remediation"
+        ],
+        "summary": "Update Ownership Rule",
+        "description": "Hand a scope to another member. Owners and admins.",
+        "operationId": "remediation_update_ownership_rule",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "rule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Rule Id"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnershipRuleUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_OwnershipRuleOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "remediation"
+        ],
+        "summary": "Delete Ownership Rule",
+        "description": "Remove a rule. Its scope's unassigned work falls to the next rule that matches.",
+        "operationId": "remediation_delete_ownership_rule",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "rule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Rule Id"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_OwnershipRuleDeletedOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/github": {
+      "get": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Github Status",
+        "description": "Whether GitHub is offered here, and which installations this organization linked.",
+        "operationId": "integrations_github_status",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_GitHubStatusOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/github/connect": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Connect",
+        "description": "Where an owner or an admin installs the App. GitHub sends them back to link it.",
+        "operationId": "integrations_connect",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_GitHubConnectOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/github/installations": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Link Installation",
+        "description": "Link the installation GitHub sent the person back with.\n\nThe installation id arrives in a query string anybody can edit, so it is\nlinked only if GitHub lists it among the installations of the person's own\ntoken, exchanged from ``code``. ``200``: the installation already exists on\nGitHub, and this links it rather than creating it.",
+        "operationId": "integrations_link_installation",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GitHubLinkIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_GitHubInstallationOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/github/installations/{installation_id}": {
+      "delete": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Unlink Installation",
+        "description": "Unlink an installation. The App stays installed on GitHub until it is removed there.",
+        "operationId": "integrations_unlink_installation",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "installation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Installation Id"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_UnlinkedOut_NoMeta_"
                 }
               }
             }
@@ -10874,6 +13190,91 @@
         }
       }
     },
+    "/api/v1/dashboard/score-movement": {
+      "get": {
+        "tags": [
+          "dashboard"
+        ],
+        "summary": "Get Score Movement",
+        "description": "Why the score moved since the reading before the latest scan, cause by cause.\n\nThe causes' points sum to ``delta``, which is the dashboard's ``score_delta``.",
+        "operationId": "dashboard_get_score_movement",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ScoreMovementOut_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
     "/api/v1/reports/{kind}": {
       "get": {
         "tags": [
@@ -11096,6 +13497,179 @@
           {
             "expires_at": "2026-12-31T00:00:00Z",
             "reason": "The jump box is the documented way in until the migration ends"
+          }
+        ]
+      },
+      "AcceptanceOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "finding_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finding Id"
+          },
+          "risk_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk Id"
+          },
+          "subject_title": {
+            "type": "string",
+            "title": "Subject Title"
+          },
+          "subject_severity": {
+            "type": "string",
+            "title": "Subject Severity"
+          },
+          "subject_status": {
+            "type": "string",
+            "title": "Subject Status"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ExceptionStatus"
+          },
+          "requested_by": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Requested By"
+          },
+          "requested_by_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested By Email"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "decided_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By"
+          },
+          "decided_by_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By Email"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "decision_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "finding_id",
+          "risk_id",
+          "subject_title",
+          "subject_severity",
+          "subject_status",
+          "reason",
+          "expires_at",
+          "status",
+          "requested_by",
+          "requested_by_email",
+          "created_at",
+          "decided_by",
+          "decided_by_email",
+          "decided_at",
+          "decision_note"
+        ],
+        "title": "AcceptanceOut",
+        "description": "One acceptance that asked for a second approver, and what became of it."
+      },
+      "AcceptanceReject": {
+        "properties": {
+          "note": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "note"
+        ],
+        "title": "AcceptanceReject",
+        "examples": [
+          {
+            "note": "Not without a compensating control on the subnet."
           }
         ]
       },
@@ -11664,6 +14238,79 @@
         ],
         "title": "AssetContextOut",
         "description": "Criticality, sensitivity and environment with their provenance. Exposure\nis absent on purpose: it is read off the configuration, so there is no\nsource to name and nothing to declare."
+      },
+      "AssetDeclarationIn": {
+        "properties": {
+          "data_sensitivity": {
+            "$ref": "#/components/schemas/Level"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data_sensitivity"
+        ],
+        "title": "AssetDeclarationIn",
+        "description": "What a customer says about one asset's data (DECISIONS.md section 251).\n\nA level, never UNKNOWN, for the reason a subscription's declaration refuses\nit. Applied as a floor: it raises and never lowers, so declaring LOW on an\nasset the capture already ranks HIGH changes nothing."
+      },
+      "AssetDeclarationOut": {
+        "properties": {
+          "resource_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Resource Id"
+          },
+          "data_sensitivity": {
+            "$ref": "#/components/schemas/Level"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "declared_by_user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Declared By User Id"
+          },
+          "declared_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Declared At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "resource_id",
+          "data_sensitivity",
+          "declared_at"
+        ],
+        "title": "AssetDeclarationOut"
       },
       "AssetDetailOut": {
         "properties": {
@@ -12654,6 +15301,16 @@
           },
           "evidence": {
             "$ref": "#/components/schemas/EvidenceOut"
+          },
+          "fixes": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FixesOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -12670,7 +15327,8 @@
           "sealed_by",
           "sealed_at",
           "assessment",
-          "evidence"
+          "evidence",
+          "fixes"
         ],
         "title": "AuditPackageDetailOut"
       },
@@ -13677,6 +16335,30 @@
         ],
         "title": "CloudConnectionOut"
       },
+      "CodeHomeOut": {
+        "properties": {
+          "repository": {
+            "type": "string",
+            "title": "Repository"
+          },
+          "working_directory": {
+            "type": "string",
+            "title": "Working Directory"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address"
+          }
+        },
+        "type": "object",
+        "required": [
+          "repository",
+          "working_directory",
+          "address"
+        ],
+        "title": "CodeHomeOut",
+        "description": "Where the customer's Terraform state says an asset is defined."
+      },
       "CollectionStateOut": {
         "properties": {
           "field": {
@@ -13850,6 +16532,139 @@
         ],
         "title": "CollectionTaskOut",
         "description": "One reading the scan took, and what came of it."
+      },
+      "Comparison": {
+        "type": "string",
+        "enum": [
+          "equals",
+          "none_matching",
+          "not_empty"
+        ],
+        "title": "Comparison",
+        "description": "How an expected state is checked.\n\nThree, and no more, on purpose. Most of what the remaining rules expect is\nnot \"this setting equals that value\" but a statement about a *collection* --\nno inbound rule admits 3389 from anywhere, this resource sends its logs\nsomewhere, this administrator has a second factor. Saying those needs more\nthan an equality and much less than a query language, and the line between\nthe two is where this stops.\n\nAnything a rule checks that these cannot express stays undeclared rather\nthan half-declared. A remediation that describes most of a check is worse\nthan one that describes none of it: a customer satisfies what they were\nshown and the finding stays open."
+      },
+      "ConditionOut": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "describes": {
+            "type": "string",
+            "title": "Describes"
+          },
+          "comparison": {
+            "$ref": "#/components/schemas/Comparison"
+          },
+          "expected": {
+            "title": "Expected"
+          },
+          "also_accepts": {
+            "items": {},
+            "type": "array",
+            "title": "Also Accepts"
+          },
+          "observed": {
+            "title": "Observed"
+          },
+          "observed_recorded": {
+            "type": "boolean",
+            "title": "Observed Recorded"
+          }
+        },
+        "type": "object",
+        "required": [
+          "field",
+          "describes",
+          "comparison",
+          "observed_recorded"
+        ],
+        "title": "ConditionOut",
+        "description": "One thing that must be true for a finding to close, beside what was seen.\n\n``expected`` is the declared value for an EQUALS check and the witness for a\ncollection check -- the shape that must not be there (NONE_MATCHING) or one\nthat would satisfy it (NOT_EMPTY). ``observed`` is the finding's own excerpt\nof that field, and ``observed_recorded`` says whether the excerpt has it: a\nfield the excerpt does not carry is not a field whose value is null."
+      },
+      "Confidence": {
+        "type": "string",
+        "enum": [
+          "HIGH",
+          "MEDIUM",
+          "LOW"
+        ],
+        "title": "Confidence",
+        "description": "How sure Cleave is that a finding or a route is current and ranked right.\n\nIts own axis rather than a dent in severity or risk (DECISIONS.md \u00a7262).\nSeverity is what the rule says about a class of mistake and never moves for\none reading; risk is where the finding ranks. Confidence is how far either\ncan be trusted today, and it decides what to do next -- fix it, or look again\nfirst -- rather than where the finding sorts. Folding it into the score would\nlet a critical finding on week-old evidence sink below a fresh low one, which\nis the order an attacker would choose."
+      },
+      "ConfidenceOut": {
+        "properties": {
+          "level": {
+            "$ref": "#/components/schemas/Confidence"
+          },
+          "freshness": {
+            "$ref": "#/components/schemas/Freshness"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Observed At"
+          },
+          "fresh_until": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Fresh Until"
+          },
+          "stale_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Stale At"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/ConfidenceReasonOut"
+            },
+            "type": "array",
+            "title": "Reasons"
+          }
+        },
+        "type": "object",
+        "required": [
+          "level",
+          "freshness",
+          "observed_at",
+          "fresh_until",
+          "stale_at",
+          "reasons"
+        ],
+        "title": "ConfidenceOut",
+        "description": "How current a finding or route is, and how settled its rank.\n\nThe dates travel with the level so a client can say \"read 9 days ago,\ncurrent until Tuesday\" without holding the thresholds itself: the server\nalone decides what current means, against each connection's own schedule."
+      },
+      "ConfidenceReason": {
+        "type": "string",
+        "enum": [
+          "EVIDENCE_AGING",
+          "EVIDENCE_STALE",
+          "CONTEXT_UNKNOWN",
+          "CONTEXT_INFERRED"
+        ],
+        "title": "ConfidenceReason",
+        "description": "Why a finding or a route is short of HIGH confidence. Each names its remedy."
+      },
+      "ConfidenceReasonOut": {
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ConfidenceReason"
+          },
+          "fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Fields",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "ConfidenceReasonOut"
       },
       "ConnectionDeletedOut": {
         "properties": {
@@ -14319,6 +17134,380 @@
         ],
         "title": "CoverageGapOut"
       },
+      "CutCodeOut": {
+        "properties": {
+          "assignment_id": {
+            "type": "string",
+            "title": "Assignment Id"
+          },
+          "repository": {
+            "type": "string",
+            "title": "Repository"
+          },
+          "working_directory": {
+            "type": "string",
+            "title": "Working Directory"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address"
+          }
+        },
+        "type": "object",
+        "required": [
+          "assignment_id",
+          "repository",
+          "working_directory",
+          "address"
+        ],
+        "title": "CutCodeOut",
+        "description": "A role assignment the cut removes, where the customer's Terraform defines it.\n\nRemoving it in code is deleting that block (DECISIONS.md section 257)."
+      },
+      "CutEndOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "resource_type": {
+            "$ref": "#/components/schemas/ResourceType"
+          },
+          "asset_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "resource_type",
+          "asset_id"
+        ],
+        "title": "CutEndOut",
+        "description": "One end of a cut, with its row id where Cleave holds one to link to."
+      },
+      "CutFindingOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/Severity"
+          },
+          "status": {
+            "$ref": "#/components/schemas/FindingStatus"
+          },
+          "asset_name": {
+            "type": "string",
+            "title": "Asset Name"
+          },
+          "asset_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Id"
+          },
+          "tracked": {
+            "type": "boolean",
+            "title": "Tracked"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "rule_id",
+          "title",
+          "severity",
+          "status",
+          "asset_name",
+          "asset_id",
+          "tracked"
+        ],
+        "title": "CutFindingOut",
+        "description": "An open finding on one end of a cut, and whether a live task tracks it."
+      },
+      "CutFixOut": {
+        "properties": {
+          "sentence": {
+            "type": "string",
+            "title": "Sentence"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "relationship": {
+            "$ref": "#/components/schemas/RelationshipType"
+          },
+          "source": {
+            "$ref": "#/components/schemas/CutEndOut"
+          },
+          "target": {
+            "$ref": "#/components/schemas/CutEndOut"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/Provider"
+          },
+          "cost": {
+            "type": "integer",
+            "title": "Cost"
+          },
+          "severs": {
+            "type": "integer",
+            "title": "Severs"
+          },
+          "commands": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Commands"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/CutFindingOut"
+            },
+            "type": "array",
+            "title": "Findings"
+          },
+          "code": {
+            "items": {
+              "$ref": "#/components/schemas/CutCodeOut"
+            },
+            "type": "array",
+            "title": "Code",
+            "default": []
+          },
+          "pull_request_offered": {
+            "type": "boolean",
+            "title": "Pull Request Offered",
+            "default": false
+          },
+          "pull_requests": {
+            "items": {
+              "$ref": "#/components/schemas/CutPullRequestOut"
+            },
+            "type": "array",
+            "title": "Pull Requests",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "sentence",
+          "description",
+          "detail",
+          "relationship",
+          "source",
+          "target",
+          "provider",
+          "cost",
+          "severs",
+          "commands",
+          "findings"
+        ],
+        "title": "CutFixOut",
+        "description": "How to make one cut: the change said once, the provider's commands where\none command removes the link exactly, and the open findings on its two ends.\n\nThe findings are those on the two assets, never claimed to be what the\nchange resolves: only the next scan says that."
+      },
+      "CutPullRequestAssignmentOut": {
+        "properties": {
+          "assignment_id": {
+            "type": "string",
+            "title": "Assignment Id"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address"
+          },
+          "outcome": {
+            "type": "string",
+            "title": "Outcome"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "line": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line"
+          }
+        },
+        "type": "object",
+        "required": [
+          "assignment_id",
+          "address",
+          "outcome"
+        ],
+        "title": "CutPullRequestAssignmentOut",
+        "description": "A role assignment a cut's pull request removes (DECISIONS.md section 258)."
+      },
+      "CutPullRequestOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "cut_key": {
+            "type": "string",
+            "title": "Cut Key"
+          },
+          "repository": {
+            "type": "string",
+            "title": "Repository"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "pr_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pr Number"
+          },
+          "pr_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pr Url"
+          },
+          "decline_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decline Reason"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "assignments": {
+            "items": {
+              "$ref": "#/components/schemas/CutPullRequestAssignmentOut"
+            },
+            "type": "array",
+            "title": "Assignments",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "cut_key",
+          "repository",
+          "state",
+          "created_at"
+        ],
+        "title": "CutPullRequestOut",
+        "description": "One cut, asked for as a pull request on one repository, from queued to merged."
+      },
+      "CutPullRequestsQueuedOut": {
+        "properties": {
+          "pull_requests": {
+            "items": {
+              "$ref": "#/components/schemas/CutPullRequestOut"
+            },
+            "type": "array",
+            "title": "Pull Requests"
+          },
+          "not_indexed": {
+            "type": "integer",
+            "title": "Not Indexed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pull_requests",
+          "not_indexed"
+        ],
+        "title": "CutPullRequestsQueuedOut"
+      },
       "DashboardOut": {
         "properties": {
           "security_score": {
@@ -14622,6 +17811,26 @@
         ],
         "title": "DismissedOut"
       },
+      "Envelope_AcceptanceOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AcceptanceOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[AcceptanceOut, NoMeta]"
+      },
       "Envelope_AccessOut_AccessMeta_": {
         "properties": {
           "data": {
@@ -14922,6 +18131,46 @@
         ],
         "title": "Envelope[CoverageOut, NoMeta]"
       },
+      "Envelope_CutFixOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CutFixOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[CutFixOut, NoMeta]"
+      },
+      "Envelope_CutPullRequestsQueuedOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CutPullRequestsQueuedOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[CutPullRequestsQueuedOut, NoMeta]"
+      },
       "Envelope_DashboardOut_NoMeta_": {
         "properties": {
           "data": {
@@ -15002,6 +18251,26 @@
         ],
         "title": "Envelope[EstateOut, EstateMeta]"
       },
+      "Envelope_EvidencePackageOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/EvidencePackageOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[EvidencePackageOut, NoMeta]"
+      },
       "Envelope_FindingDetail_NoMeta_": {
         "properties": {
           "data": {
@@ -15062,6 +18331,46 @@
         ],
         "title": "Envelope[FindingProvenanceOut, FindingProvenanceMeta]"
       },
+      "Envelope_FixProgressOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/FixProgressOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[FixProgressOut, NoMeta]"
+      },
+      "Envelope_FixPullRequestsQueuedOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/FixPullRequestsQueuedOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[FixPullRequestsQueuedOut, NoMeta]"
+      },
       "Envelope_FrameworkDetailOut_NoMeta_": {
         "properties": {
           "data": {
@@ -15081,6 +18390,66 @@
           "meta"
         ],
         "title": "Envelope[FrameworkDetailOut, NoMeta]"
+      },
+      "Envelope_GitHubConnectOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/GitHubConnectOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[GitHubConnectOut, NoMeta]"
+      },
+      "Envelope_GitHubInstallationOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/GitHubInstallationOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[GitHubInstallationOut, NoMeta]"
+      },
+      "Envelope_GitHubStatusOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/GitHubStatusOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[GitHubStatusOut, NoMeta]"
       },
       "Envelope_HealthOut_NoMeta_": {
         "properties": {
@@ -15121,6 +18490,26 @@
           "meta"
         ],
         "title": "Envelope[IacDiffOut, NoMeta]"
+      },
+      "Envelope_InspectOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/InspectOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[InspectOut, NoMeta]"
       },
       "Envelope_InvitationCreatedOut_NoMeta_": {
         "properties": {
@@ -15343,6 +18732,46 @@
         ],
         "title": "Envelope[OrganizationOut, NoMeta]"
       },
+      "Envelope_OwnershipRuleDeletedOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/OwnershipRuleDeletedOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[OwnershipRuleDeletedOut, NoMeta]"
+      },
+      "Envelope_OwnershipRuleOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/OwnershipRuleOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[OwnershipRuleOut, NoMeta]"
+      },
       "Envelope_ReadThroughOut_NoMeta_": {
         "properties": {
           "data": {
@@ -15543,6 +18972,26 @@
         ],
         "title": "Envelope[RiskOut, NoMeta]"
       },
+      "Envelope_RouteHistoryOut_RouteHistoryMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/RouteHistoryOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/RouteHistoryMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[RouteHistoryOut, RouteHistoryMeta]"
+      },
       "Envelope_RouteMapOut_RouteMapMeta_": {
         "properties": {
           "data": {
@@ -15643,6 +19092,26 @@
         ],
         "title": "Envelope[ScanOut, NoMeta]"
       },
+      "Envelope_ScoreMovementOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ScoreMovementOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[ScoreMovementOut, NoMeta]"
+      },
       "Envelope_SimulationOut_SimulationMeta_": {
         "properties": {
           "data": {
@@ -15690,6 +19159,33 @@
         ],
         "title": "Envelope[Union[AppRegistrationOut, NoneType], NoMeta]"
       },
+      "Envelope_Union_AssetDeclarationOut__NoneType__NoMeta_": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AssetDeclarationOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[Union[AssetDeclarationOut, NoneType], NoMeta]"
+      },
       "Envelope_Union_ContextDeclarationOut__NoneType__NoMeta_": {
         "properties": {
           "data": {
@@ -15716,6 +19212,26 @@
           "meta"
         ],
         "title": "Envelope[Union[ContextDeclarationOut, NoneType], NoMeta]"
+      },
+      "Envelope_UnlinkedOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/UnlinkedOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[UnlinkedOut, NoMeta]"
       },
       "Envelope_VerificationOut_NoMeta_": {
         "properties": {
@@ -15856,6 +19372,30 @@
           "meta"
         ],
         "title": "Envelope[WorkerStatusOut, NoMeta]"
+      },
+      "Envelope_list_AcceptanceOut__PageMeta_": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/AcceptanceOut"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PageMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[list[AcceptanceOut], PageMeta]"
       },
       "Envelope_list_AssetRowOut__AssetsMeta_": {
         "properties": {
@@ -16169,6 +19709,30 @@
         ],
         "title": "Envelope[list[ContextDeclarationOut], NoMeta]"
       },
+      "Envelope_list_CutPullRequestOut__NoMeta_": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/CutPullRequestOut"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[list[CutPullRequestOut], NoMeta]"
+      },
       "Envelope_list_DiscoveredSubscription__NoMeta_": {
         "properties": {
           "data": {
@@ -16217,7 +19781,7 @@
         ],
         "title": "Envelope[list[FindingAttackPathOut], FindingAttackPathsMeta]"
       },
-      "Envelope_list_FindingOut__PageMeta_": {
+      "Envelope_list_FindingOut__FindingsPageMeta_": {
         "properties": {
           "data": {
             "items": {
@@ -16231,7 +19795,7 @@
             "title": "Error"
           },
           "meta": {
-            "$ref": "#/components/schemas/PageMeta"
+            "$ref": "#/components/schemas/FindingsPageMeta"
           }
         },
         "type": "object",
@@ -16239,7 +19803,31 @@
           "data",
           "meta"
         ],
-        "title": "Envelope[list[FindingOut], PageMeta]"
+        "title": "Envelope[list[FindingOut], FindingsPageMeta]"
+      },
+      "Envelope_list_FixPullRequestOut__NoMeta_": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/FixPullRequestOut"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[list[FixPullRequestOut], NoMeta]"
       },
       "Envelope_list_FrameworkSummaryOut__NoMeta_": {
         "properties": {
@@ -16384,6 +19972,30 @@
           "meta"
         ],
         "title": "Envelope[list[OrganizationMembershipOut], NoMeta]"
+      },
+      "Envelope_list_OwnershipRuleOut__TotalMeta_": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/OwnershipRuleOut"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/TotalMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[list[OwnershipRuleOut], TotalMeta]"
       },
       "Envelope_list_ProviderOptionOut__NoMeta_": {
         "properties": {
@@ -16965,6 +20577,123 @@
         "title": "EvidenceOut",
         "description": "What the package's controls rest on, and what is still held of it."
       },
+      "EvidencePackageOut": {
+        "properties": {
+          "format": {
+            "type": "string",
+            "const": "cleave.evidence-package",
+            "title": "Format",
+            "default": "cleave.evidence-package"
+          },
+          "version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Version",
+            "default": 1
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          },
+          "build": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Build"
+          },
+          "finding": {
+            "$ref": "#/components/schemas/PackageFindingOut"
+          },
+          "resource": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PackageResourceOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rule": {
+            "$ref": "#/components/schemas/PackageRuleOut"
+          },
+          "condition": {
+            "items": {
+              "$ref": "#/components/schemas/ConditionOut"
+            },
+            "type": "array",
+            "title": "Condition"
+          },
+          "observed": {
+            "type": "object",
+            "title": "Observed"
+          },
+          "citations": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/EvidenceCitationOut"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Citations"
+          },
+          "confidence": {
+            "$ref": "#/components/schemas/ConfidenceOut"
+          },
+          "limitations": {
+            "items": {
+              "$ref": "#/components/schemas/LimitationOut"
+            },
+            "type": "array",
+            "title": "Limitations"
+          },
+          "remediation": {
+            "$ref": "#/components/schemas/PackageRemediationOut"
+          },
+          "verification": {
+            "$ref": "#/components/schemas/PackageVerificationOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "generated_at",
+          "build",
+          "finding",
+          "resource",
+          "rule",
+          "condition",
+          "observed",
+          "citations",
+          "confidence",
+          "limitations",
+          "remediation",
+          "verification"
+        ],
+        "title": "EvidencePackageOut",
+        "description": "Everything a finding rests on, in one document a ticket or an auditor can keep.\n\nVersioned, because it is taken away and read later by programs that were not\nwritten against this API's current shape."
+      },
+      "ExceptionStatus": {
+        "type": "string",
+        "enum": [
+          "PENDING",
+          "ACTIVE",
+          "REJECTED",
+          "EXPIRED",
+          "REVOKED"
+        ],
+        "title": "ExceptionStatus"
+      },
       "FindingAttackPathOut": {
         "properties": {
           "entry": {
@@ -17133,6 +20862,16 @@
               }
             ]
           },
+          "confidence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConfidenceOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "risk": {
             "anyOf": [
               {
@@ -17179,6 +20918,16 @@
             ],
             "title": "Accepted Until"
           },
+          "pending_acceptance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PendingAcceptanceOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "rule_name": {
             "anyOf": [
               {
@@ -17222,6 +20971,13 @@
               }
             ]
           },
+          "condition": {
+            "items": {
+              "$ref": "#/components/schemas/ConditionOut"
+            },
+            "type": "array",
+            "title": "Condition"
+          },
           "compliance_mappings": {
             "additionalProperties": {
               "items": {
@@ -17231,6 +20987,13 @@
             },
             "type": "object",
             "title": "Compliance Mappings"
+          },
+          "managed_in_code": {
+            "items": {
+              "$ref": "#/components/schemas/IacLocationOut"
+            },
+            "type": "array",
+            "title": "Managed In Code"
           }
         },
         "type": "object",
@@ -17423,6 +21186,16 @@
                 "type": "null"
               }
             ]
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConfidenceOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -17526,6 +21299,535 @@
         ],
         "title": "FindingTallyOut",
         "description": "Open findings on an asset or a box, and the worst of them."
+      },
+      "FindingsPageMeta": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "confidence": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/Confidence"
+            },
+            "type": "object",
+            "title": "Confidence"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "limit",
+          "offset",
+          "confidence"
+        ],
+        "title": "FindingsPageMeta",
+        "description": "A page of findings, and how the whole filtered set divides by confidence.\n\nCounted over every filter except confidence itself, so each count is what\nchoosing that level would show."
+      },
+      "FixPlanCutOut": {
+        "properties": {
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "facts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Facts"
+          },
+          "relationship": {
+            "$ref": "#/components/schemas/RelationshipType"
+          },
+          "source": {
+            "$ref": "#/components/schemas/LinkEndOut"
+          },
+          "target": {
+            "$ref": "#/components/schemas/LinkEndOut"
+          },
+          "cost": {
+            "type": "integer",
+            "title": "Cost"
+          },
+          "closes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Closes"
+          },
+          "closed_after": {
+            "type": "integer",
+            "title": "Closed After"
+          }
+        },
+        "type": "object",
+        "required": [
+          "description",
+          "detail",
+          "facts",
+          "relationship",
+          "source",
+          "target",
+          "cost",
+          "closes",
+          "closed_after"
+        ],
+        "title": "FixPlanCutOut",
+        "description": "One change in the fix plan, and what it closes after the ones before it."
+      },
+      "FixPlanOut": {
+        "properties": {
+          "cuts": {
+            "items": {
+              "$ref": "#/components/schemas/FixPlanCutOut"
+            },
+            "type": "array",
+            "title": "Cuts"
+          },
+          "total_routes": {
+            "type": "integer",
+            "title": "Total Routes"
+          },
+          "remaining": {
+            "type": "integer",
+            "title": "Remaining"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cuts",
+          "total_routes",
+          "remaining"
+        ],
+        "title": "FixPlanOut",
+        "description": "Changes that close the routes, in order (DECISIONS.md section 245).\n\nPicked greedily and confirmed by enumerating the routes again after each\nchange, so every count is exact; never said to be the fewest changes."
+      },
+      "FixProgressOut": {
+        "properties": {
+          "days": {
+            "type": "integer",
+            "title": "Days"
+          },
+          "fixed": {
+            "type": "integer",
+            "title": "Fixed"
+          },
+          "on_time": {
+            "type": "integer",
+            "title": "On Time"
+          },
+          "late": {
+            "type": "integer",
+            "title": "Late"
+          },
+          "by_severity": {
+            "items": {
+              "$ref": "#/components/schemas/SeverityProgressOut"
+            },
+            "type": "array",
+            "title": "By Severity"
+          },
+          "recent": {
+            "items": {
+              "$ref": "#/components/schemas/FixedFindingOut"
+            },
+            "type": "array",
+            "title": "Recent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "days",
+          "fixed",
+          "on_time",
+          "late",
+          "by_severity",
+          "recent"
+        ],
+        "title": "FixProgressOut",
+        "description": "What was fixed in a window: verified fixes only, since only a scan closes a finding.\n\n``on_time`` and ``late`` count only the fixes that had a deadline, judged against today's\npolicy where no person set a date (DECISIONS.md \u00a7225)."
+      },
+      "FixPullRequestFindingOut": {
+        "properties": {
+          "finding_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Finding Id"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address"
+          },
+          "outcome": {
+            "type": "string",
+            "title": "Outcome"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "line": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line"
+          }
+        },
+        "type": "object",
+        "required": [
+          "finding_id",
+          "address",
+          "outcome"
+        ],
+        "title": "FixPullRequestFindingOut"
+      },
+      "FixPullRequestIn": {
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Rule Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "rule_id"
+        ],
+        "title": "FixPullRequestIn",
+        "description": "Ask for one rule's fix as pull requests, one per repository its assets are in.",
+        "examples": [
+          {
+            "rule_id": "AZ-STO-002"
+          }
+        ]
+      },
+      "FixPullRequestOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "repository": {
+            "type": "string",
+            "title": "Repository"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "pr_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pr Number"
+          },
+          "pr_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pr Url"
+          },
+          "decline_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decline Reason"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/FixPullRequestFindingOut"
+            },
+            "type": "array",
+            "title": "Findings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "rule_id",
+          "repository",
+          "state",
+          "created_at"
+        ],
+        "title": "FixPullRequestOut",
+        "description": "One rule's fix in one repository, from queued to merged (DECISIONS.md \u00a7232)."
+      },
+      "FixPullRequestsQueuedOut": {
+        "properties": {
+          "pull_requests": {
+            "items": {
+              "$ref": "#/components/schemas/FixPullRequestOut"
+            },
+            "type": "array",
+            "title": "Pull Requests"
+          },
+          "not_indexed": {
+            "type": "integer",
+            "title": "Not Indexed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pull_requests",
+          "not_indexed"
+        ],
+        "title": "FixPullRequestsQueuedOut"
+      },
+      "FixWithinDays": {
+        "properties": {
+          "critical": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 365.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Critical"
+          },
+          "high": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 365.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High"
+          },
+          "medium": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 365.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Medium"
+          },
+          "low": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 365.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "FixWithinDays",
+        "description": "How many days after first detection a finding is due, by severity (DECISIONS.md \u00a7225).\n\nA severity left null has no deadline. Sent whole, as one statement of the policy: a form that\nlowers Critical to seven days says what High is too, so a reader of the change knows the\npolicy that resulted.",
+        "examples": [
+          {
+            "critical": 7,
+            "high": 30,
+            "medium": 90
+          }
+        ]
+      },
+      "FixedFindingOut": {
+        "properties": {
+          "finding_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Finding Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/Severity"
+          },
+          "first_detected_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "First Detected At"
+          },
+          "resolved_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Resolved At"
+          },
+          "due_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due On"
+          },
+          "days_to_fix": {
+            "type": "number",
+            "title": "Days To Fix"
+          },
+          "on_time": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "On Time"
+          }
+        },
+        "type": "object",
+        "required": [
+          "finding_id",
+          "title",
+          "rule_id",
+          "severity",
+          "first_detected_at",
+          "resolved_at",
+          "days_to_fix"
+        ],
+        "title": "FixedFindingOut",
+        "description": "A finding a scan observed fixed, as the progress report names it."
+      },
+      "FixesOut": {
+        "properties": {
+          "window_from": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Window From"
+          },
+          "window_to": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Window To"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "listed": {
+            "type": "integer",
+            "title": "Listed"
+          },
+          "verified": {
+            "type": "integer",
+            "title": "Verified"
+          },
+          "with_pull_request": {
+            "type": "integer",
+            "title": "With Pull Request"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "window_from",
+          "window_to",
+          "total",
+          "listed",
+          "verified",
+          "with_pull_request"
+        ],
+        "title": "FixesOut",
+        "description": "The fixes a package carries (DECISIONS.md section 238), counted; the archive lists them."
       },
       "FoldBoxOut": {
         "properties": {
@@ -17880,6 +22182,16 @@
         "title": "FrameworkSummaryOut",
         "description": "One card on the compliance page."
       },
+      "Freshness": {
+        "type": "string",
+        "enum": [
+          "FRESH",
+          "AGING",
+          "STALE"
+        ],
+        "title": "Freshness",
+        "description": "How old a reading is against how often its connection is meant to be read."
+      },
       "FreshnessOut": {
         "properties": {
           "readings": {
@@ -17937,6 +22249,108 @@
         ],
         "title": "FreshnessOut",
         "description": "How recently the provider was read; the oldest reading is the headline."
+      },
+      "GitHubConnectOut": {
+        "properties": {
+          "install_url": {
+            "type": "string",
+            "title": "Install Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "install_url"
+        ],
+        "title": "GitHubConnectOut",
+        "description": "Where to install the App; GitHub brings the person back with what to link."
+      },
+      "GitHubInstallationOut": {
+        "properties": {
+          "installation_id": {
+            "type": "integer",
+            "title": "Installation Id"
+          },
+          "account_login": {
+            "type": "string",
+            "title": "Account Login"
+          },
+          "account_type": {
+            "type": "string",
+            "title": "Account Type"
+          },
+          "connected_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Connected At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "installation_id",
+          "account_login",
+          "account_type",
+          "connected_at"
+        ],
+        "title": "GitHubInstallationOut"
+      },
+      "GitHubLinkIn": {
+        "properties": {
+          "installation_id": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Installation Id"
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Code"
+          },
+          "state": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "State"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "installation_id",
+          "code",
+          "state"
+        ],
+        "title": "GitHubLinkIn",
+        "description": "What GitHub hands back after an installation, posted by the signed-in person.",
+        "examples": [
+          {
+            "code": "<code>",
+            "installation_id": 12345678,
+            "state": "<state>"
+          }
+        ]
+      },
+      "GitHubStatusOut": {
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          },
+          "installations": {
+            "items": {
+              "$ref": "#/components/schemas/GitHubInstallationOut"
+            },
+            "type": "array",
+            "title": "Installations"
+          }
+        },
+        "type": "object",
+        "required": [
+          "available",
+          "installations"
+        ],
+        "title": "GitHubStatusOut",
+        "description": "Whether GitHub is offered here, and the installations this organization has linked."
       },
       "GrantToken": {
         "properties": {
@@ -18336,6 +22750,136 @@
         ],
         "title": "IacEditOut"
       },
+      "IacLocationOut": {
+        "properties": {
+          "repository": {
+            "type": "string",
+            "title": "Repository"
+          },
+          "working_directory": {
+            "type": "string",
+            "title": "Working Directory"
+          },
+          "workspace": {
+            "type": "string",
+            "title": "Workspace"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address"
+          },
+          "commit_sha": {
+            "type": "string",
+            "title": "Commit Sha"
+          },
+          "uploaded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Uploaded At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "repository",
+          "working_directory",
+          "workspace",
+          "address",
+          "commit_sha",
+          "uploaded_at"
+        ],
+        "title": "IacLocationOut",
+        "description": "Where the customer's own Terraform state says the asset is defined (DECISIONS.md \u00a7229)."
+      },
+      "InspectChangeOut": {
+        "properties": {
+          "change": {
+            "$ref": "#/components/schemas/AssetChange"
+          },
+          "previous_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Value"
+          },
+          "current_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Value"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Observed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "change",
+          "previous_value",
+          "current_value",
+          "observed_at"
+        ],
+        "title": "InspectChangeOut"
+      },
+      "InspectOut": {
+        "properties": {
+          "asset_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Id"
+          },
+          "defined_in": {
+            "items": {
+              "$ref": "#/components/schemas/CodeHomeOut"
+            },
+            "type": "array",
+            "title": "Defined In"
+          },
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/InspectChangeOut"
+            },
+            "type": "array",
+            "title": "Changes"
+          },
+          "sign_in": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SignInOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "asset_id",
+          "defined_in",
+          "changes",
+          "sign_in"
+        ],
+        "title": "InspectOut"
+      },
       "InvitationCreate": {
         "properties": {
           "email": {
@@ -18592,6 +23136,99 @@
         ],
         "title": "LastScanOut"
       },
+      "LedgerScanOut": {
+        "properties": {
+          "scan_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scan Id"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Observed At"
+          },
+          "scope_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope Name"
+          },
+          "opened": {
+            "type": "integer",
+            "title": "Opened"
+          },
+          "closed": {
+            "type": "integer",
+            "title": "Closed"
+          },
+          "rerouted": {
+            "type": "integer",
+            "title": "Rerouted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "scan_id",
+          "observed_at",
+          "scope_name",
+          "opened",
+          "closed",
+          "rerouted"
+        ],
+        "title": "LedgerScanOut",
+        "description": "The latest scan that moved the ledger, and what it moved.\n\nNamed rather than \"since the last scan\": connections scan on their own\nschedules, so an organization has no single last scan to compare against."
+      },
+      "LedgerStepOut": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "source_id": {
+            "type": "string",
+            "title": "Source Id"
+          },
+          "relationship": {
+            "$ref": "#/components/schemas/RelationshipType"
+          },
+          "target": {
+            "type": "string",
+            "title": "Target"
+          },
+          "target_id": {
+            "type": "string",
+            "title": "Target Id"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "source_id",
+          "relationship",
+          "target",
+          "target_id",
+          "description"
+        ],
+        "title": "LedgerStepOut",
+        "description": "One hop of a route as the ledger stored it, readable after its assets go."
+      },
       "LeftDemoOut": {
         "properties": {
           "left": {
@@ -18616,6 +23253,32 @@
         ],
         "title": "Level",
         "description": "Scale shared by criticality, data sensitivity and internet exposure.\n\nUNKNOWN is a first-class value, not a missing one: the risk engine scores it\ncautiously rather than optimistically (RISK_ENGINE.md section 1)."
+      },
+      "LimitationOut": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "NOT_CITED",
+              "PAYLOAD_PRUNED",
+              "READING_INCOMPLETE",
+              "RULE_CHANGED",
+              "RULE_RETIRED",
+              "CONDITION_UNDECLARED"
+            ],
+            "title": "Code"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "detail"
+        ],
+        "title": "LimitationOut"
       },
       "LinkEndOut": {
         "properties": {
@@ -18704,6 +23367,26 @@
               }
             ],
             "title": "Pattern"
+          },
+          "risk": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RouteRiskOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConfidenceOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -18791,6 +23474,80 @@
           "role"
         ],
         "title": "MemberUpdate"
+      },
+      "MovementCauseOut": {
+        "properties": {
+          "cause": {
+            "type": "string",
+            "title": "Cause"
+          },
+          "points": {
+            "type": "integer",
+            "title": "Points"
+          },
+          "exact": {
+            "type": "number",
+            "title": "Exact"
+          },
+          "risks": {
+            "type": "integer",
+            "title": "Risks"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/MovementFindingOut"
+            },
+            "type": "array",
+            "title": "Findings"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "cause",
+          "points",
+          "exact",
+          "risks",
+          "findings"
+        ],
+        "title": "MovementCauseOut",
+        "description": "One cause of the score's movement (DECISIONS.md \u00a7235)."
+      },
+      "MovementFindingOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "severity": {
+            "type": "string",
+            "title": "Severity"
+          },
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "severity",
+          "rule_id",
+          "status"
+        ],
+        "title": "MovementFindingOut",
+        "description": "A finding that moved the score, named so the reader can open it."
       },
       "NeighborNodeOut": {
         "properties": {
@@ -18947,10 +23704,12 @@
         "enum": [
           "REACHABLE_FINDING",
           "VERIFIED_FIX",
-          "COVERAGE_DROP"
+          "COVERAGE_DROP",
+          "WORK_DIGEST",
+          "WORK_OVERDUE"
         ],
         "title": "NotificationKind",
-        "description": "What a notification is *about*, and the whole of the vocabulary.\n\nThree, and the shortness is the design. A CSPM that notifies per finding\nbecomes a filter rule in the second week, and the product already made this\ndecision one layer down: a rule may declare that forty failures are one\nproblem, because forty rows saying the same sentence is not forty pieces of\nnews (``risk/grouping.py``).\n\nSo the bar is not severity -- severity is the rulebook's opinion, and the\nproduct's whole argument is that what matters is what a finding means on\n*this* asset. The bar is whether a person would want to be interrupted."
+        "description": "What a notification is *about*, and the whole of the vocabulary.\n\nFew, and the shortness is the design. A CSPM that notifies per finding\nbecomes a filter rule in the second week, and the product already made this\ndecision one layer down: a rule may declare that forty failures are one\nproblem, because forty rows saying the same sentence is not forty pieces of\nnews (``risk/grouping.py``).\n\nSo the bar is not severity -- severity is the rulebook's opinion, and the\nproduct's whole argument is that what matters is what a finding means on\n*this* asset. The bar is whether a person would want to be interrupted."
       },
       "NotificationOut": {
         "properties": {
@@ -19131,6 +23890,24 @@
             "title": "Is Demo",
             "default": false
           },
+          "fix_within_days": {
+            "$ref": "#/components/schemas/FixWithinDays",
+            "default": {}
+          },
+          "mode": {
+            "$ref": "#/components/schemas/OrganizationMode",
+            "default": "TEAM"
+          },
+          "acceptance_approval_from": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Severity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "role": {
             "$ref": "#/components/schemas/Role"
           }
@@ -19145,6 +23922,15 @@
         ],
         "title": "OrganizationMembershipOut",
         "description": "An organization, and the caller's role in it."
+      },
+      "OrganizationMode": {
+        "type": "string",
+        "enum": [
+          "SOLO",
+          "TEAM"
+        ],
+        "title": "OrganizationMode",
+        "description": "Whether an organization is one person or a team (DECISIONS.md \u00a7236).\n\nA solo organization has one member and no invitations, and the product leaves out what\nonly a team needs: members, ownership rules, owners on tasks."
       },
       "OrganizationOut": {
         "properties": {
@@ -19192,6 +23978,24 @@
             "type": "boolean",
             "title": "Is Demo",
             "default": false
+          },
+          "fix_within_days": {
+            "$ref": "#/components/schemas/FixWithinDays",
+            "default": {}
+          },
+          "mode": {
+            "$ref": "#/components/schemas/OrganizationMode",
+            "default": "TEAM"
+          },
+          "acceptance_approval_from": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Severity"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -19242,12 +24046,311 @@
               }
             ],
             "title": "Country"
+          },
+          "fix_within_days": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FixWithinDays"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OrganizationMode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "acceptance_approval_from": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Severity"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
         "type": "object",
         "title": "OrganizationUpdate",
         "description": "A correction to how an organization describes itself.\n\nEvery field optional and applied only when present, which is the opposite\nof ``ContextDeclarationIn`` and deliberately so. That one is a *statement*\nabout a subscription, replaced entire so a reader always knows what it\ncurrently claims. This is a profile: a form that saves only the name must\nnot silently clear the country nobody touched.\n\nThe slug is not here. It is an identifier that already appears in stored\nreferences, and quietly changing it when somebody fixes a typo in a display\nname would be renaming a thing rather than relabelling it."
+      },
+      "OwnershipRuleDeletedOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "OwnershipRuleDeletedOut"
+      },
+      "OwnershipRuleIn": {
+        "properties": {
+          "scope": {
+            "$ref": "#/components/schemas/OwnershipScope"
+          },
+          "cloud_account_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cloud Account Id"
+          },
+          "resource_group": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 90,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Group"
+          },
+          "tag_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 512,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tag Key"
+          },
+          "tag_value": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tag Value"
+          },
+          "owner_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Owner Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "scope",
+          "owner_id"
+        ],
+        "title": "OwnershipRuleIn",
+        "description": "A scope and its owner. Send exactly the fields the scope needs, and no other.",
+        "examples": [
+          {
+            "owner_id": "6b1e2f4a-8c3d-4e5f-9a7b-1c2d3e4f5a6b",
+            "scope": "TAG",
+            "tag_key": "owner",
+            "tag_value": "platform-team"
+          }
+        ]
+      },
+      "OwnershipRuleOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/OwnershipScope"
+          },
+          "cloud_account_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cloud Account Id"
+          },
+          "resource_group": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Group"
+          },
+          "tag_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tag Key"
+          },
+          "tag_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tag Value"
+          },
+          "owner_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Owner Id"
+          },
+          "owner_is_member": {
+            "type": "boolean",
+            "title": "Owner Is Member",
+            "default": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "scope",
+          "owner_id",
+          "created_at"
+        ],
+        "title": "OwnershipRuleOut"
+      },
+      "OwnershipRuleUpdate": {
+        "properties": {
+          "owner_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Owner Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "owner_id"
+        ],
+        "title": "OwnershipRuleUpdate",
+        "description": "Hand the scope to another member."
+      },
+      "OwnershipScope": {
+        "type": "string",
+        "enum": [
+          "DEFAULT",
+          "SUBSCRIPTION",
+          "RESOURCE_GROUP",
+          "TAG"
+        ],
+        "title": "OwnershipScope",
+        "description": "Where an ownership rule applies, most specific last (DECISIONS.md \u00a7236).\n\nA task nobody was assigned to is owned by the most specific rule its asset\nmatches: a tag, then its resource group, then its subscription, then the\norganization's default."
+      },
+      "PackageFindingOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "status": {
+            "$ref": "#/components/schemas/FindingStatus"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/Severity"
+          },
+          "risk_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk Score"
+          },
+          "first_detected_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "First Detected At"
+          },
+          "last_detected_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Detected At"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "description",
+          "status",
+          "severity",
+          "risk_score",
+          "first_detected_at",
+          "last_detected_at",
+          "resolved_at"
+        ],
+        "title": "PackageFindingOut"
       },
       "PackageFrameworkOut": {
         "properties": {
@@ -19298,6 +24401,163 @@
         ],
         "title": "PackageFrameworkOut",
         "description": "A framework as the catalogue described it when the package was sealed."
+      },
+      "PackageRemediationOut": {
+        "properties": {
+          "guidance": {
+            "type": "string",
+            "title": "Guidance"
+          },
+          "spec": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RemediationSpecOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "guidance",
+          "spec"
+        ],
+        "title": "PackageRemediationOut"
+      },
+      "PackageResourceOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "provider_resource_id": {
+            "type": "string",
+            "title": "Provider Resource Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "resource_type": {
+            "type": "string",
+            "title": "Resource Type"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
+          },
+          "cloud_account_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cloud Account Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "provider",
+          "provider_resource_id",
+          "name",
+          "resource_type",
+          "region",
+          "cloud_account_id"
+        ],
+        "title": "PackageResourceOut",
+        "description": "The affected asset under the identifier its own cloud gives it."
+      },
+      "PackageRuleOut": {
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "current_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Version"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rule_id",
+          "version",
+          "current_version",
+          "name"
+        ],
+        "title": "PackageRuleOut"
+      },
+      "PackageVerificationOut": {
+        "properties": {
+          "method": {
+            "type": "string",
+            "const": "RESCAN",
+            "title": "Method"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "latest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/app__schemas__finding__VerificationOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "method",
+          "detail",
+          "latest"
+        ],
+        "title": "PackageVerificationOut",
+        "description": "How a fix is proven: a scan observing the check pass, never a person saying so."
       },
       "PageMeta": {
         "properties": {
@@ -19493,6 +24753,51 @@
         ],
         "title": "PatternKind",
         "description": "Which end of the routes fans out."
+      },
+      "PendingAcceptanceOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "requested_by": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Requested By"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "requested_by",
+          "reason",
+          "expires_at",
+          "created_at"
+        ],
+        "title": "PendingAcceptanceOut",
+        "description": "An acceptance of this finding waiting for a second approver (DECISIONS.md section 239)."
       },
       "PlacementOut": {
         "properties": {
@@ -19928,6 +25233,45 @@
             "type": "integer",
             "title": "On Routes",
             "default": 0
+          },
+          "due_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due On"
+          },
+          "due_by_policy": {
+            "type": "boolean",
+            "title": "Due By Policy",
+            "default": false
+          },
+          "owner_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Id"
+          },
+          "owner_by_rule": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OwnershipScope"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -20170,6 +25514,45 @@
             "title": "On Routes",
             "default": 0
           },
+          "due_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due On"
+          },
+          "due_by_policy": {
+            "type": "boolean",
+            "title": "Due By Policy",
+            "default": false
+          },
+          "owner_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Id"
+          },
+          "owner_by_rule": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OwnershipScope"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "note": {
             "anyOf": [
               {
@@ -20279,6 +25662,18 @@
           },
           "public_exposure": {
             "$ref": "#/components/schemas/Level"
+          },
+          "cloud_account_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cloud Account Id"
           }
         },
         "type": "object",
@@ -21006,6 +26401,15 @@
         ],
         "title": "Role"
       },
+      "RouteCloseReason": {
+        "type": "string",
+        "enum": [
+          "LINK_REMOVED",
+          "ASSET_GONE"
+        ],
+        "title": "RouteCloseReason",
+        "description": "Why a route closed. A deleted asset must never read as a fix."
+      },
       "RouteEndOut": {
         "properties": {
           "id": {
@@ -21043,6 +26447,226 @@
         ],
         "title": "RouteEndsOut",
         "description": "The pair a route is keyed by on the attack-path page."
+      },
+      "RouteEpisodeOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "entry": {
+            "$ref": "#/components/schemas/RouteEndOut"
+          },
+          "target": {
+            "$ref": "#/components/schemas/RouteTargetEndOut"
+          },
+          "hops": {
+            "type": "integer",
+            "title": "Hops"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/LedgerStepOut"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "NEW",
+              "OPEN",
+              "CLOSED"
+            ],
+            "title": "Status"
+          },
+          "reopened": {
+            "type": "boolean",
+            "title": "Reopened"
+          },
+          "opened_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Opened At"
+          },
+          "opened_scan_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opened Scan Id"
+          },
+          "last_seen_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Seen At"
+          },
+          "last_seen_scan_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Seen Scan Id"
+          },
+          "rerouted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rerouted At"
+          },
+          "rerouted_from": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/LedgerStepOut"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rerouted From"
+          },
+          "closed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closed At"
+          },
+          "closed_scan_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closed Scan Id"
+          },
+          "close_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RouteCloseReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "key",
+          "entry",
+          "target",
+          "hops",
+          "steps",
+          "status",
+          "reopened",
+          "opened_at",
+          "opened_scan_id",
+          "last_seen_at",
+          "last_seen_scan_id",
+          "rerouted_at",
+          "rerouted_from",
+          "closed_at",
+          "closed_scan_id",
+          "close_reason"
+        ],
+        "title": "RouteEpisodeOut",
+        "description": "One stretch of time a route was open, and how it ended if it did."
+      },
+      "RouteHistoryMeta": {
+        "properties": {
+          "days": {
+            "type": "integer",
+            "title": "Days"
+          },
+          "recorded_since": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded Since"
+          }
+        },
+        "type": "object",
+        "required": [
+          "days",
+          "recorded_since"
+        ],
+        "title": "RouteHistoryMeta"
+      },
+      "RouteHistoryOut": {
+        "properties": {
+          "routes": {
+            "items": {
+              "$ref": "#/components/schemas/RouteEpisodeOut"
+            },
+            "type": "array",
+            "title": "Routes"
+          },
+          "trend": {
+            "items": {
+              "$ref": "#/components/schemas/RouteTrendPointOut"
+            },
+            "type": "array",
+            "title": "Trend"
+          },
+          "latest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LedgerScanOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "routes",
+          "trend",
+          "latest"
+        ],
+        "title": "RouteHistoryOut"
       },
       "RouteMapEdgeOut": {
         "properties": {
@@ -21223,6 +26847,18 @@
           },
           "findings": {
             "$ref": "#/components/schemas/FindingTallyOut"
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
           }
         },
         "type": "object",
@@ -21288,6 +26924,9 @@
             },
             "type": "array",
             "title": "Choke Points"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/FixPlanOut"
           }
         },
         "type": "object",
@@ -21297,7 +26936,8 @@
           "routes",
           "patterns",
           "loose",
-          "choke_points"
+          "choke_points",
+          "plan"
         ],
         "title": "RouteMapOut"
       },
@@ -21355,6 +26995,34 @@
         "title": "RoutePatternOut",
         "description": "Routes that differ at one end only (DECISIONS.md section 123)."
       },
+      "RouteRiskOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RiskStatus"
+          },
+          "risk_level": {
+            "$ref": "#/components/schemas/Level"
+          },
+          "risk_score": {
+            "type": "number",
+            "title": "Risk Score"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "risk_level",
+          "risk_score"
+        ],
+        "title": "RouteRiskOut",
+        "description": "The risk that tracks a route, joined to it on the server by its ends.\n\nA route has a risk only where something on it is misconfigured\n(``correlation.py``); most routes have none, which is a real answer."
+      },
       "RouteTargetEndOut": {
         "properties": {
           "id": {
@@ -21376,6 +27044,26 @@
           "data_sensitivity"
         ],
         "title": "RouteTargetEndOut"
+      },
+      "RouteTrendPointOut": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "open": {
+            "type": "integer",
+            "title": "Open"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "open"
+        ],
+        "title": "RouteTrendPointOut",
+        "description": "Routes open at the end of one day, counted from the episodes' times."
       },
       "RuleOut": {
         "properties": {
@@ -22318,6 +28006,90 @@
         ],
         "title": "ScopeSubscriptionOut"
       },
+      "ScoreMovementOut": {
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          },
+          "from_score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Score"
+          },
+          "to_score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Score"
+          },
+          "delta": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delta"
+          },
+          "causes": {
+            "items": {
+              "$ref": "#/components/schemas/MovementCauseOut"
+            },
+            "type": "array",
+            "title": "Causes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "available",
+          "reason",
+          "since",
+          "from_score",
+          "to_score",
+          "delta",
+          "causes"
+        ],
+        "title": "ScoreMovementOut",
+        "description": "Why the score moved since the reading before the latest scan."
+      },
       "Severity": {
         "type": "string",
         "enum": [
@@ -22327,6 +28099,82 @@
           "CRITICAL"
         ],
         "title": "Severity"
+      },
+      "SeverityProgressOut": {
+        "properties": {
+          "severity": {
+            "$ref": "#/components/schemas/Severity"
+          },
+          "fixed": {
+            "type": "integer",
+            "title": "Fixed"
+          },
+          "median_days_to_fix": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median Days To Fix"
+          },
+          "on_time": {
+            "type": "integer",
+            "title": "On Time"
+          },
+          "late": {
+            "type": "integer",
+            "title": "Late"
+          }
+        },
+        "type": "object",
+        "required": [
+          "severity",
+          "fixed",
+          "on_time",
+          "late"
+        ],
+        "title": "SeverityProgressOut"
+      },
+      "SignInOut": {
+        "properties": {
+          "read": {
+            "type": "boolean",
+            "title": "Read"
+          },
+          "last_sign_in": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Sign In"
+          },
+          "days_since": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Days Since"
+          }
+        },
+        "type": "object",
+        "required": [
+          "read",
+          "last_sign_in",
+          "days_since"
+        ],
+        "title": "SignInOut",
+        "description": "An account's last sign-in as the capture recorded it.\n\n``read`` false: no reading covered the account, which the tenant's licence\nmay rule out -- never shown as \"never signed in\"."
       },
       "SimulatedCutOut": {
         "properties": {
@@ -22556,6 +28404,19 @@
           "describes": {
             "type": "string",
             "title": "Describes"
+          },
+          "replaces": {
+            "type": "boolean",
+            "title": "Replaces",
+            "default": false
+          },
+          "renamed": {
+            "items": {
+              "$ref": "#/components/schemas/TerraformRenameOut"
+            },
+            "type": "array",
+            "title": "Renamed",
+            "default": []
           }
         },
         "type": "object",
@@ -22566,6 +28427,30 @@
         ],
         "title": "TerraformHintOut",
         "description": "The argument to set, for a customer who manages this in code."
+      },
+      "TerraformRenameOut": {
+        "properties": {
+          "since": {
+            "type": "integer",
+            "title": "Since"
+          },
+          "attribute": {
+            "type": "string",
+            "title": "Attribute"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "since",
+          "attribute",
+          "value"
+        ],
+        "title": "TerraformRenameOut",
+        "description": "The argument under the name a later azurerm major release gives it."
       },
       "TopRiskOut": {
         "properties": {
@@ -22649,6 +28534,19 @@
         ],
         "title": "TotalMeta",
         "description": "How many there are in all, where the list may be cut short."
+      },
+      "UnlinkedOut": {
+        "properties": {
+          "installation_id": {
+            "type": "integer",
+            "title": "Installation Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "installation_id"
+        ],
+        "title": "UnlinkedOut"
       },
       "VerificationStatus": {
         "type": "string",
@@ -23437,8 +29335,16 @@
       "description": "Findings and routes scored as business risks, and triage."
     },
     {
+      "name": "acceptances",
+      "description": "Acceptances waiting for a second approver."
+    },
+    {
       "name": "remediation",
       "description": "The queue of fixes being worked, and who owns each."
+    },
+    {
+      "name": "integrations",
+      "description": "Cleave's GitHub App, linked to an organization."
     },
     {
       "name": "rules",

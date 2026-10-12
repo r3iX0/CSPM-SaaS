@@ -265,6 +265,20 @@ class CloudConnector(ABC):
         """
         return frozenset()
 
+    @staticmethod
+    def cut_commands(
+        source: CloudResource, relationship: RelationshipType, target: CloudResource
+    ) -> list[str]:
+        """The provider's commands that remove one link of the asset graph.
+
+        Asked by the attack-path page's "how to fix" (DECISIONS.md section
+        246). A cut is said in neutral words everywhere; the command is the
+        provider's own, so it belongs to the connector. Empty where no one
+        command removes the link exactly, which is the default: a command that
+        guessed would be worse than none.
+        """
+        return []
+
     @abstractmethod
     async def collect(
         self,

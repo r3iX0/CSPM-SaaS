@@ -1,7 +1,18 @@
 import { queryOptions, type QueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
-import type { Asset, Neighborhood, RouteMap, RouteMapMeta } from "@/lib/types";
+import type {
+  Asset,
+  AssetInspection,
+  BlastAsset,
+  CutFix,
+  Finding,
+  Neighborhood,
+  RouteHistory,
+  RouteHistoryMeta,
+  RouteMap,
+  RouteMapMeta,
+} from "@/lib/types";
 import { hopKey, routeKeyOf } from "./routeKeys";
 
 /**
@@ -108,3 +119,69 @@ export function preloadGraph(client: QueryClient, target: GraphTarget): void {
 function quietly(...loads: Promise<unknown>[]): void {
   for (const load of loads) load.catch(() => {});
 }
+
+/** Which routes are new, which closed, and the trend: the route ledger (§244). */
+export const routeHistoryQuery = queryOptions({
+  queryKey: ["attack-paths", "history"],
+  queryFn: () =>
+    api.get<RouteHistory>("/api/v1/attack-paths/history").then((r) => ({
+      history: r.data,
+      // The envelope's meta is untyped on the client; this endpoint's is this.
+      meta: r.meta as unknown as RouteHistoryMeta,
+    })),
+});
+
+/** A link of the route graph, named the way a drawn edge names it. */
+export interface CutLink {
+  source: string;
+  relationship: string;
+  target: string;
+}
+
+/** How to make one cut, from `GET /attack-paths/fix` (DECISIONS.md §246). */
+export function cutFixQuery(link: CutLink) {
+  const query = new URLSearchParams({
+    source: link.source,
+    relationship: link.relationship,
+    target: link.target,
+  });
+  return queryOptions({
+    queryKey: ["attack-paths", "fix", link.source, link.relationship, link.target],
+    queryFn: () => api.get<CutFix>(`/api/v1/attack-paths/fix?${query}`).then((r) => r.data),
+    staleTime: 60_000,
+  });
+}
+
+/** Where an asset is defined in code and what happened to it lately (§254). */
+export const inspectQuery = (providerResourceId: string) =>
+  queryOptions({
+    queryKey: ["attack-paths", "inspect", providerResourceId],
+    queryFn: () =>
+      api
+        .get<AssetInspection>(
+          `/api/v1/attack-paths/inspect/${encodeURIComponent(providerResourceId)}`,
+        )
+        .then((r) => r.data),
+  });
+
+/** What a compromise of one asset would reach (§255). */
+export const blastRadiusQuery = (providerResourceId: string) =>
+  queryOptions({
+    queryKey: ["blast-radius", providerResourceId],
+    queryFn: () =>
+      api
+        .get<BlastAsset[]>(
+          `/api/v1/attack-paths/blast-radius/${encodeURIComponent(providerResourceId)}`,
+        )
+        .then((r) => r.data),
+  });
+
+/** One asset's open findings, worst first, for the asset card (§254). */
+export const assetFindingsQuery = (assetId: string) =>
+  queryOptions({
+    queryKey: ["findings", "asset-card", assetId],
+    queryFn: () =>
+      api
+        .get<Finding[]>(`/api/v1/findings?resource_id=${assetId}&status=OPEN&limit=5`)
+        .then((r) => r.data),
+  });

@@ -25,11 +25,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.compliance import archive
 from app.compliance import package as manifest_module
 from app.core.deps import TenantContext
-from app.core.enums import Role, ScanStatus
+from app.core.enums import FindingEvent, FindingStatus, RemediationStatus, Role, ScanStatus
 from app.core.errors import ArchiveTooLarge, ConflictError, NotFound, ValidationFailed
 from app.core.payloads import compress
 from app.models.audit_package import AuditPackage, AuditPackageItem
+from app.models.finding import Finding
+from app.models.fix_pull_request import FixPullRequest, FixPullRequestFinding
+from app.models.history import FindingEventRecord
+from app.models.remediation import RemediationTask
+from app.models.resource import ResourceRecord
 from app.models.scan import Evidence, EvidenceBlob
+from app.models.verification import RemediationVerification
 from app.services import audit
 from app.services import compliance as compliance_service
 
@@ -125,6 +131,144 @@ async def _readings_of(
     return list(rows.scalars().all())
 
 
+#: How many finding ids one ``IN`` list carries when the fixes' trail is read.
+_ID_BATCH = 1000
+
+
+def _batches[T](values: Sequence[T]) -> Iterable[Sequence[T]]:
+    for start in range(0, len(values), _ID_BATCH):
+        yield values[start : start + _ID_BATCH]
+
+
+async def _fixes(
+    session: AsyncSession,
+    tenant: TenantContext,
+    rule_ids: set[str],
+    start: datetime,
+    end: datetime,
+) -> list[manifest_module.Fix]:
+    """The findings of these rules a scan observed fixed in ``[start, end)``, with their trail.
+
+    A fix is a resolution a scan observed, never a status a person moved (RULE_ENGINE.md
+    section 3), and one that held: a finding resolved and detected again is open, and is not
+    counted, as the progress report counts (DECISIONS.md section 225). A finding fixed twice in
+    the window is dated by the later fix. Its task is the one not cancelled, its verification
+    the latest claimed, and its pull requests those that edited the code defining its asset.
+    """
+    if not rule_ids:
+        return []
+    rows = await session.execute(
+        select(
+            FindingEventRecord.finding_id,
+            FindingEventRecord.observed_at,
+            FindingEventRecord.scan_id,
+            Finding.rule_id,
+            Finding.severity,
+            Finding.title,
+            Finding.first_detected_at,
+            ResourceRecord.name,
+            ResourceRecord.provider_resource_id,
+        )
+        .join(Finding, Finding.id == FindingEventRecord.finding_id)
+        .outerjoin(ResourceRecord, ResourceRecord.id == Finding.resource_id)
+        .where(
+            FindingEventRecord.organization_id == tenant.organization_id,
+            FindingEventRecord.event == FindingEvent.RESOLVED,
+            FindingEventRecord.scan_id.isnot(None),
+            FindingEventRecord.observed_at >= start,
+            FindingEventRecord.observed_at < end,
+            Finding.status == FindingStatus.RESOLVED,
+            Finding.rule_id.in_(sorted(rule_ids)),
+        )
+        .order_by(FindingEventRecord.observed_at)
+    )
+    latest: dict[UUID, Any] = {}
+    for row in rows.all():
+        latest[row.finding_id] = row
+    if not latest:
+        return []
+    finding_ids = sorted(latest, key=str)
+
+    tasks: dict[UUID, manifest_module.FixTask] = {}
+    verifications: dict[UUID, manifest_module.FixVerification] = {}
+    changes: dict[UUID, list[manifest_module.FixChange]] = {}
+    for batch in _batches(finding_ids):
+        for task in (
+            await session.execute(
+                select(RemediationTask)
+                .where(
+                    RemediationTask.organization_id == tenant.organization_id,
+                    RemediationTask.finding_id.in_(batch),
+                    RemediationTask.status != RemediationStatus.CANCELLED,
+                )
+                .order_by(RemediationTask.created_at)
+            )
+        ).scalars():
+            tasks[task.finding_id] = manifest_module.FixTask(
+                id=task.id, status=task.status.value, marked_done_at=task.completed_at
+            )
+        for claim in (
+            await session.execute(
+                select(RemediationVerification)
+                .where(
+                    RemediationVerification.organization_id == tenant.organization_id,
+                    RemediationVerification.finding_id.in_(batch),
+                )
+                .order_by(RemediationVerification.claimed_at)
+            )
+        ).scalars():
+            verifications[claim.finding_id] = manifest_module.FixVerification(
+                id=claim.id,
+                status=claim.status.value,
+                claimed_at=claim.claimed_at,
+                settled_at=claim.settled_at,
+                verified_by_scan_id=claim.verified_by_scan_id,
+                attempts=claim.attempts,
+            )
+        edits = await session.execute(
+            select(
+                FixPullRequestFinding.finding_id,
+                FixPullRequest.repository,
+                FixPullRequest.pr_number,
+                FixPullRequest.pr_url,
+                FixPullRequest.state,
+            )
+            .join(FixPullRequest, FixPullRequest.id == FixPullRequestFinding.pull_request_id)
+            .where(
+                FixPullRequestFinding.organization_id == tenant.organization_id,
+                FixPullRequestFinding.finding_id.in_(batch),
+                FixPullRequestFinding.outcome == "EDITED",
+                FixPullRequest.pr_number.isnot(None),
+            )
+        )
+        for finding_id, repository, number, url, state in edits.tuples():
+            if number is None:  # pragma: no cover -- the query asks for a number
+                continue
+            changes.setdefault(finding_id, []).append(
+                manifest_module.FixChange(
+                    repository=repository, number=number, url=url, state=state
+                )
+            )
+
+    return [
+        manifest_module.Fix(
+            finding_id=finding_id,
+            rule_id=row.rule_id,
+            severity=row.severity.value,
+            title=row.title,
+            asset=row.name,
+            asset_id=row.provider_resource_id,
+            first_detected_at=row.first_detected_at,
+            fixed_at=row.observed_at,
+            fixed_by_scan_id=row.scan_id,
+            task=tasks.get(finding_id),
+            verification=verifications.get(finding_id),
+            changes=tuple(changes.get(finding_id, [])),
+        )
+        for finding_id, row in latest.items()
+    ]
+
+
 async def seal(
     session: AsyncSession,
     tenant: TenantContext,
@@ -153,6 +297,11 @@ async def seal(
     keys = {key for control in controls for key in control["evidence_keys"]}
     readings = await _readings_of(session, tenant, scan_id, keys)
 
+    sealed_at = datetime.now(UTC)
+    start, end = manifest_module.fix_window(sealed_at, period_start, period_end)
+    rule_ids = {rule["rule_id"] for control in controls for rule in control["rules"]}
+    fixes = await _fixes(session, tenant, rule_ids, start, end)
+
     completed_at = assessment["completed_at"]
     package = AuditPackage(
         id=uuid.uuid4(),
@@ -166,10 +315,11 @@ async def seal(
         scan_completed_at=datetime.fromisoformat(completed_at) if completed_at else None,
         period_start=period_start,
         period_end=period_end,
+        fixes=manifest_module.seal_fixes(fixes, start, end),
         manifest_version=manifest_module.MANIFEST_VERSION,
         manifest_sha256="",
         sealed_by=tenant.user.id,
-        sealed_at=datetime.now(UTC),
+        sealed_at=sealed_at,
     )
     items = [
         AuditPackageItem(
@@ -197,6 +347,7 @@ async def seal(
             "frameworks": list(framework_ids),
             "scan_id": assessment["scan_id"],
             "manifest_sha256": package.manifest_sha256,
+            "fixes": len(fixes),
         },
     )
     return package

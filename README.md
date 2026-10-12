@@ -24,6 +24,7 @@ Names that exist in a customer's cloud or directory, and identifiers in the code
   closes the most routes, and a plan of cuts simulated as a whole.
 - **Maps compliance** evidence to frameworks, including the controls nothing checks.
 - **Shows the fix** as a CLI command, and for Terraform as a diff against the customer's own file
+  or, where GitHub is linked, as a pull request
   ([`docs/FIX_AS_CODE.md`](docs/FIX_AS_CODE.md)).
 - **Reports and notifies**: PDF reports, webhooks, an append-only audit log, and invitations for
   colleagues.
@@ -45,9 +46,8 @@ an AWS account with it, and not before.
 
 ## Running it
 
-Cleave is cloud-only. There is no local run mode, no `docker-compose.yml`, and no localhost
-defaults anywhere in the configuration — the API refuses to start unless it has a complete
-deployment environment.
+Cleave is deployed to the cloud, with no localhost defaults anywhere in the configuration — the
+API refuses to start unless it has a complete environment.
 
 | Layer | Platform |
 |---|---|

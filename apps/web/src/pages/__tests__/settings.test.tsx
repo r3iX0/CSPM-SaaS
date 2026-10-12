@@ -26,6 +26,7 @@ import type {
   Invitation,
   Member,
   Organization,
+  OwnershipRule,
   Webhook,
 } from "@/lib/types";
 
@@ -101,6 +102,7 @@ function mount({
   invitations = [] as Invitation[],
   activity = [] as AuditEntry[],
   webhooks = [] as Webhook[],
+  ownership = [] as OwnershipRule[],
 }: {
   at?: string;
   orgs?: Organization[];
@@ -110,6 +112,7 @@ function mount({
   invitations?: Invitation[];
   activity?: AuditEntry[];
   webhooks?: Webhook[];
+  ownership?: OwnershipRule[];
 } = {}) {
   const get = vi.spyOn(api, "get").mockImplementation((path: string) => {
     if (path.includes("/context-declarations")) {
@@ -126,6 +129,9 @@ function mount({
     }
     if (path.endsWith("/webhooks")) {
       return Promise.resolve({ data: webhooks, meta: {} });
+    }
+    if (path.endsWith("/ownership-rules")) {
+      return Promise.resolve({ data: ownership, meta: { total: ownership.length } });
     }
     if (path.includes("/audit-log")) {
       return Promise.resolve({ data: activity, meta: { total: activity.length } });
@@ -170,7 +176,14 @@ describe("Settings pages", () => {
     const names = within(nav)
       .getAllByRole("link")
       .map((link) => link.textContent);
-    expect(names).toEqual(["General", "Members", "Risk context", "Security", "Preferences"]);
+    expect(names).toEqual([
+      "General",
+      "Members",
+      "Risk context",
+      "Ownership",
+      "Security",
+      "Preferences",
+    ]);
     expect(within(nav).getByRole("link", { name: "Risk context" })).toHaveAttribute(
       "aria-current",
       "page",
@@ -251,6 +264,48 @@ describe("General", () => {
         country: "AL",
       }),
     );
+  });
+
+  it("sends the deadline policy whole, an empty box as no deadline (DECISIONS.md §225)", async () => {
+    const patch = vi.spyOn(api, "patch").mockResolvedValue({ data: organization(), meta: {} });
+    mount({
+      orgs: [organization({ fix_within_days: { critical: 14, high: 30, medium: null, low: 180 } })],
+    });
+
+    const save = await screen.findByRole("button", { name: "Save deadlines" });
+    expect(save).toHaveAttribute("aria-disabled", "true");
+    fireEvent.change(screen.getByLabelText("Critical"), { target: { value: "7" } });
+    fireEvent.change(screen.getByLabelText("Low"), { target: { value: "" } });
+    fireEvent.click(save);
+
+    await waitFor(() =>
+      expect(patch).toHaveBeenCalledWith("/api/v1/organizations", {
+        fix_within_days: { critical: 7, high: 30, medium: null, low: null },
+      }),
+    );
+  });
+
+  it("will not save a deadline outside a year", async () => {
+    mount();
+
+    const save = await screen.findByRole("button", { name: "Save deadlines" });
+    fireEvent.change(screen.getByLabelText("High"), { target: { value: "400" } });
+    expect(screen.getByLabelText("High")).toHaveAttribute("aria-invalid", "true");
+    expect(save).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("shows a reader who cannot edit the deadlines as text", async () => {
+    mount({
+      orgs: [
+        organization({
+          role: "VIEWER",
+          fix_within_days: { critical: 7, high: null, medium: null, low: null },
+        }),
+      ],
+    });
+
+    expect(await screen.findByText("7 days")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save deadlines" })).not.toBeInTheDocument();
   });
 
   it("chooses a country by name and stores its code", async () => {
@@ -689,7 +744,13 @@ describe("Integrations", () => {
         name: "SIEM",
         url: "https://siem.example.com/hook",
         format: "GENERIC",
-        kinds: ["REACHABLE_FINDING", "VERIFIED_FIX", "COVERAGE_DROP"],
+        kinds: [
+          "REACHABLE_FINDING",
+          "VERIFIED_FIX",
+          "COVERAGE_DROP",
+          "WORK_OVERDUE",
+          "WORK_DIGEST",
+        ],
       }),
     );
     expect(await screen.findByText("a".repeat(64))).toBeInTheDocument();
@@ -713,5 +774,63 @@ describe("Preferences", () => {
     const group = await screen.findByRole("radiogroup", { name: "Theme" });
     expect(within(group).getAllByRole("radio")).toHaveLength(3);
     expect(screen.getByRole("switch", { name: /Single-key shortcuts/ })).toBeInTheDocument();
+  });
+});
+
+describe("One person or a team (DECISIONS.md §236)", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("leaves members and ownership out of a solo organization", async () => {
+    mount({ at: "/settings/general", orgs: [organization({ mode: "SOLO" })] });
+    const nav = await screen.findByRole("navigation", { name: "Settings sections" });
+    const names = within(nav)
+      .getAllByRole("link")
+      .map((link) => link.textContent);
+    expect(names).not.toContain("Members");
+    expect(names).not.toContain("Ownership");
+  });
+
+  it("switches to solo when an owner chooses it", async () => {
+    const patch = vi.spyOn(api, "patch").mockResolvedValue({ data: {}, meta: {} });
+    mount({ at: "/settings/general" });
+    fireEvent.click(await screen.findByRole("radio", { name: /Just me/ }));
+    await waitFor(() =>
+      expect(patch).toHaveBeenCalledWith("/api/v1/organizations", { mode: "SOLO" }),
+    );
+  });
+
+  it("says each rule's scope in words, and who owns it", async () => {
+    mount({
+      at: "/settings/ownership",
+      ownership: [
+        {
+          id: "r-1",
+          scope: "TAG",
+          cloud_account_id: null,
+          resource_group: null,
+          tag_key: "owner",
+          tag_value: "platform-team",
+          owner_id: "u-1",
+          owner_is_member: true,
+          created_at: "2026-10-01T00:00:00Z",
+        },
+        {
+          id: "r-2",
+          scope: "SUBSCRIPTION",
+          cloud_account_id: "a-1",
+          resource_group: null,
+          tag_key: null,
+          tag_value: null,
+          owner_id: "u-gone",
+          owner_is_member: false,
+          created_at: "2026-10-01T00:00:00Z",
+        },
+      ],
+    });
+    expect(await screen.findByText("Tag owner = platform-team")).toBeInTheDocument();
+    expect(screen.getByText("Subscription Production subscription")).toBeInTheDocument();
+    expect(screen.getByText(/Left the organization/)).toBeInTheDocument();
   });
 });

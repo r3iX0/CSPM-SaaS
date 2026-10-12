@@ -29,6 +29,7 @@ from app.models.remediation import RiskException
 from app.models.risk import Risk, RiskFinding
 from app.models.scan import Scan
 from app.risk.triage import acceptance_expiry, finding_risk_status, finding_status_for
+from app.services import approval_policy
 from app.services import findings as findings_service
 
 #: The members a decision on a finding risk reaches. A resolved finding is over
@@ -291,10 +292,18 @@ async def set_status(
         if risk.kind == RiskKind.FINDING and not members.get(risk.id):
             raise ValidationFailed(f"Nothing on “{risk.title}” is open to decide about")
 
+    policy = await approval_policy.policy_for(session, tenant)
     for risk in risks:
         if risk.kind == RiskKind.FINDING:
             await _decide_findings(
                 session, tenant, risk, members[risk.id], status, reason, expires_at
+            )
+        elif status == RiskStatus.ACCEPTED and approval_policy.requires(policy, risk.risk_level):
+            # A route waits as its findings do: nothing changes until a second person approves
+            # (DECISIONS.md section 239). Its status stays, which is how the caller can tell.
+            assert reason is not None  # refused above otherwise
+            await approval_policy.request(
+                session, tenant, risk_id=risk.id, reason=reason, expires_at=expires_at
             )
         else:
             risk.status = status
@@ -302,6 +311,10 @@ async def set_status(
             # clears it, so a route reopened and later accepted again without a
             # date is not reopened by the first one's (DECISIONS.md §104).
             risk.accepted_until = expires_at if status == RiskStatus.ACCEPTED else None
+            if status == RiskStatus.ACCEPTED:
+                # Accepted at once, by an owner or admin or below the policy: a request still
+                # waiting on the route is answered (DECISIONS.md section 239).
+                await approval_policy.withdraw(session, tenant.organization_id, risk_id=risk.id)
             await findings_service.record_audit(
                 session,
                 tenant,

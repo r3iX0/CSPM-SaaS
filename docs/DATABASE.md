@@ -10,6 +10,9 @@ discussion are called out inline — treat this file as authoritative over any e
 ```text
 organizations
   id, name, slug, industry, country, created_at, updated_at
+  is_demo, fix_within_days_critical, _high, _medium, _low
+  -- fix_within_days_*: 1 to 365 days or NULL; a task with no due date is due
+  -- that long after its finding's first detection (DECISIONS.md §225)
 
 organization_members
   id, organization_id, user_id, role, email, created_at, updated_at
@@ -190,10 +193,13 @@ remediation_tasks
   created_at, updated_at, completed_at
 
 exceptions
-  id, organization_id, finding_id, approved_by, reason, expires_at, status, created_at
-  -- status: ACTIVE / EXPIRED / REVOKED. At most one ACTIVE per finding:
+  id, organization_id, finding_id, risk_id, requested_by, approved_by, reason, expires_at
+  status, created_at, second_approval, decided_by, decided_at, decision_note
+  -- status: PENDING / ACTIVE / REJECTED / EXPIRED / REVOKED. At most one ACTIVE per finding:
   -- accepting again or reopening revokes the running one, and the
-  -- expire-acceptances sweep expires it once expires_at passes
+  -- expire-acceptances sweep expires it once expires_at passes.
+  -- PENDING waits for a second approver (DECISIONS.md §239): one per finding or risk, a risk
+  -- only while waiting, and decided_by never requested_by where second_approval is set
 
 audit_logs
   id, organization_id, user_id, action, resource_type, resource_id
@@ -339,6 +345,34 @@ asset_change_events        -- what moved between two readings of one environment
   id, organization_id, ...  -- APPEARED / DISAPPEARED / attribute moves, with
                             -- direction where a level went up or down. A move
                             -- into UNKNOWN has no direction
+
+iac_indexes                -- one Terraform state's index, uploaded by the
+  id, organization_id      -- customer's own pipeline (DECISIONS.md §229);
+  repository_id, repository, working_directory, workspace  -- replaced whole
+  commit_sha, uploaded_at  -- by the next upload of the same four
+  UNIQUE(organization_id, repository_id, working_directory, workspace)
+
+code_integrations          -- a GitHub App installation linked to an
+  id, organization_id      -- organization (DECISIONS.md §231). installation_id
+  provider, installation_id UNIQUE  -- is unique, so no second organization can
+  account_login, account_type       -- claim it; linking is proven with the
+  connected_by, connected_at        -- linking person's own GitHub token
+
+fix_pull_requests          -- one rule's fix asked for as a pull request on
+  id, organization_id, rule_id     -- one repository (DECISIONS.md §232): QUEUED,
+  repository_id, repository, state -- OPENING (claimed under a lease), OPEN,
+  branch, pr_number, pr_url        -- MERGED, CLOSED, DECLINED or FAILED; at most
+  decline_reason, detail           -- one live per organization, rule and
+  requested_by, attempts, claimed_until, created_at, updated_at  -- repository
+
+fix_pull_request_findings  -- each finding it covers, and whether its block was
+  id, pull_request_id, organization_id, finding_id, address  -- EDITED (path,
+  outcome, reason, path, line                                -- line) or DECLINED
+
+iac_index_entries          -- one managed azurerm resource of it: its state
+  id, index_id, organization_id   -- address, type, instance key and lower-cased
+  address, type, instance_key     -- Azure Resource Manager id. Members read;
+  resource_id                     -- only the owner connection writes
 ```
 
 ---

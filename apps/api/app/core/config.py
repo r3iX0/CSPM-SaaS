@@ -1,10 +1,15 @@
 """Application settings.
 
-CloudGuard runs in one place: a managed cloud environment (Supabase for
-PostgreSQL and Auth, Railway for the API and worker, Vercel for the frontend).
-There is deliberately no local-development mode and no localhost defaults --
-every value below has to be supplied by the environment, and the app refuses to
-start if any of them is missing or obviously wrong.
+CloudGuard runs in a managed cloud environment (Supabase for PostgreSQL and
+Auth, Railway for the API and worker, Vercel for the frontend), and on a
+developer's machine under ``APP_ENV=local`` to test a change before it ships
+(DECISIONS.md section 240). There are no localhost defaults either way -- every
+value below has to be supplied by the environment, and the app refuses to start
+if any of them is missing or obviously wrong.
+
+``local`` relaxes exactly one check, and inverts it: a deployment refuses a
+localhost address, and a local run refuses anything else, so the mode cannot be
+switched on against real services by mistake.
 
 That refusal is the point. Every setting checked here is one that would let the
 process boot, look healthy, and be trivially exploitable: a known JWT secret
@@ -16,6 +21,7 @@ import json
 import re
 from functools import lru_cache
 from typing import Annotated, Literal
+from urllib.parse import urlsplit
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
@@ -26,6 +32,18 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 # asserts the API really does serve it.
 _GUID = re.compile(r"[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}")
 CONSENT_CALLBACK_PATH = "/api/v1/cloud-connections/azure/consent/callback"
+
+
+def _is_local(value: str) -> bool:
+    """Whether a URL or address names this machine or the local stack's own containers.
+
+    The API and worker run locally in the image Railway runs, on the local Supabase stack's
+    Docker network, so they reach Postgres and Auth by that stack's container names
+    (``supabase_db_cleave-local``) rather than by localhost. A name carrying ``cleave-local``
+    exists only on that network (DECISIONS.md section 241).
+    """
+    host = urlsplit(value if "//" in value else f"//{value}").hostname or ""
+    return host in {"localhost", "127.0.0.1"} or "cleave-local" in host
 
 
 class ConfigurationError(RuntimeError):
@@ -39,12 +57,17 @@ class Settings(BaseSettings):
 
     # Defaults to production so a forgotten variable fails closed rather than
     # silently relaxing the checks below. "test" is the only value that skips
-    # them, and it exists for CI.
-    app_env: Literal["test", "staging", "production"] = "production"
+    # them, and it exists for CI. "local" runs every check but requires the
+    # addresses to be this machine's (tools/local, DECISIONS.md section 240).
+    app_env: Literal["test", "local", "staging", "production"] = "production"
 
     app_url: str = ""
     api_url: str = ""
     log_level: str = "INFO"
+    # The commit Railway deployed, which it sets on every deployment from git.
+    # Not a secret and not required: an evidence package names the build that
+    # assembled it (DECISIONS.md section 262), and says "not known" without it.
+    railway_git_commit_sha: str = ""
 
     # --- Supabase -----------------------------------------------------------
     supabase_url: str = ""
@@ -187,6 +210,22 @@ class Settings(BaseSettings):
     # cloud nobody has scanned.
     aws_enabled: bool = False
 
+    # --- GitHub App (Fix-as-Code, DECISIONS.md section 231) ------------------
+    # Cleave's own GitHub App: customers install it on the repositories that
+    # hold their Terraform. The private key signs the App's own JWTs and never
+    # leaves this process; installation tokens are minted per call and never
+    # stored. Linking an installation needs the App's OAuth half too, because
+    # only a user token can prove the person linking it can see it.
+    github_app_id: str = ""
+    github_app_slug: str = ""
+    github_app_client_id: str = ""
+    github_app_client_secret: str = ""
+    github_app_private_key: str = ""
+    github_app_webhook_secret: str = ""
+    # Off by default, as AWS is: the GitHub card, linking and the state index
+    # upload are offered only once somebody switches it on.
+    fix_prs_enabled: bool = False
+
     sentry_dsn: str = ""
 
     # NoDecode is load-bearing. pydantic-settings treats any list field as
@@ -240,6 +279,25 @@ class Settings(BaseSettings):
         run the live checklist. Either alone is a connection that cannot finish.
         """
         return self.aws_configured and self.aws_enabled
+
+    @property
+    def github_configured(self) -> bool:
+        """True when every half of Cleave's GitHub App is present."""
+        return all(
+            (
+                self.github_app_id,
+                self.github_app_slug,
+                self.github_app_client_id,
+                self.github_app_client_secret,
+                self.github_app_private_key,
+                self.github_app_webhook_secret,
+            )
+        )
+
+    @property
+    def github_offered(self) -> bool:
+        """Whether customers may link GitHub and upload a state index."""
+        return self.github_configured and self.fix_prs_enabled
 
     @property
     def azure_configured(self) -> bool:
@@ -385,24 +443,39 @@ class Settings(BaseSettings):
             )
 
         # A localhost value here means a local default leaked into a deployment
-        # -- it would point a real customer at their own machine.
-        for name, value in (
+        # -- it would point a real customer at their own machine. A local run is
+        # the mirror image: it may point only at this machine, so ``local`` set
+        # by mistake on a deployed service refuses to boot rather than running
+        # against real data with a developer's settings.
+        addresses = (
             ("APP_URL", self.app_url),
             ("API_URL", self.api_url),
             ("DATABASE_URL", self.database_url),
             ("DATABASE_OWNER_URL", self.database_owner_url),
             ("REDIS_URL", self.redis_url),
-        ):
-            if value and ("localhost" in value or "127.0.0.1" in value):
+            ("DATABASE_WORKER_URL", self.database_worker_url),
+            ("SUPABASE_URL", self.supabase_url),
+        )
+        if self.app_env == "local":
+            for name, value in addresses:
+                if value and not _is_local(value):
+                    problems.append(
+                        f"{name} is not on this machine, and APP_ENV=local runs only "
+                        "against localhost. Use staging or production for a deployment."
+                    )
+            if any(not _is_local(origin) for origin in self.cors_origins):
+                problems.append("CORS_ORIGINS must be localhost under APP_ENV=local.")
+        else:
+            for name, value in addresses[:-1]:
+                if value and _is_local(value):
+                    problems.append(
+                        f"{name} points at localhost. Only APP_ENV=local runs on this "
+                        "machine -- this must be the deployed address."
+                    )
+            if any("localhost" in origin for origin in self.cors_origins):
                 problems.append(
-                    f"{name} points at localhost. There is no local environment "
-                    "-- this must be the deployed address."
+                    "CORS_ORIGINS contains localhost. Set it to your deployed frontend's URL."
                 )
-
-        if any("localhost" in origin for origin in self.cors_origins):
-            problems.append(
-                "CORS_ORIGINS contains localhost. Set it to your deployed frontend's URL."
-            )
 
         # Only the *missing* case is fatal, as it always has been: an Azure
         # identity with no redirect URI is an incomplete deployment. A malformed

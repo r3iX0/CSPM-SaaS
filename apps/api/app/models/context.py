@@ -64,3 +64,32 @@ class ContextDeclarationRecord(UUIDPrimaryKey, TenantOwned, Timestamps, Base):
     declared_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class AssetDeclarationRecord(UUIDPrimaryKey, TenantOwned, Timestamps, Base):
+    """What a customer has said about one asset: how sensitive its data is.
+
+    The per-resource declaration the class above deferred, now asked for by the
+    attack-path page (DECISIONS.md section 251): a route ends only where data is
+    sensitive, and the one person who knows that a storage account holds the
+    payroll export is the customer. Sensitivity only, because that is what
+    gives a route its end; criticality and environment stay per subscription.
+
+    Applied by the next evaluation as a floor, as the subscription's is, so it
+    can raise an asset and never lower it.
+    """
+
+    __tablename__ = "asset_declarations"
+    __table_args__ = (UniqueConstraint("resource_id", name="uq_asset_declarations_resource_id"),)
+
+    resource_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("cloud_resources.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    data_sensitivity: Mapped[Level] = mapped_column(StrEnumType(Level, 16), nullable=False)
+    note: Mapped[str | None] = mapped_column(Text)
+    declared_by_user_id: Mapped[uuid.UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    declared_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

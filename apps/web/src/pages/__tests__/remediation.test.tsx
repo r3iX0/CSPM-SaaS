@@ -68,28 +68,65 @@ function renderPage(entry = "/remediation") {
   );
 }
 
+/** `GET /remediation/progress`: one late critical fix, no deadline policy (§225). */
+const PROGRESS = {
+  days: 30,
+  fixed: 1,
+  on_time: 0,
+  late: 1,
+  by_severity: [
+    { severity: "CRITICAL", fixed: 1, median_days_to_fix: 12, on_time: 0, late: 1 },
+    { severity: "HIGH", fixed: 0, median_days_to_fix: null, on_time: 0, late: 0 },
+    { severity: "MEDIUM", fixed: 0, median_days_to_fix: null, on_time: 0, late: 0 },
+    { severity: "LOW", fixed: 0, median_days_to_fix: null, on_time: 0, late: 0 },
+  ],
+  recent: [
+    {
+      finding_id: "finding-9",
+      title: "Key vault allows public network access",
+      rule_id: "AZ-KV-001",
+      severity: "CRITICAL",
+      first_detected_at: "2026-08-01T00:00:00Z",
+      resolved_at: "2026-08-13T00:00:00Z",
+      due_on: "2026-08-08",
+      days_to_fix: 12,
+      on_time: false,
+    },
+  ],
+};
+
+const NOTHING_FIXED = { ...PROGRESS, fixed: 0, late: 0, by_severity: [], recent: [] };
+
 let tasks: Record<string, unknown>[] = [TASK];
+let progress: Record<string, unknown> = PROGRESS;
 let openFindings: Record<string, unknown>[] = [{ ...FINDING, status: "OPEN" }];
 let finding: Record<string, unknown> = FINDING;
 let members: Record<string, unknown>[] = [];
+let orgs: Record<string, unknown>[] = [];
 
 describe("the remediation queue", () => {
   beforeEach(() => {
     tasks = [TASK];
+    progress = PROGRESS;
     openFindings = [{ ...FINDING, status: "OPEN" }];
     finding = FINDING;
     members = [];
+    orgs = [];
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
         const url = String(input);
-        const body = url.includes("/members")
-          ? members
-          : url.includes("/findings/")
-            ? finding
-            : url.includes("/findings?")
-              ? openFindings
-              : tasks;
+        const body = url.includes("/remediation/progress")
+          ? progress
+          : url.includes("/organizations")
+            ? orgs
+            : url.includes("/members")
+              ? members
+              : url.includes("/findings/")
+                ? finding
+                : url.includes("/findings?")
+                  ? openFindings
+                  : tasks;
         return {
           ok: true,
           status: 200,
@@ -107,6 +144,37 @@ describe("the remediation queue", () => {
     vi.unstubAllGlobals();
   });
 
+  it("says who has unassigned work by the rule that names them, and narrows to it (§236)", async () => {
+    members = [
+      { id: "m-1", user_id: "u-me", email: "me@contoso.example", role: "OWNER", is_you: true },
+    ];
+    tasks = [
+      { ...TASK, owner_id: "u-me", owner_by_rule: "TAG" },
+      { ...TASK, id: "task-2", finding_id: "finding-2", owner_id: null, owner_by_rule: null },
+    ];
+    const user = userEvent.setup();
+    renderPage();
+
+    expect(await screen.findAllByText(/with You, by tag/)).not.toHaveLength(0);
+    expect(screen.getByText("2 tasks shown")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Mine" }));
+    expect(await screen.findByText("1 task shown")).toBeInTheDocument();
+  });
+
+  it("asks nothing about owners in a solo organization (§236)", async () => {
+    orgs = [
+      { id: "o-1", name: "Me", slug: "me", created_at: "2026-01-01T00:00:00Z", mode: "SOLO" },
+    ];
+    tasks = [{ ...TASK, owner_id: "u-me", owner_by_rule: "DEFAULT" }];
+    renderPage();
+
+    expect(
+      await screen.findByText("Storage account allows public blob access"),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Whose work" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/with /)).not.toBeInTheDocument();
+  });
+
   it("offers the worst open findings when the queue is empty", async () => {
     // "Track a finding from its detail page", to somebody with fifty-eight
     // open ones, was a page away from the answer (DECISIONS.md §187).
@@ -120,6 +188,41 @@ describe("the remediation queue", () => {
         name: "Track the fix for Storage account allows public blob access",
       }),
     ).toBeInTheDocument();
+  });
+
+  it("calls work late by the policy's deadline when nobody set a date", async () => {
+    // "Overdue 0" meant nothing while nobody picked dates (DECISIONS.md §225).
+    tasks = [{ ...TASK, due_on: "2026-08-08", due_by_policy: true }];
+    renderPage();
+
+    expect(await screen.findByText(/Overdue · /)).toBeInTheDocument();
+    const overdue = screen.getByText("Overdue", { selector: "dt" });
+    expect(overdue.nextElementSibling).toHaveTextContent("1");
+  });
+
+  it("does not call work due today overdue", async () => {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    tasks = [{ ...TASK, due_date: today, due_on: today }];
+    renderPage();
+
+    expect(await screen.findByText(/^Due /)).toBeInTheDocument();
+    expect(screen.queryByText(/Overdue · /)).not.toBeInTheDocument();
+  });
+
+  it("says what a scan fixed in the last thirty days, and against what deadline", async () => {
+    // Finished work used to leave the page with the queue (§225).
+    renderPage();
+
+    const fixed = await screen.findByRole("region", { name: "Fixed in the last 30 days" });
+    expect(
+      await within(fixed).findByRole("link", { name: "Key vault allows public network access" }),
+    ).toHaveAttribute("href", "/findings/finding-9");
+    expect(within(fixed).getByText("0 of 1")).toBeInTheDocument();
+    expect(within(fixed).getByText("12 days")).toBeInTheDocument();
+    expect(within(fixed).getByText("Late")).toBeInTheDocument();
+    expect(within(fixed).getByText(/No fix deadlines are set/)).toBeInTheDocument();
   });
 
   it("names the finding and the asset the work is on, and opens its fix", async () => {
@@ -204,7 +307,7 @@ describe("the remediation queue", () => {
     expect(await screen.findByText("Checking the fix")).toBeInTheDocument();
     expect(screen.queryByText("Verified fixed")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Mark done/ })).not.toBeInTheDocument();
-    expect(screen.getByText(/Marked done does not close a finding/)).toBeInTheDocument();
+    expect(screen.getByText(/Marked done is not fixed/)).toBeInTheDocument();
   });
 
   it("says a claimed fix the checks have not seen yet is not fixed, in the row and the sheet", async () => {
@@ -236,6 +339,8 @@ describe("the remediation queue", () => {
   it("draws the finding's severity, not the task's priority (§212)", async () => {
     tasks = [{ ...TASK, priority: "CRITICAL" }];
     finding = { ...FINDING, severity: "HIGH" };
+    // The fixes section would draw a critical fix of its own.
+    progress = NOTHING_FIXED;
     renderPage();
 
     await screen.findByText(/prodstorage/);
@@ -304,30 +409,41 @@ describe("the queue, grouped by rule (DECISIONS.md §203)", () => {
       id: "finding-2",
       resource: { ...FINDING.resource, id: "asset-2", name: "devstorage" },
     },
+    "finding-3": {
+      ...RULE_FINDING,
+      id: "finding-3",
+      status: "OPEN",
+      resource: { ...FINDING.resource, id: "asset-3", name: "teststorage" },
+    },
   };
+  const TWO_TASKS = [TASK, { ...TASK, id: "task-2", finding_id: "finding-2" }];
+  let queue: Record<string, unknown>[] = TWO_TASKS;
   let fetchMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    queue = TWO_TASKS;
     fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = input instanceof Request ? input.url : input.toString();
       const id = /\/findings\/([^/?]+)$/.exec(url)?.[1];
       const body =
         init?.method === "PATCH"
           ? { ...TASK, status: "DONE" }
-          : url.includes("/members")
-            ? []
-            : id
-              ? BY_ID[id]
-              : url.includes("/findings?")
-                ? // The rule's open findings: the two tracked, and one nobody has.
-                  [
-                    { ...RULE_FINDING, status: "OPEN" },
-                    { ...BY_ID["finding-2"], status: "OPEN" },
-                    { ...RULE_FINDING, id: "finding-3", status: "OPEN" },
-                  ]
-                : url.includes("/assets/")
-                  ? { provider_resource_id: "/subscriptions/s1/resourceGroups/rg/x" }
-                  : [TASK, { ...TASK, id: "task-2", finding_id: "finding-2" }];
+          : url.includes("/remediation/progress")
+            ? PROGRESS
+            : url.includes("/members")
+              ? []
+              : id
+                ? BY_ID[id]
+                : url.includes("/findings?")
+                  ? // The rule's open findings: the two tracked, and one nobody has.
+                    [
+                      { ...RULE_FINDING, status: "OPEN" },
+                      { ...BY_ID["finding-2"], status: "OPEN" },
+                      { ...RULE_FINDING, id: "finding-3", status: "OPEN" },
+                    ]
+                  : url.includes("/assets/")
+                    ? { provider_resource_id: "/subscriptions/s1/resourceGroups/rg/x" }
+                    : queue;
       const response: Pick<Response, "ok" | "status" | "json"> = {
         ok: true,
         status: 200,
@@ -368,6 +484,19 @@ describe("the queue, grouped by rule (DECISIONS.md §203)", () => {
     await user.click(within(sheet).getByRole("tab", { name: "CLI" }));
     const script = within(sheet).getByText(/# prodstorage/);
     expect(script).toHaveTextContent("# devstorage");
+  });
+
+  it("offers an asset somebody stopped tracking to track again, rather than listing it (§224)", async () => {
+    // Listed, it was counted ("3 assets, 2 still to do") and nothing in the
+    // sheet could track it again.
+    queue = [...TWO_TASKS, { ...TASK, id: "task-3", finding_id: "finding-3", status: "CANCELLED" }];
+    renderPage("/remediation?rule=AZ-STORAGE-001");
+
+    const sheet = await screen.findByRole("dialog");
+    expect(await within(sheet).findByText("2 assets, all still to do")).toBeInTheDocument();
+    const assets = within(sheet).getByRole("region", { name: "Assets this fix is applied to" });
+    expect(within(assets).queryByText(/teststorage/)).not.toBeInTheDocument();
+    expect(await within(sheet).findByRole("button", { name: /Track 1 more/ })).toBeInTheDocument();
   });
 
   it("marks every open task of the rule done from its row", async () => {

@@ -1,4 +1,5 @@
 import {
+  AlarmClockIcon,
   AppWindowIcon,
   ArchiveRestoreIcon,
   BotIcon,
@@ -9,6 +10,7 @@ import {
   BugIcon,
   ChartColumnIcon,
   Building2Icon,
+  CalendarClockIcon,
   CalendarPlusIcon,
   CircleCheckIcon,
   CircleDashedIcon,
@@ -21,6 +23,7 @@ import {
   DatabaseIcon,
   DatabaseZapIcon,
   DoorOpenIcon,
+  EyeOffIcon,
   EthernetPortIcon,
   ExternalLinkIcon,
   FolderIcon,
@@ -61,7 +64,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import type { AssetChange, ConnectionScope } from "./types";
+import type { AssetChange, ConnectionScope, NotificationKind } from "./types";
 
 /**
  * Every icon that carries meaning, defined once.
@@ -222,6 +225,19 @@ export const GRAPH_ICON = WorkflowIcon;
  * subscription and resource group, wherever the estate is drawn by scope.
  */
 export const DIRECTORY_ICON = UsersIcon;
+
+/**
+ * What each notification is about, in the bell (DECISIONS.md §164, §237). The
+ * bell colours them; the shapes are here so a kind looks the same wherever it
+ * is drawn.
+ */
+export const NOTIFICATION_ICONS: Record<NotificationKind, LucideIcon> = {
+  REACHABLE_FINDING: ShieldAlertIcon,
+  VERIFIED_FIX: CircleCheckIcon,
+  COVERAGE_DROP: EyeOffIcon,
+  WORK_DIGEST: CalendarClockIcon,
+  WORK_OVERDUE: AlarmClockIcon,
+};
 
 /** The shared demo organization, wherever it is named (DECISIONS.md §99). */
 export const DEMO_ICON = FlaskConicalIcon;

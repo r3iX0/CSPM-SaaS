@@ -25,6 +25,7 @@ ENV_VARS = [
     "JWT_AUDIENCE",
     "DATABASE_URL",
     "DATABASE_OWNER_URL",
+    "DATABASE_WORKER_URL",
     "DB_ECHO",
     "REDIS_URL",
     "AZURE_CLIENT_ID",
@@ -127,6 +128,59 @@ class TestNoLocalhostLeaks:
             cors_origins=["https://real.example.com", "http://localhost:5173"]
         ).config_problems()
         assert any("CORS_ORIGINS" in p for p in problems)
+
+
+LOCAL = {
+    "app_env": "local",
+    "app_url": "http://localhost:5173",
+    "api_url": "http://localhost:8000",
+    "database_url": "postgresql+asyncpg://cloudguard_app:local@127.0.0.1:54322/postgres",
+    "database_owner_url": "postgresql+asyncpg://postgres:postgres@127.0.0.1:54322/postgres",
+    "redis_url": "redis://localhost:6379/0",
+    "supabase_url": "http://127.0.0.1:54321",
+    "cors_origins": ["http://localhost:5173"],
+}
+
+
+class TestLocalRunsOnlyHere:
+    """APP_ENV=local (DECISIONS.md section 240): this machine, and nothing else."""
+
+    def test_a_local_run_on_this_machine_is_fine(self) -> None:
+        assert settings_with(**LOCAL).config_problems() == []
+
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("database_url", "postgresql+asyncpg://cloudguard_app:pw@db.example.supabase.co/x"),
+            ("database_owner_url", "postgresql+asyncpg://postgres:pw@db.example.supabase.co/x"),
+            ("redis_url", "redis://redis.railway.internal:6379/0"),
+            ("supabase_url", "https://example.supabase.co"),
+            ("app_url", "https://app.example.com"),
+        ],
+    )
+    def test_local_against_a_real_service_refuses(self, field: str, value: str) -> None:
+        problems = settings_with(**{**LOCAL, field: value}).config_problems()
+        assert any("APP_ENV=local" in p for p in problems)
+
+    def test_the_local_stacks_own_containers_count_as_local(self) -> None:
+        """The API in Railway's image reaches Postgres by the local stack's container name."""
+        containers = {
+            **LOCAL,
+            "database_url": "postgresql+asyncpg://cloudguard_app:x@supabase_db_cleave-local:5432/postgres",
+            "redis_url": "redis://:x@cleave-local-redis:6379/0",
+            "supabase_url": "http://supabase_kong_cleave-local:8000",
+        }
+        assert settings_with(**containers).config_problems() == []
+
+    def test_a_name_merely_containing_localhost_is_not_local(self) -> None:
+        problems = settings_with(
+            **{**LOCAL, "redis_url": "redis://localhost.attacker.example:6379/0"}
+        ).config_problems()
+        assert any("REDIS_URL is not on this machine" in p for p in problems)
+
+    def test_local_still_requires_every_value(self) -> None:
+        problems = settings_with(**{**LOCAL, "redis_url": ""}).config_problems()
+        assert any("REDIS_URL is not set" in p for p in problems)
 
 
 class TestAzureIsOptionalUntilConfigured:

@@ -65,6 +65,55 @@ def test_a_rule_without_terraform_arguments_is_not_editable() -> None:
     assert (out.outcome, out.decline_reason) == ("declined", "not_editable")
 
 
+def test_an_argument_that_replaces_the_resource_is_never_written() -> None:
+    # AZ-STO-007: azurerm recreates the storage account to change it, and its data
+    # goes with the old one (DECISIONS.md §228).
+    out = propose("AZ-STO-007")
+    assert (out.outcome, out.decline_reason) == ("declined", "replaces_resource")
+    assert out.detail is not None and "infrastructure_encryption_enabled" in out.detail
+    assert out.diff is None
+
+
+COSMOS = """\
+resource "azurerm_cosmosdb_account" "db" {
+  name                = "orders"
+  offer_type          = "Standard"
+}
+"""
+LOCK_V4 = """provider "registry.terraform.io/hashicorp/azurerm" {
+  version = "4.81.0"
+}
+"""
+
+
+def test_a_renamed_argument_takes_the_name_the_block_already_uses() -> None:
+    # A v4 file setting the new name: writing the old one beside it would set
+    # the argument twice, which terraform plan refuses (DECISIONS.md §230).
+    source = COSMOS.replace(
+        'offer_type          = "Standard"\n',
+        'offer_type          = "Standard"\n  local_authentication_enabled = true\n',
+    )
+    out = propose("AZ-COS-002", source=source, name="orders")
+    assert out.outcome == "patched"
+    assert [(e.attribute, e.before, e.after) for e in out.edits] == [
+        ("local_authentication_enabled", "true", "false")
+    ]
+
+
+def test_a_renamed_argument_takes_the_lock_files_release_name() -> None:
+    out = propose("AZ-COS-002", source=COSMOS, name="orders", lockfile=LOCK_V4)
+    assert [(e.attribute, e.after) for e in out.edits] == [
+        ("local_authentication_enabled", "false")
+    ]
+
+
+def test_with_no_release_known_the_name_every_release_accepts_is_written() -> None:
+    out = propose("AZ-COS-002", source=COSMOS, name="orders")
+    assert [(e.attribute, e.after) for e in out.edits] == [
+        ("local_authentication_disabled", "true")
+    ]
+
+
 def test_a_finding_without_one_resource_is_not_editable() -> None:
     out = propose("AZ-STO-003", name=None)
     assert (out.outcome, out.decline_reason) == ("declined", "not_editable")
@@ -134,9 +183,8 @@ def test_the_answer_says_what_it_was_checked_against() -> None:
 
 def test_the_checked_releases_are_the_schema_fixtures() -> None:
     fixtures = Path(__file__).parents[1] / "fixtures/terraform"
-    assert sorted(p.stem.removeprefix("azurerm-") for p in fixtures.glob("*.json")) == sorted(
-        CHECKED_RELEASES
-    )
+    schemas = [p for p in fixtures.glob("*.json") if not p.stem.endswith("-docs")]
+    assert sorted(p.stem.removeprefix("azurerm-") for p in schemas) == sorted(CHECKED_RELEASES)
 
 
 def test_a_collection_state_is_never_written_even_when_declared() -> None:

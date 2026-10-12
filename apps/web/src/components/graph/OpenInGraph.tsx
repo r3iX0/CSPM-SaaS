@@ -21,11 +21,14 @@ import { Button } from "@/components/ui/button";
 export function OpenInGraph({
   entryId,
   traceKey,
+  compact = false,
 }: {
   /** Provider id of the asset the graph opens around. */
   entryId: string;
   /** The route to trace once there, if it is an attack path through that asset. */
   traceKey?: string;
+  /** A small, borderless link among other marks, as on a traced route (§261). */
+  compact?: boolean;
 }) {
   const t = useT();
   const navigate = useNavigate();
@@ -47,7 +50,12 @@ export function OpenInGraph({
   }
 
   return (
-    <Button variant="outline" size="sm" onClick={open} disabled={opening}>
+    <Button
+      variant={compact ? "ghost" : "outline"}
+      size={compact ? "xs" : "sm"}
+      onClick={open}
+      disabled={opening}
+    >
       <Icon data-icon="inline-start" />
       {opening ? t.graph.opening : t.graph.explore}
     </Button>

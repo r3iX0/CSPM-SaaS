@@ -1,10 +1,11 @@
 import { InfoIcon } from "lucide-react";
 
-import type { RemediationSpec } from "@/lib/types";
+import type { IacLocation, RemediationSpec } from "@/lib/types";
 import { formatEffort } from "@/lib/format";
 import { fillPlaceholders } from "@/lib/remediationFill";
 import { CodeBlock } from "@/components/common/CodeBlock";
 import { IacDiffCheck } from "@/components/security/IacDiffCheck";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -32,6 +33,7 @@ export function RemediationPanel({
   fill,
   batch,
   findingId,
+  managedInCode = [],
 }: {
   remediation: string;
   spec?: RemediationSpec | null;
@@ -60,10 +62,20 @@ export function RemediationPanel({
    * so no block to find.
    */
   findingId?: string;
+  /**
+   * Where the customer's own Terraform state defines the asset (§229). The
+   * code is then the fix, and a CLI change is an emergency one: the next
+   * `terraform apply` puts the old value back.
+   */
+  managedInCode?: readonly IacLocation[];
 }) {
   const hasCli = (spec?.cli?.length ?? 0) > 0;
   const hasTerraform = (spec?.terraform?.length ?? 0) > 0;
+  // Arguments azurerm can only set by recreating the resource: said, and never
+  // offered as an edit of existing code (DECISIONS.md §228).
+  const replacing = (spec?.terraform ?? []).filter((hint) => hint.replaces === true);
   const hasPolicy = Boolean(spec?.azure_policy);
+  const inCode = managedInCode.length > 0;
   const commands = (spec?.cli ?? []).map((command) =>
     fill ? fillPlaceholders(command, fill.values) : { text: command, filled: [] },
   );
@@ -113,10 +125,12 @@ export function RemediationPanel({
           </div>
         )}
 
-        <Tabs defaultValue="steps">
+        {inCode && <ManagedInCode locations={managedInCode} />}
+
+        <Tabs defaultValue={inCode && hasTerraform ? "terraform" : "steps"}>
           <TabsList>
             <TabsTrigger value="steps">Steps</TabsTrigger>
-            {hasCli && <TabsTrigger value="cli">CLI</TabsTrigger>}
+            {hasCli && <TabsTrigger value="cli">{inCode ? "Emergency fix" : "CLI"}</TabsTrigger>}
             {hasTerraform && <TabsTrigger value="terraform">Terraform</TabsTrigger>}
             {hasPolicy && <TabsTrigger value="policy">Policy</TabsTrigger>}
           </TabsList>
@@ -147,14 +161,31 @@ export function RemediationPanel({
           {hasTerraform && (
             <TabsContent value="terraform" className="flex flex-col gap-2">
               <CodeBlock
-                code={spec!.terraform.map((hint) => `${hint.attribute} = ${hint.value}`).join("\n")}
+                code={spec!.terraform
+                  .flatMap((hint) => [
+                    `${hint.attribute} = ${hint.value}`,
+                    // The same argument under a later release's name, as a
+                    // comment: a block sets one or the other, never both (§230).
+                    ...(hint.renamed ?? []).map(
+                      (rename) =>
+                        `# azurerm ${rename.since}+: ${rename.attribute} = ${rename.value}`,
+                    ),
+                  ])
+                  .join("\n")}
               />
               <p className="text-xs text-muted-foreground">
                 The arguments to set on the resource you already manage — not a whole block, which
                 would be missing everything Terraform requires and could not be applied.
               </p>
-              {findingId && fill && (
-                <IacDiffCheck findingId={findingId} resourceName={fill.resourceName} />
+              {replacing.length > 0 ? (
+                <Alert>
+                  <AlertDescription>
+                    {`Changing ${replacing.map((hint) => hint.attribute).join(", ")} makes Terraform destroy this resource and create another. Set it in new code; plan replacing an existing one by hand.`}
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                findingId &&
+                fill && <IacDiffCheck findingId={findingId} resourceName={fill.resourceName} />
               )}
             </TabsContent>
           )}
@@ -207,5 +238,19 @@ function Prose({ text }: { text: string }) {
         ),
       )}
     </>
+  );
+}
+
+/** Where the state index puts the asset, and what that makes of a change made elsewhere. */
+function ManagedInCode({ locations }: { locations: readonly IacLocation[] }) {
+  const [first, ...rest] = locations;
+  if (!first) return null;
+  const where = [first.repository, first.working_directory].filter(Boolean).join("/");
+  return (
+    <Alert>
+      <AlertDescription>
+        {`Managed in code: ${first.address} in ${where}${rest.length > 0 ? ` and ${rest.length} more` : ""}. A change made any other way drifts back at the next terraform apply, so fix it in the code.`}
+      </AlertDescription>
+    </Alert>
   );
 }

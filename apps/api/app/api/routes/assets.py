@@ -17,8 +17,10 @@ from app.schemas.asset import (
     PlacementOut,
     ResolvedAssetOut,
 )
-from app.schemas.common import ERROR_RESPONSES, Envelope, NoMeta
+from app.schemas.common import ERROR_RESPONSES, Envelope, NoMeta, error_responses
+from app.schemas.context import AssetDeclarationIn, AssetDeclarationOut
 from app.services import assets as service
+from app.services import context as context_service
 from app.services.placement import DIRECTORY_SCOPE
 
 router = APIRouter(prefix="/assets", tags=["assets"], responses=ERROR_RESPONSES)
@@ -236,3 +238,47 @@ async def get_asset(
         ),
         meta=NoMeta(),
     )
+
+
+WRITE = {**ERROR_RESPONSES, **error_responses(403)}
+
+
+def _asset_declaration(record: object | None) -> AssetDeclarationOut | None:
+    return None if record is None else AssetDeclarationOut.model_validate(record)
+
+
+@router.get("/{asset_id}/context")
+async def get_asset_context(
+    asset_id: UUID, session: DbSession, tenant: Tenant
+) -> Envelope[AssetDeclarationOut | None, NoMeta]:
+    """What has been declared about this asset's data, or null if nothing has."""
+    record = await context_service.get_asset_declaration(session, tenant, asset_id)
+    return Envelope(data=_asset_declaration(record), meta=NoMeta())
+
+
+@router.put("/{asset_id}/context", responses=WRITE)
+async def declare_asset_context(
+    asset_id: UUID, payload: AssetDeclarationIn, session: DbSession, tenant: Tenant
+) -> Envelope[AssetDeclarationOut | None, NoMeta]:
+    """Declare how sensitive this asset's data is (DECISIONS.md section 251).
+
+    A floor applied by the next scan: it can raise what the capture showed and
+    never lower it, so it can give a route an end but never hide one.
+    """
+    tenant.require_write()
+    record = await context_service.declare_asset(
+        session, tenant, asset_id, data_sensitivity=payload.data_sensitivity, note=payload.note
+    )
+    await session.commit()
+    return Envelope(data=_asset_declaration(record), meta=NoMeta())
+
+
+@router.delete("/{asset_id}/context", responses=WRITE)
+async def clear_asset_context(
+    asset_id: UUID, session: DbSession, tenant: Tenant
+) -> Envelope[None, NoMeta]:
+    """Withdraw what was declared about this asset."""
+    tenant.require_write()
+    await context_service.declare_asset(session, tenant, asset_id, data_sensitivity=None, note=None)
+    await session.commit()
+    return Envelope(data=None, meta=NoMeta())

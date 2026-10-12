@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.db import commit_unless_externally_managed
 from app.core.deps import TenantContext
-from app.core.enums import Role
+from app.core.enums import OrganizationMode, Role
 from app.core.errors import ConflictError, NotFound, PermissionDenied
 from app.core.security import AuthenticatedUser
 from app.models.organization import Organization, OrganizationInvitation, OrganizationMember
@@ -189,6 +189,9 @@ async def invite(
     tenant.require_role(Role.OWNER, Role.ADMIN)
     if role is Role.OWNER:  # pragma: no cover -- the schema refuses it first
         raise PermissionDenied("Invite as another role, then make them an owner")
+    org = await session.get(Organization, tenant.organization_id)
+    if org is not None and org.mode is OrganizationMode.SOLO:
+        raise ConflictError("A solo organization has one person; switch to a team to invite")
     email = email.strip().lower()
     now = datetime.now(UTC)
 

@@ -45,7 +45,13 @@ import { RadioGroup } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 
 const FORMATS: WebhookFormat[] = ["SLACK", "TEAMS", "GENERIC"];
-const KINDS: NotificationKind[] = ["REACHABLE_FINDING", "VERIFIED_FIX", "COVERAGE_DROP"];
+const KINDS: NotificationKind[] = [
+  "REACHABLE_FINDING",
+  "VERIFIED_FIX",
+  "COVERAGE_DROP",
+  "WORK_OVERDUE",
+  "WORK_DIGEST",
+];
 
 type Health = "ok" | "failing" | "never" | "paused";
 

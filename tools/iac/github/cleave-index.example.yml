@@ -1,0 +1,31 @@
+# Index this Terraform root for Cleave on every push to the default branch (DECISIONS.md §229).
+#
+# Copy into .github/workflows/ and give the job what your plan job already uses to
+# read state: the same Terraform setup and the same backend credentials. Cleave
+# needs no secret of its own; the upload is authenticated by this job's OIDC token.
+name: Cleave state index
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  index:
+    runs-on: ubuntu-latest
+    env:
+      CLEAVE_API: https://<cleave-api-host>
+    defaults:
+      run:
+        working-directory: <your terraform root>
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Set up Terraform and sign in to your state backend here, as your plan job does.
+      - run: terraform init -input=false
+      # A copy of cleave-index.sh committed to your repository, so what runs with
+      # your state credentials is what you reviewed, never a script fetched at run time.
+      - run: bash "${GITHUB_WORKSPACE}/.github/cleave-index.sh"

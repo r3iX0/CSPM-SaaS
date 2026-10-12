@@ -9,9 +9,11 @@ severs it.
 """
 
 from collections import Counter
+from datetime import UTC, datetime
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request, Response, status
 
+from app.api.links import accepted
 from app.core.deps import Costly, DbSession, Tenant
 from app.core.enums import RelationshipType
 from app.core.errors import NotFound
@@ -28,25 +30,37 @@ from app.schemas.attack_path import (
     BlastAssetOut,
     ChokePointOut,
     ChokePointsMeta,
+    CutFixOut,
+    CutPullRequestAssignmentOut,
+    CutPullRequestOut,
+    CutPullRequestsQueuedOut,
     EstateMeta,
     EstateOut,
+    InspectOut,
     NeighborhoodMeta,
     NeighborhoodOut,
     ReachCountsMeta,
     RouteEndOut,
+    RouteHistoryMeta,
+    RouteHistoryOut,
     RouteMapMeta,
     RouteMapOut,
     RouteTargetEndOut,
+    SimulatedLink,
     SimulationMeta,
     SimulationOut,
     SimulationRequest,
     WhatIfClosedOut,
     WhatIfOut,
 )
-from app.schemas.common import ERROR_RESPONSES, Envelope, NoMeta, TotalMeta
+from app.schemas.common import ERROR_RESPONSES, Envelope, NoMeta, TotalMeta, error_responses
+from app.services import cut_pull_requests
 from app.services import graph as graph_service
+from app.services.cut_fix import cut_fix
 from app.services.graph import serialize_path
+from app.services.inspect import inspect
 from app.services.placement import load_placements
+from app.services.route_ledger import route_history
 
 router = APIRouter(prefix="/attack-paths", tags=["attack-paths"], responses=ERROR_RESPONSES)
 
@@ -161,12 +175,29 @@ async def route_graph(
     # Where each node sits, so a hop names its subscription and group and the
     # page can narrow to one (section 138).
     placements = await load_placements(session, tenant.organization_id)
+    # Which routes a risk tracks, joined here rather than in the browser
+    # (DECISIONS.md section 244).
+    risks = await graph_service.tracked_routes(session, tenant.organization_id, drawn)
+    # When each drawn asset was last seen, so every route says how current it
+    # is (DECISIONS.md section 262).
+    readings = await graph_service.node_readings(
+        session, tenant.organization_id, list(ids.values())
+    )
+    now = datetime.now(UTC)
 
     # Off the loop: drawing the map reads what every link holds up, which is
     # the one analysis on this page that is not memoized until it is first asked.
     route_map = await graph_service.off_loop(
         lambda: graph_service.serialize_route_map(
-            graph, drawn, ids, findings, total_routes=len(paths), placements=placements
+            graph,
+            drawn,
+            ids,
+            findings,
+            total_routes=len(paths),
+            placements=placements,
+            risks=risks,
+            readings=readings,
+            now=now,
         )
     )
     return Envelope(
@@ -180,6 +211,24 @@ async def route_graph(
             drawn=len(drawn),
         ),
     )
+
+
+@router.get("/history")
+async def route_history_view(
+    session: DbSession,
+    tenant: Tenant,
+    days: int = Query(default=30, ge=1, le=90),
+) -> Envelope[RouteHistoryOut, RouteHistoryMeta]:
+    """Which routes are new, which closed and why, and how many were open each day.
+
+    Read from the route ledger that ANALYZE writes (DECISIONS.md section 244),
+    never rebuilt: past graphs are not kept, so only the ledger knows what a
+    route was before the latest reading. Empty until the first scan after the
+    ledger shipped, and said so through ``recorded_since``, rather than
+    reconstructed.
+    """
+    history, meta = await route_history(session, tenant.organization_id, days=days)
+    return Envelope(data=history, meta=meta)
 
 
 @router.get("/choke-points")
@@ -279,6 +328,22 @@ async def access(
             members_limit=ACCESS_MEMBERS_LIMIT,
         ),
     )
+
+
+@router.get("/inspect/{resource_id:path}")
+async def inspect_asset(
+    resource_id: str, session: DbSession, tenant: Tenant
+) -> Envelope[InspectOut, NoMeta]:
+    """Where an asset is defined in code, and what has happened to it lately.
+
+    For the inspector beside the drawing (DECISIONS.md section 254). Who holds
+    access to it, and what it holds, stay with ``/access``.
+    """
+    graph = await graph_service.load_graph(session, tenant.organization_id)
+    node = graph.resolve(resource_id)
+    if node not in graph.nodes:
+        raise NotFound("No such asset in this organization")
+    return Envelope(data=await inspect(session, tenant, graph.nodes[node]), meta=NoMeta())
 
 
 @router.get("/neighborhood/{resource_id:path}")
@@ -405,6 +470,84 @@ async def what_if(
             before=outcome.before,
             after=outcome.after,
         ),
+        meta=NoMeta(),
+    )
+
+
+@router.get("/fix")
+async def how_to_fix(
+    session: DbSession,
+    tenant: Tenant,
+    source: str = Query(min_length=1, max_length=2048),
+    relationship: RelationshipType = Query(),
+    target: str = Query(min_length=1, max_length=2048),
+) -> Envelope[CutFixOut, NoMeta]:
+    """How to make one cut: the change, its commands, and the findings on its ends.
+
+    Wherever the page shows a cut -- the fix plan, a hop being read, a change in
+    the simulator -- it used to stop at "what if" (DECISIONS.md section 246).
+    The commands are the provider's own, from its connector, and only where one
+    command removes the link exactly.
+    """
+    graph = await graph_service.load_graph(session, tenant.organization_id)
+    fix = await cut_fix(session, tenant.organization_id, graph, (source, relationship, target))
+    if fix is None:
+        raise NotFound("No link here that can be removed")
+    return Envelope(data=fix, meta=NoMeta())
+
+
+@router.post(
+    "/pull-requests", status_code=status.HTTP_202_ACCEPTED, responses=error_responses(403, 404)
+)
+async def request_cut_pull_requests(
+    payload: SimulatedLink,
+    request: Request,
+    response: Response,
+    session: DbSession,
+    tenant: Tenant,
+) -> Envelope[CutPullRequestsQueuedOut, NoMeta]:
+    """Ask for a role-assignment cut as pull requests, one per repository defining it.
+
+    Matched through the organization's state indexes by the assignments' ids;
+    one no index names is counted in ``not_indexed``. Queued for the worker,
+    which reads the repository, deletes the blocks it can stand behind and opens
+    the pull request (DECISIONS.md section 258). A request already in flight or
+    open is answered, not repeated. Merging stays a person's review.
+    """
+    graph = await graph_service.load_graph(session, tenant.organization_id)
+    queued, not_indexed = await cut_pull_requests.request(
+        session, tenant, graph, (payload.source, payload.relationship, payload.target)
+    )
+    await session.commit()
+    accepted(request, response, "list_cut_pull_requests")
+    return Envelope(
+        data=CutPullRequestsQueuedOut(
+            pull_requests=[CutPullRequestOut.model_validate(row) for row in queued],
+            not_indexed=not_indexed,
+        ),
+        meta=NoMeta(),
+    )
+
+
+@router.get("/pull-requests")
+async def list_cut_pull_requests(
+    session: DbSession,
+    tenant: Tenant,
+    cut: str | None = Query(default=None, max_length=6200),
+) -> Envelope[list[CutPullRequestOut], NoMeta]:
+    """The organization's cut pull requests, newest first, narrowed to one cut when given."""
+    rows = await cut_pull_requests.for_cut(session, tenant, cut)
+    return Envelope(
+        data=[
+            CutPullRequestOut.model_validate(pr).model_copy(
+                update={
+                    "assignments": [
+                        CutPullRequestAssignmentOut.model_validate(row) for row in assignments
+                    ]
+                }
+            )
+            for pr, assignments in rows
+        ],
         meta=NoMeta(),
     )
 

@@ -5,9 +5,11 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.enums import (
+    Confidence,
     FindingEvent,
     FindingStatus,
     Level,
+    OwnershipScope,
     Priority,
     RemediationStatus,
     RiskKind,
@@ -17,8 +19,10 @@ from app.core.enums import (
     TaskOutcome,
     VerificationStatus,
 )
+from app.remediation import Comparison
 from app.schemas.attack_path import AttackPathOut
-from app.schemas.common import RequestModel
+from app.schemas.common import PageMeta, RequestModel
+from app.schemas.confidence import ConfidenceOut
 from app.schemas.rule import RemediationSpecOut
 
 
@@ -33,6 +37,9 @@ class ResourceSummary(BaseModel):
     criticality: Level
     data_sensitivity: Level
     public_exposure: Level
+    #: The subscription it lives in, where its context is declared
+    #: (``/settings/context?account=``). ``None`` for a directory object.
+    cloud_account_id: UUID | None = None
 
 
 class FindingOut(BaseModel):
@@ -53,6 +60,39 @@ class FindingOut(BaseModel):
     resolved_at: datetime | None = None
     resolved_by_scan_id: UUID | None = None
     resource: ResourceSummary | None = None
+    #: How current this finding is and how settled its rank (DECISIONS.md §262).
+    #: Filled by the list and the detail; ``None`` on the answer to an action,
+    #: which says what the action changed and nothing else.
+    confidence: ConfidenceOut | None = None
+
+
+class FindingsPageMeta(PageMeta):
+    """A page of findings, and how the whole filtered set divides by confidence.
+
+    Counted over every filter except confidence itself, so each count is what
+    choosing that level would show.
+    """
+
+    confidence: dict[Confidence, int]
+
+
+class ConditionOut(BaseModel):
+    """One thing that must be true for a finding to close, beside what was seen.
+
+    ``expected`` is the declared value for an EQUALS check and the witness for a
+    collection check -- the shape that must not be there (NONE_MATCHING) or one
+    that would satisfy it (NOT_EMPTY). ``observed`` is the finding's own excerpt
+    of that field, and ``observed_recorded`` says whether the excerpt has it: a
+    field the excerpt does not carry is not a field whose value is null.
+    """
+
+    field: str
+    describes: str
+    comparison: Comparison
+    expected: Any = None
+    also_accepts: list[Any] = Field(default_factory=list)
+    observed: Any = None
+    observed_recorded: bool
 
 
 class RiskPathStepOut(BaseModel):
@@ -222,6 +262,16 @@ class RemediationOut(BaseModel):
     # closes is the choke points' question, and only a link can answer it
     # (DECISIONS.md section 127). Filled by the queue listing; zero elsewhere.
     on_routes: int = 0
+    # When the work is due: ``due_date`` if somebody set one, else the organization's policy for
+    # the finding's severity, counted from its first detection; null with neither. ``due_date``
+    # stays what a person set, so the sheet can tell a date chosen from one derived (§225).
+    due_on: date | None = None
+    due_by_policy: bool = False
+    # Who has the work: ``assigned_to`` if somebody handed it out, else the owner the
+    # organization's ownership rules name for the asset's place, with the rule's scope in
+    # ``owner_by_rule``; null with neither. ``assigned_to`` stays what a person set (§236).
+    owner_id: UUID | None = None
+    owner_by_rule: OwnershipScope | None = None
 
 
 class RemediationUpdatedOut(RemediationOut):
@@ -231,6 +281,50 @@ class RemediationUpdatedOut(RemediationOut):
     #: only an observation does -- and the customer is told CloudGuard will
     #: look again. ``None`` otherwise.
     note: str | None = None
+
+
+class FixedFindingOut(BaseModel):
+    """A finding a scan observed fixed, as the progress report names it."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    finding_id: UUID
+    title: str
+    rule_id: str
+    severity: Severity
+    first_detected_at: datetime
+    resolved_at: datetime
+    due_on: date | None = None
+    days_to_fix: float
+    #: Null where the fix had no deadline: it was held to nothing.
+    on_time: bool | None = None
+
+
+class SeverityProgressOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    severity: Severity
+    fixed: int
+    median_days_to_fix: float | None = None
+    on_time: int
+    late: int
+
+
+class FixProgressOut(BaseModel):
+    """What was fixed in a window: verified fixes only, since only a scan closes a finding.
+
+    ``on_time`` and ``late`` count only the fixes that had a deadline, judged against today's
+    policy where no person set a date (DECISIONS.md §225).
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    days: int
+    fixed: int
+    on_time: int
+    late: int
+    by_severity: list[SeverityProgressOut]
+    recent: list[FixedFindingOut]
 
 
 class VerificationOut(BaseModel):
@@ -310,6 +404,29 @@ class EvidenceCitationOut(BaseModel):
     payload_available: bool
 
 
+class IacLocationOut(BaseModel):
+    """Where the customer's own Terraform state says the asset is defined (DECISIONS.md §229)."""
+
+    repository: str
+    working_directory: str
+    workspace: str
+    address: str
+    commit_sha: str
+    uploaded_at: datetime
+
+
+class PendingAcceptanceOut(BaseModel):
+    """An acceptance of this finding waiting for a second approver (DECISIONS.md section 239)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    requested_by: UUID
+    reason: str
+    expires_at: datetime | None
+    created_at: datetime
+
+
 class FindingDetail(FindingOut):
     """Everything the finding detail page needs to answer WHAT / WHY / HOW BAD /
     HOW DO I FIX IT / DID THE FIX WORK (UI.md section 3)."""
@@ -325,6 +442,8 @@ class FindingDetail(FindingOut):
     # When an accepted finding comes back to the queue. ``None`` when it is not
     # accepted, or accepted with no end date (DECISIONS.md section 104).
     accepted_until: datetime | None = None
+    # An acceptance asked for and waiting for a second approver (section 239).
+    pending_acceptance: PendingAcceptanceOut | None = None
     # From the rule registry, as it is today. ``None`` for a finding whose rule
     # has since left the registry, which is a fact about CloudGuard rather than
     # about the finding.
@@ -334,7 +453,14 @@ class FindingDetail(FindingOut):
     #: What must become true, and the CLI, Terraform and policy generated from
     #: it -- the object the rules routes publish.
     remediation_spec: RemediationSpecOut | None = None
+    #: The failed condition, expected beside observed, from the rule's declared
+    #: expected states and this finding's excerpt. Empty where the rule declares
+    #: none, which leaves the condition in the rule's prose.
+    condition: list[ConditionOut] = Field(default_factory=list)
     compliance_mappings: dict[str, list[str]] = Field(default_factory=dict)
+    #: Empty unless an uploaded state index names the asset. Managed in code, a
+    #: change made any other way drifts back at the next ``terraform apply``.
+    managed_in_code: list[IacLocationOut] = Field(default_factory=list)
 
 
 class FindingAttackPathOut(AttackPathOut):
@@ -404,3 +530,110 @@ class IacDiffOut(BaseModel):
     #: name an expression -- the reviewer should check it is the right one).
     #: ``None`` on a decline.
     matched_by: Literal["name", "sole_block"] | None = None
+
+
+# -- The evidence package (DECISIONS.md §262) -----------------------------------
+
+#: Ways a finding's evidence falls short of what a reader might assume it is.
+#: Each is a fact about the record, not about the estate.
+LimitationCode = Literal[
+    # No citation was recorded: raised before Cleave recorded where evidence came from.
+    "NOT_CITED",
+    # A cited reading's bytes have aged out of retention; the hash still names them.
+    "PAYLOAD_PRUNED",
+    # A cited reading came back incomplete or failed in a later read of the same key.
+    "READING_INCOMPLETE",
+    # The rule has changed since this finding was raised.
+    "RULE_CHANGED",
+    # The rule has left the registry; nothing checks this condition today.
+    "RULE_RETIRED",
+    # The rule declares no expected state, so the condition is in its prose only.
+    "CONDITION_UNDECLARED",
+]
+
+
+class LimitationOut(BaseModel):
+    code: LimitationCode
+    #: One sentence a person reads.
+    detail: str
+
+
+class PackageFindingOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    title: str
+    description: str
+    status: FindingStatus
+    severity: Severity
+    risk_score: float | None
+    first_detected_at: datetime
+    last_detected_at: datetime
+    resolved_at: datetime | None
+
+
+class PackageResourceOut(BaseModel):
+    """The affected asset under the identifier its own cloud gives it."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    provider: str
+    provider_resource_id: str
+    name: str
+    resource_type: str
+    region: str | None
+    cloud_account_id: UUID | None
+
+
+class PackageRuleOut(BaseModel):
+    rule_id: str
+    #: The version that raised this finding.
+    version: str
+    #: The version Cleave runs today; ``None`` once the rule has left the registry.
+    current_version: str | None
+    name: str | None
+
+
+class PackageRemediationOut(BaseModel):
+    #: The guidance as it was when the finding was raised (snapshot-copied).
+    guidance: str
+    #: What must become true, with its CLI, Terraform and policy, as checked today.
+    spec: RemediationSpecOut | None
+
+
+class PackageVerificationOut(BaseModel):
+    """How a fix is proven: a scan observing the check pass, never a person saying so."""
+
+    method: Literal["RESCAN"]
+    detail: str
+    latest: VerificationOut | None
+
+
+class EvidencePackageOut(BaseModel):
+    """Everything a finding rests on, in one document a ticket or an auditor can keep.
+
+    Versioned, because it is taken away and read later by programs that were not
+    written against this API's current shape.
+    """
+
+    format: Literal["cleave.evidence-package"] = "cleave.evidence-package"
+    version: Literal[1] = 1
+    generated_at: datetime
+    #: The API build that assembled the package (the deployed commit), so a
+    #: verdict can be traced to the code that reached it. ``None`` where the
+    #: platform does not say.
+    build: str | None
+    finding: PackageFindingOut
+    #: ``None`` for a finding about the tenant rather than one asset.
+    resource: PackageResourceOut | None
+    rule: PackageRuleOut
+    condition: list[ConditionOut]
+    #: The rule's excerpt of what it saw, verbatim.
+    observed: dict[str, Any]
+    #: Where it came from; ``None`` where no citation was recorded.
+    citations: list[EvidenceCitationOut] | None
+    confidence: ConfidenceOut
+    limitations: list[LimitationOut]
+    remediation: PackageRemediationOut
+    verification: PackageVerificationOut

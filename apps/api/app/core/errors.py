@@ -160,6 +160,13 @@ class CloudConnectionError(AppError):
     status_code_default = status.HTTP_502_BAD_GATEWAY
 
 
+class CodeHostError(AppError):
+    """Could not reach GitHub"""
+
+    code = "CODE_HOST_ERROR"
+    status_code_default = status.HTTP_502_BAD_GATEWAY
+
+
 class QueueUnavailable(AppError):
     """The task broker refused the work"""
 

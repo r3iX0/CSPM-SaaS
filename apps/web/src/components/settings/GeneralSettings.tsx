@@ -5,8 +5,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError, auth } from "@/lib/api";
 import type { CloudAccount, Member, Organization } from "@/lib/types";
 import { useT } from "@/i18n";
+import { AcceptanceApproval } from "@/components/settings/AcceptanceApproval";
+import { FixDeadlines } from "@/components/settings/FixDeadlines";
 import { OrganizationForm } from "@/components/settings/OrganizationForm";
+import { OrganizationModeChoice } from "@/components/settings/OrganizationMode";
 import { SettingsSection } from "@/components/settings/SettingsSection";
+import { isTeam } from "@/components/settings/sections";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -21,7 +25,11 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
-/** The organization's profile, and at the foot of it, deleting the organization. */
+/**
+ * The organization's profile, how long it gives itself to fix a finding
+ * (DECISIONS.md §225), who must approve an acceptance (§239), and at the foot
+ * of it, deleting the organization.
+ */
 export function GeneralSettings({ organization }: { organization: Organization }) {
   const t = useT();
 
@@ -46,6 +54,27 @@ export function GeneralSettings({ organization }: { organization: Organization }
             values rather than leaving the previous one's name in the boxes. */}
         <OrganizationForm key={organization.id} organization={organization} />
       </SettingsSection>
+      {!organization.is_demo && (
+        <SettingsSection id="mode" title={t.settings.modeTitle} description={t.settings.modeHelp}>
+          <OrganizationModeChoice organization={organization} />
+        </SettingsSection>
+      )}
+      <SettingsSection
+        id="deadlines"
+        title={t.settings.deadlinesTitle}
+        description={t.settings.deadlinesHelp}
+      >
+        <FixDeadlines key={organization.id} organization={organization} />
+      </SettingsSection>
+      {!organization.is_demo && isTeam(organization) && (
+        <SettingsSection
+          id="approval"
+          title={t.settings.approvalTitle}
+          description={t.settings.approvalHelp}
+        >
+          <AcceptanceApproval organization={organization} />
+        </SettingsSection>
+      )}
       <DangerZone organization={organization} />
     </div>
   );

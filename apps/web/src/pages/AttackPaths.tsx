@@ -1,7 +1,20 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
-import { RouteIcon, ScissorsIcon, SearchIcon, UndoIcon, XIcon } from "lucide-react";
+import {
+  CheckIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ExpandIcon,
+  LinkIcon,
+  PanelLeftIcon,
+  PanelRightCloseIcon,
+  PanelRightOpenIcon,
+  RouteIcon,
+  ScissorsIcon,
+  ShrinkIcon,
+  XIcon,
+} from "lucide-react";
 
 import { api } from "@/lib/api";
 import type {
@@ -9,7 +22,6 @@ import type {
   AttackPathStep,
   DeadEnd,
   MappedRoute,
-  Risk,
   RouteMap,
   RouteMapEdge,
   RouteMapMeta,
@@ -17,35 +29,46 @@ import type {
   Simulation,
 } from "@/lib/types";
 import { useT } from "@/i18n";
-import { StatStrip } from "@/components/common/StatStrip";
+import { cn } from "@/lib/format";
 import { LiveStatus } from "@/components/common/LiveStatus";
 import { InfoTip } from "@/components/common/InfoTip";
-import { SelectField } from "@/components/common/SelectField";
 import { ResourceTypeLabel } from "@/components/security/IconLabel";
 import { GraphLegend, MARKS } from "@/components/graph/GraphLegend";
-import { FACTOR_ICONS } from "@/lib/icons";
 import { PatternRow, RouteRow, type RouteMarks } from "@/components/graph/RouteRows";
 import { RouteNavigator } from "@/components/graph/RouteNavigator";
-import { hopKey, routeKeyOf } from "@/components/graph/routeKeys";
+import { hopKey } from "@/components/graph/routeKeys";
 import {
   listRoutes,
   placeName,
+  bestCutAt,
+  DEFAULT_SORT,
   ROUTE_SORTS,
   visits,
   type Place,
   type RouteListing,
   type RouteSort,
 } from "@/components/graph/routeOrder";
-import { routeMapQuery } from "@/components/graph/graphQueries";
-import { usePrefersReducedMotion } from "@/lib/motion";
+import {
+  blastRadiusQuery,
+  routeHistoryQuery,
+  routeMapQuery,
+} from "@/components/graph/graphQueries";
+import { AssetCard } from "@/components/graph/AssetCard";
+import { dialogOpen, singleKeyShortcut } from "@/lib/keyboard";
+import { RouteProgress } from "@/components/graph/RouteProgress";
+import { ledgerMarks } from "@/components/graph/routeLedger";
+import { DURATION, useCountUp, usePrefersReducedMotion } from "@/lib/motion";
 import { arrivedByMorph } from "@/lib/viewTransition";
-import type { Hop, SimulatedPlan } from "@/components/graph/RouteMapCanvas";
+import type { CanvasInsets, Hop, SimulatedPlan } from "@/components/graph/RouteMapCanvas";
 import { SimulationPanel } from "@/components/graph/SimulationPanel";
+import { FixPlanCard } from "@/components/graph/FixPlanCard";
+import { RouteQueryBar } from "@/components/graph/RouteQueryBar";
+import { FACET_PARAMS, hasFacets, readFacets } from "@/components/graph/routeFacets";
+import { DeclareSensitive } from "@/components/graph/DeclareSensitive";
 import { CardsSkeleton, EmptyState, ErrorState, PageHeader } from "@/components/common/states";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -87,24 +110,9 @@ export function AttackPathsPage() {
   const t = useT();
   const { data, isLoading, error, refetch } = useQuery(routeMapQuery);
 
-  // Which of these routes the risks queue is tracking. This page rebuilds
-  // routes live from the graph; the queue holds the ones with something
-  // misconfigured on them, with a status somebody can set. Matched by their
-  // ends, which is what names a route on both sides (DECISIONS.md §103).
-  const tracked = useQuery({
-    queryKey: ["risks", "tracked-routes"],
-    enabled: Boolean(data && data.map.routes.length > 0),
-    queryFn: () =>
-      api.get<Risk[]>("/api/v1/risks?kind=ATTACK_PATH&limit=500").then((r) => {
-        const byRoute = new Map<string, Risk>();
-        for (const risk of r.data) {
-          const first = risk.path[0];
-          const last = risk.path[risk.path.length - 1];
-          if (first && last) byRoute.set(routeKeyOf(first.source_id, last.target_id), risk);
-        }
-        return byRoute;
-      }),
-  });
+  // What is new, what closed and the trend, from the route ledger (§249).
+  const history = useQuery({ ...routeHistoryQuery, enabled: Boolean(data) });
+  const ledger = useMemo(() => ledgerMarks(history.data?.history), [history.data]);
 
   // The risks queue leads with the same links, under its own key and its own
   // small endpoint — it wants three rows and has no use for a route map. The
@@ -124,23 +132,34 @@ export function AttackPathsPage() {
   /** The box whose routes the list is narrowed to. */
   const picked = params.get("through");
   /** The subscription, and perhaps the group, the list is narrowed to. */
+  // Each value read from the URL is rebuilt only when its own parameters
+  // change: walking a route's hops rewrites the URL every step, and a new
+  // object here re-listed every route and redrew the map for nothing (§261).
+  const scopeParam = params.get("scope");
+  const groupParam = params.has("group") ? (params.get("group") ?? "") : null;
   const place = useMemo<Place | null>(() => {
-    const scope = params.get("scope");
-    if (!scope) return null;
+    if (!scopeParam) return null;
     // An empty group is what sits directly in the subscription; no group at
     // all is anywhere in it.
     return {
-      scope,
-      group: params.has("group") ? params.get("group") || null : undefined,
+      scope: scopeParam,
+      group: groupParam === null ? undefined : groupParam || null,
     };
-  }, [params]);
+  }, [scopeParam, groupParam]);
   const sortParam = params.get("sort");
   const sort: RouteSort = ROUTE_SORTS.includes(sortParam as RouteSort)
     ? (sortParam as RouteSort)
-    : "hops";
+    : DEFAULT_SORT;
   const query = params.get("q") ?? "";
+  /** The query bar's facets, in the URL (§253). */
+  const facetKey = Object.values(FACET_PARAMS)
+    .map((param) => params.get(param) ?? "")
+    .join("|");
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the facets change only with their own parameters.
+  const facets = useMemo(() => readFacets(params), [facetKey]);
   /** The links somebody is trying out together, in the order they were added. */
-  const plan = useMemo(() => params.getAll("cut").flatMap(parseCut), [params]);
+  const cutKeys = params.getAll("cut").join("\n");
+  const plan = useMemo(() => (cutKeys ? cutKeys.split("\n").flatMap(parseCut) : []), [cutKeys]);
   const [tab, setTab] = useState<PanelTab>(() => (plan.length > 0 ? "simulate" : "routes"));
   /** The route under the pointer in the list, drawn faded-around until it leaves. */
   const [previewKey, setPreviewKey] = useState<string | null>(null);
@@ -199,11 +218,17 @@ export function AttackPathsPage() {
       ),
     [map],
   );
-  const trackedKeys = useMemo(() => new Set(tracked.data?.keys() ?? []), [tracked.data]);
+  // Which routes a risk tracks, joined on the server by their ends (§244).
+  const trackedKeys = useMemo(
+    () => new Set(routes.filter((route) => route.risk).map((route) => route.key)),
+    [routes],
+  );
   const listing = useMemo(
     () =>
-      map ? listRoutes(map, nodes, { picked, place, query, sort, tracked: trackedKeys }) : null,
-    [map, nodes, picked, place, query, sort, trackedKeys],
+      map
+        ? listRoutes(map, nodes, { picked, place, query, sort, tracked: trackedKeys, facets })
+        : null,
+    [map, nodes, picked, place, query, sort, trackedKeys, facets],
   );
   const tracedRoute = useMemo(
     () => routes.find((route) => route.key === traced) ?? null,
@@ -263,13 +288,18 @@ export function AttackPathsPage() {
       api.post<Simulation>("/api/v1/attack-paths/simulate", { cuts: plan }).then((r) => r.data),
   });
   const result = plan.length > 0 ? simulation.data : undefined;
-  const simulatedBase = useMemo(
-    () =>
-      plan.length > 0
-        ? { links: plan, closes: new Set(result?.closed.map((route) => route.key)) }
-        : null,
-    [plan, result],
-  );
+  // One cut closes exactly what its line names (`closes`, §122), so a plan of
+  // one is drawn at once; from two cuts on, the drawing waits for the server,
+  // because two cuts can close what neither closes alone (§141, §255).
+  const simulatedBase = useMemo(() => {
+    if (plan.length === 0) return null;
+    const only = plan.length === 1 && plan[0] ? edges.get(cutKey(plan[0])) : undefined;
+    const closes =
+      only && (!result || simulation.isFetching)
+        ? only.closes
+        : (result?.closed.map((route) => route.key) ?? []);
+    return { links: plan, closes: new Set(closes) };
+  }, [plan, result, edges, simulation.isFetching]);
   // What the list and the navigator say about the plan waits for the answer to
   // this plan, never the last one left up while it is checked.
   const settled =
@@ -327,8 +357,74 @@ export function AttackPathsPage() {
       tracked: trackedKeys,
       closed: new Set(settled?.closed.map((route) => route.key) ?? []),
       closeDelay,
+      ledger,
     }),
-    [trackedKeys, settled, closeDelay],
+    [trackedKeys, settled, closeDelay, ledger],
+  );
+
+  // The fix plan's changes as links the simulator takes, in plan order (§245).
+  const planned = useMemo(
+    () =>
+      (map?.plan.cuts ?? []).map((cut) => ({
+        source: cut.source.id,
+        relationship: cut.relationship,
+        target: cut.target.id,
+      })),
+    [map],
+  );
+  const tryingPlan =
+    planned.length > 0 &&
+    planned.length === plan.length &&
+    planned.every((link, index) => cutKey(link) === cutKey(plan[index] ?? link));
+  function tryPlan() {
+    setPlan(planned);
+    setTab("simulate");
+    frame.current?.scrollIntoView?.({ block: "start", behavior: reduced ? "auto" : "smooth" });
+  }
+
+  // "If compromised" (§255): what the picked box would reach if taken, drawn
+  // as the only thing at full strength. Put down with the pick.
+  const [compromisedOf, setCompromisedOf] = useState<string | null>(null);
+  const compromised = picked !== null && compromisedOf === picked;
+  function setCompromised(next: (was: boolean) => boolean) {
+    setCompromisedOf(next(compromised) ? picked : null);
+  }
+  const blast = useQuery({
+    ...blastRadiusQuery(picked ?? ""),
+    enabled: compromised,
+  });
+  const reach = useMemo(
+    () =>
+      compromised && picked && blast.data
+        ? new Set([picked, ...blast.data.map((asset) => asset.id)])
+        : null,
+    [compromised, picked, blast.data],
+  );
+
+  // One-key shortcuts on a picked box (§254), through `singleKeyShortcut` so
+  // they can be turned off (§155): t traces its worst route, c plans its best
+  // cut, b shows what a compromise reaches.
+  useEffect(() => {
+    if (!picked || !listing || !map) return;
+    function onKey(event: KeyboardEvent) {
+      if (!singleKeyShortcut(event)) return;
+      if (event.key === "t" && listing?.order[0]) trace(listing.order[0]);
+      else if (event.key === "c" && map) {
+        const best = bestCutAt(map.edges, picked ?? "");
+        if (best) togglePlanned(best);
+      } else if (event.key === "b") setCompromisedOf((was) => (was === picked ? null : picked));
+      else return;
+      event.preventDefault();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  // What the search and facets keep, faded around on the drawing; null when
+  // nothing narrows, so the drawing is as it was (§253).
+  const narrowed = useMemo(
+    () => (listing && (hasFacets(facets) || query.trim() !== "") ? new Set(listing.order) : null),
+    [listing, facets, query],
   );
 
   const at = tracedRoute && listing ? listing.order.indexOf(tracedRoute.key) : -1;
@@ -356,26 +452,6 @@ export function AttackPathsPage() {
 
       {data && map && listing && routes.length > 0 && (
         <>
-          <StatStrip
-            stats={[
-              {
-                label: t.attackPaths.routesLabel,
-                value: data.meta.total,
-                alert: data.meta.total > 0,
-              },
-              {
-                label: t.attackPaths.entryPointsLabel,
-                value: data.meta.entry_points,
-                icon: FACTOR_ICONS.exposure,
-              },
-              {
-                label: t.attackPaths.sensitiveTargetsLabel,
-                value: data.meta.sensitive_targets,
-                icon: FACTOR_ICONS.dataSensitivity,
-              },
-            ]}
-          />
-
           {traced && !tracedRoute && (
             <Alert>
               <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
@@ -391,6 +467,48 @@ export function AttackPathsPage() {
             <RouteMapFrame
               map={map}
               meta={data.meta}
+              toolbar={
+                <RouteQueryBar
+                  query={query}
+                  onQuery={(next) => change({ q: next || null })}
+                  sort={sort}
+                  onSort={(next) => change({ sort: next === DEFAULT_SORT ? null : next })}
+                  facets={facets}
+                  onFacet={(param, value) => change({ [param]: value })}
+                  onClear={() =>
+                    change({
+                      q: null,
+                      ...Object.fromEntries(
+                        Object.values(FACET_PARAMS).map((param) => [param, null]),
+                      ),
+                    })
+                  }
+                />
+              }
+              fixPlan={
+                <FixPlanCard
+                  className="rounded-none bg-transparent ring-0"
+                  plan={map.plan}
+                  entryPoints={data.meta.entry_points}
+                  sensitiveTargets={data.meta.sensitive_targets}
+                  trying={tryingPlan}
+                  onTry={tryPlan}
+                  progress={
+                    history.data && (
+                      <RouteProgress history={history.data.history} meta={history.data.meta} />
+                    )
+                  }
+                />
+              }
+              planSummary={
+                map.plan.cuts.length === 0
+                  ? t.attackPaths.planNone
+                  : t.attackPaths.planHeadline(
+                      map.plan.cuts.length,
+                      map.plan.total_routes - map.plan.remaining,
+                      map.plan.total_routes,
+                    )
+              }
               traced={tracedRoute}
               hop={hop}
               preview={previewRoute}
@@ -412,8 +530,6 @@ export function AttackPathsPage() {
                         ? map.patterns.find((each) => each.id === tracedRoute.pattern)
                         : undefined
                     }
-                    risk={tracked.data?.get(tracedRoute.key)}
-                    trackingKnown={tracked.isSuccess}
                     isPlanned={isPlanned}
                     onPlan={(step) => togglePlanned(asHop(step), false)}
                     planVerdict={
@@ -431,13 +547,13 @@ export function AttackPathsPage() {
                     onTrace={trace}
                     onPreview={setPreviewKey}
                     query={query}
-                    onQuery={(next) => change({ q: next || null })}
-                    sort={sort}
-                    onSort={(next) => change({ sort: next === "hops" ? null : next })}
                     picked={picked}
                     onClearPick={() => change({ through: null })}
                     place={place}
                     onClearPlace={() => change({ scope: null, group: null })}
+                    compromised={compromised}
+                    onCut={(edge) => togglePlanned(edge)}
+                    onCompromise={() => setCompromised((was) => !was)}
                   />
                 )
               }
@@ -458,6 +574,9 @@ export function AttackPathsPage() {
                 />
               }
               picked={picked}
+              narrowed={narrowed}
+              reach={reach}
+              checking={plan.length > 1 && simulation.isFetching}
               onPickNode={(id) => {
                 // A box on the route being read reads the hop arriving there.
                 const stop = tracedRoute ? visits(tracedRoute).indexOf(id) : -1;
@@ -578,16 +697,25 @@ function asRemoved(link: Hop, edges: RouteMapEdge[]): Hop {
 }
 
 /**
- * The drawing and the routes, as one frame.
+ * The drawing and everything that reads it, as one frame (DECISIONS.md §259).
  *
- * The rail used to be a column of cards beside a card holding the canvas, and
- * a traced route opened at the foot of that column, often below the fold. Now
- * it is the estate map's shape (DECISIONS.md §137): the canvas, and a panel on
- * its side that lists the routes and, once one is traced, reads it (§142).
+ * The fix plan sat above the drawing, the query bar under it, the legend
+ * beside its title and the routes in a column on its side: four bands to
+ * scroll past before the picture, which is the one thing on this page that
+ * says "one identity" at a look. Now the canvas is the frame and the rest
+ * float over it on a wide screen -- the query bar and the view's controls
+ * along the top, the fix plan on the left, the routes and the simulation on
+ * the right, the legend at the foot -- each folding away for a wider look, and
+ * every fit frames the drawing in the part they leave open. On a narrow screen
+ * they stack under the canvas, as before. Full screen takes the whole display,
+ * where the wheel zooms because there is no page left to scroll.
  */
 function RouteMapFrame({
   map,
   meta,
+  toolbar,
+  fixPlan,
+  planSummary,
   traced,
   hop,
   preview,
@@ -597,12 +725,21 @@ function RouteMapFrame({
   routesPanel,
   simulationPanel,
   picked,
+  narrowed,
+  reach,
+  checking,
   onPickNode,
   onPickLink,
   onClearPick,
 }: {
   map: RouteMap;
   meta: RouteMapMeta;
+  /** Search, filters and sort (`RouteQueryBar`). */
+  toolbar: ReactNode;
+  /** The fix plan (`FixPlanCard`). */
+  fixPlan: ReactNode;
+  /** The fix plan's headline, said on its tab while it is folded away. */
+  planSummary: string;
   traced: MappedRoute | null;
   hop: number;
   preview: MappedRoute | null;
@@ -612,106 +749,318 @@ function RouteMapFrame({
   routesPanel: ReactNode;
   simulationPanel: ReactNode;
   picked: string | null;
+  narrowed: ReadonlySet<string> | null;
+  reach: ReadonlySet<string> | null;
+  checking: boolean;
   onPickNode: (id: string) => void;
   onPickLink: (edge: Hop) => void;
   onClearPick: () => void;
 }) {
   const t = useT();
+  // The routes left with the plan made, run down to as each answer lands (§256).
+  const left = useCountUp(map.routes.length - (simulated?.closes.size ?? 0), DURATION.chart);
+  // Each panel folds away for a wider look at the drawing; the routes panel
+  // widens while a hop is read, which carries the most text (§253).
+  // Below a roomy screen the fix plan starts as its rail: with both panels
+  // open at 1440px, 460px of drawing was left, one column of it (§261). A
+  // fold somebody chose is kept either way.
+  const [planOpen, setPlanOpen] = useStoredFlag(
+    "cloudguard:attack-paths:plan",
+    typeof window.matchMedia === "function" && window.matchMedia(ROOMY).matches,
+  );
+  const [panelOpen, setPanelOpen] = useStoredFlag("cloudguard:attack-paths:panel", true);
+  // A route being read needs the width, so the fix plan yields to it until
+  // somebody asks for the plan back while reading that route.
+  const [planKeptFor, setPlanKeptFor] = useState<string | null>(null);
+  const planShown = planOpen && (!traced || planKeptFor === traced.key);
+  function showPlan(show: boolean) {
+    setPlanOpen(() => show);
+    if (show && traced) setPlanKeptFor(traced.key);
+  }
+  const { full, toggleFull } = useFullScreen();
+  // Panels float over the canvas only on a wide screen; below that they stack.
+  const wide = useMediaQuery(WIDE);
+
+  const insets = useMemo<CanvasInsets>(
+    () =>
+      wide
+        ? {
+            top: PANEL_TOP + (simulated ? SIMULATING_HEIGHT : 0),
+            left: EDGE + (planShown ? PLAN_WIDTH : RAIL_WIDTH),
+            right: panelOpen ? EDGE + (traced ? READING_WIDTH : ROUTES_WIDTH) : 0,
+            bottom: FOOT_HEIGHT,
+          }
+        : { top: 0, left: 0, right: 0, bottom: 0 },
+    [wide, simulated, planShown, panelOpen, traced],
+  );
 
   return (
-    <section aria-labelledby="route-map-title" className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="route-map-title" className="text-body font-semibold">
-          {t.attackPaths.mapTitle}
-        </h2>
-        <GraphLegend
-          label={t.attackPaths.mapHelpLabel}
-          items={[
-            { mark: MARKS.exposure, label: t.attackPaths.legendEntry },
-            { mark: MARKS.sensitive, label: t.attackPaths.legendSensitive },
-            { mark: MARKS.findings, label: t.attackPaths.legendFindings },
-            { mark: MARKS.weight, label: t.attackPaths.legendWeight },
-            ...(simulated
-              ? [
-                  { mark: MARKS.cut, label: t.attackPaths.legendCut },
-                  { mark: MARKS.closed, label: t.attackPaths.legendClosed },
-                ]
-              : []),
-          ]}
-        >
-          <p>{t.attackPaths.mapHelpExplain}</p>
-        </GraphLegend>
-      </div>
+    <section aria-labelledby="route-map-title" className="flex flex-col gap-2">
+      <h2 id="route-map-title" className="sr-only">
+        {t.attackPaths.mapTitle}
+      </h2>
 
       {/* What a link from the dashboard grows into (DECISIONS.md §140). */}
       <div
         data-graph-frame=""
-        className="flex w-full flex-col overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10 lg:h-[36rem]"
+        className={cn(
+          "relative isolate flex w-full flex-col overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10",
+          "lg:block lg:h-[calc(100dvh-11rem)] lg:min-h-[34rem]",
+          full && "fixed inset-0 z-50 overflow-y-auto rounded-none ring-0 lg:h-dvh lg:min-h-0",
+        )}
       >
-        {simulated && (
-          <div className="flex items-center gap-2 border-b border-ok-border bg-ok-bg px-3 py-1.5 text-xs text-foreground">
-            <ScissorsIcon className="size-3.5 shrink-0 text-ok" aria-hidden />
-            <p className="min-w-0 flex-1">{t.attackPaths.simulating(simulated.links.length)}</p>
-            {tab !== "simulate" && (
-              <Button variant="ghost" size="sm" onClick={() => onTab("simulate")}>
-                {t.attackPaths.simulationShow}
-              </Button>
+        {/* Along the top, two islands: narrowing on the left, the view on the
+            right (§259). In full screen the page's own heading is covered, so
+            the left island names the page. */}
+        <div className="flex flex-wrap items-start gap-2 border-b border-border p-2 lg:pointer-events-none lg:absolute lg:inset-x-3 lg:top-3 lg:z-10 lg:border-0 lg:p-0">
+          <div
+            className={cn(
+              FLOATING,
+              "flex min-w-0 flex-1 items-center gap-2 lg:flex-initial lg:p-1.5",
             )}
+          >
+            {full && (
+              <>
+                <span className="flex items-center gap-2 pr-1 pl-1">
+                  <span className="flex size-7 items-center justify-center rounded-lg bg-primary-soft text-primary">
+                    <RouteIcon className="size-4" aria-hidden />
+                  </span>
+                  <span className="text-body font-semibold tracking-tight">
+                    {t.attackPaths.title}
+                  </span>
+                  <span className="rounded-full bg-foreground/8 px-2 text-caption text-muted-foreground tabular-nums">
+                    {map.routes.length}
+                  </span>
+                </span>
+                <span aria-hidden className="h-5 w-px bg-border" />
+              </>
+            )}
+            {toolbar}
+          </div>
+          <div className={cn(FLOATING, "ml-auto flex items-center gap-0.5 lg:p-1.5")}>
+            <CopyLink />
+            <span aria-hidden className="mx-1 hidden h-5 w-px bg-border lg:block" />
+            <Button
+              variant={planShown ? "secondary" : "ghost"}
+              size="icon-sm"
+              className="hidden lg:inline-flex"
+              aria-label={t.attackPaths.planPanelToggle}
+              aria-pressed={planShown}
+              onClick={() => showPlan(!planShown)}
+            >
+              <PanelLeftIcon />
+            </Button>
+            <Button
+              variant={panelOpen ? "secondary" : "ghost"}
+              size="icon-sm"
+              className="hidden lg:inline-flex"
+              aria-label={panelOpen ? t.attackPaths.panelHide : t.attackPaths.panelShow}
+              aria-expanded={panelOpen}
+              onClick={() => setPanelOpen((open) => !open)}
+            >
+              {panelOpen ? <PanelRightCloseIcon /> : <PanelRightOpenIcon />}
+            </Button>
+            <span aria-hidden className="mx-1 hidden h-5 w-px bg-border lg:block" />
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={full ? t.attackPaths.fullScreenLeave : t.attackPaths.fullScreenEnter}
+              aria-pressed={full}
+              aria-keyshortcuts="F"
+              onClick={toggleFull}
+            >
+              {full ? <ShrinkIcon /> : <ExpandIcon />}
+            </Button>
+          </div>
+        </div>
+
+        {simulated && (
+          <div
+            className="flex justify-center px-2 pt-2 lg:pointer-events-none lg:absolute lg:z-10 lg:p-0"
+            style={
+              wide
+                ? { top: PANEL_TOP, left: insets.left + EDGE, right: insets.right + EDGE }
+                : undefined
+            }
+          >
+            <div className="flex w-full items-center gap-2 rounded-lg border border-ok-border bg-ok-bg px-3 py-1.5 text-xs text-foreground lg:pointer-events-auto lg:w-auto lg:max-w-full lg:rounded-full lg:py-1 lg:pr-1 lg:shadow-lg lg:shadow-ok/15 lg:ring-4 lg:ring-ok/5">
+              <ScissorsIcon className="size-3.5 shrink-0 text-ok" aria-hidden />
+              <p className="min-w-0 flex-1">{t.attackPaths.simulating(simulated.links.length)}</p>
+              <span className="shrink-0 text-body font-semibold tabular-nums" aria-hidden>
+                {map.routes.length} → {left}
+              </span>
+              {(tab !== "simulate" || !panelOpen) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 rounded-full bg-foreground/8"
+                  onClick={() => {
+                    setPanelOpen(() => true);
+                    onTab("simulate");
+                  }}
+                >
+                  {t.attackPaths.simulationShow}
+                </Button>
+              )}
+            </div>
           </div>
         )}
-        <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-          <div className="h-[28rem] min-w-0 lg:h-auto lg:flex-1">
-            <Suspense fallback={<Skeleton className="size-full" />}>
-              <RouteMapCanvas
-                map={map}
-                traced={traced}
-                hop={traced ? hop : null}
-                preview={preview}
-                simulated={simulated}
-                picked={picked}
-                onPickNode={onPickNode}
-                onPickLink={onPickLink}
-                onClearPick={onClearPick}
-              />
-            </Suspense>
-          </div>
 
-          <aside
-            aria-label={t.attackPaths.panelLabel}
-            className="flex max-h-[30rem] min-h-0 flex-col border-t border-border lg:max-h-none lg:w-[20rem] lg:border-t-0 lg:border-l"
-          >
-            <Tabs
-              value={tab}
-              onValueChange={(value) => onTab(value as PanelTab)}
-              className="min-h-0 flex-1 gap-0"
-            >
-              <div className="border-b border-border p-2">
-                <TabsList className="w-full">
-                  <TabsTrigger value="routes">
-                    {t.attackPaths.tabRoutes}
-                    <span className="text-muted-foreground tabular-nums">{map.routes.length}</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="simulate">
-                    {t.attackPaths.tabSimulate}
-                    {simulated && (
-                      <span className="text-muted-foreground tabular-nums">
-                        {simulated.links.length}
-                      </span>
-                    )}
-                  </TabsTrigger>
-                </TabsList>
-              </div>
-
-              <TabsContent value="routes" className="flex min-h-0 flex-col">
-                {routesPanel}
-              </TabsContent>
-
-              <TabsContent value="simulate" className="flex min-h-0 flex-col">
-                {simulationPanel}
-              </TabsContent>
-            </Tabs>
-          </aside>
+        <div
+          className={cn("h-[28rem] min-w-0 lg:absolute lg:inset-0 lg:h-auto", full && "h-[70dvh]")}
+        >
+          <Suspense fallback={<Skeleton className="size-full" />}>
+            <RouteMapCanvas
+              map={map}
+              traced={traced}
+              hop={traced ? hop : null}
+              preview={preview}
+              simulated={simulated}
+              picked={picked}
+              narrowed={narrowed}
+              reach={reach}
+              checking={checking}
+              onPickNode={onPickNode}
+              onPickLink={onPickLink}
+              onClearPick={onClearPick}
+              insets={insets}
+              frameKey={`${full}|${planShown}|${panelOpen}|${wide}`}
+              wheelZoom={full}
+              zoomPosition="bottom-right"
+            />
+          </Suspense>
         </div>
+
+        {/* The legend, at the foot of the drawing it reads. */}
+        <div
+          className={cn(
+            FLOATING,
+            "border-t border-border px-3 py-2 lg:absolute lg:bottom-3 lg:left-3 lg:max-w-[calc(100%-14rem)] lg:rounded-xl lg:border-0 lg:px-3 lg:py-2",
+          )}
+        >
+          <GraphLegend
+            label={t.attackPaths.mapHelpLabel}
+            items={[
+              { mark: MARKS.exposure, label: t.attackPaths.legendEntry },
+              { mark: MARKS.sensitive, label: t.attackPaths.legendSensitive },
+              { mark: MARKS.findings, label: t.attackPaths.legendFindings },
+              { mark: MARKS.weight, label: t.attackPaths.legendWeight },
+              ...(simulated
+                ? [
+                    { mark: MARKS.cut, label: t.attackPaths.legendCut },
+                    { mark: MARKS.closed, label: t.attackPaths.legendClosed },
+                  ]
+                : []),
+            ]}
+          >
+            <p>{t.attackPaths.mapHelpExplain}</p>
+          </GraphLegend>
+        </div>
+
+        {/* The fix plan, on the left: what to change first (§245). */}
+        {planShown || !wide ? (
+          <div
+            className={cn(
+              FLOATING,
+              "flex flex-col border-t border-border lg:absolute lg:left-3 lg:w-[22rem] lg:border-0",
+            )}
+            style={
+              wide
+                ? { top: PANEL_TOP, maxHeight: `calc(100% - ${PANEL_TOP + FOOT_HEIGHT}px)` }
+                : undefined
+            }
+          >
+            <div className="hidden items-center gap-2 py-2 pr-2 pl-4 lg:flex">
+              <p className="text-body font-semibold tracking-tight">
+                {t.attackPaths.planPanelTitle}
+              </p>
+              <span className="rounded-full bg-foreground/8 px-2 text-caption text-muted-foreground tabular-nums">
+                {t.attackPaths.planChanges(map.plan.cuts.length)}
+              </span>
+              <span className="flex-1" />
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={t.attackPaths.planPanelFold}
+                aria-expanded
+                onClick={() => showPlan(false)}
+              >
+                <ChevronLeftIcon />
+              </Button>
+            </div>
+            <div className="min-h-0 overflow-y-auto">{fixPlan}</div>
+          </div>
+        ) : (
+          // Folded, the plan is a slim rail on the left edge: its mark and how
+          // many changes it holds, its headline said to whoever reads it (§259).
+          <button
+            type="button"
+            className={cn(
+              FLOATING,
+              "absolute left-3 flex flex-col items-center gap-1.5 px-2 py-2 hover:bg-muted focus-ring",
+            )}
+            style={{ top: PANEL_TOP }}
+            aria-expanded={false}
+            aria-label={planSummary}
+            title={planSummary}
+            onClick={() => showPlan(true)}
+          >
+            <span className="flex size-8 items-center justify-center rounded-lg bg-foreground/8">
+              <ScissorsIcon className="size-4" aria-hidden />
+            </span>
+            <span className="rounded-full bg-primary-soft px-1.5 text-caption font-semibold text-primary tabular-nums">
+              {map.plan.cuts.length}
+            </span>
+            <ChevronRightIcon className="size-3.5 text-muted-foreground" aria-hidden />
+          </button>
+        )}
+
+        {/* The routes and the simulation, on the right (§137, §141). */}
+        <aside
+          aria-label={t.attackPaths.panelLabel}
+          className={cn(
+            FLOATING,
+            "flex max-h-[30rem] min-h-0 flex-col border-t border-border lg:absolute lg:right-3 lg:max-h-none lg:overflow-hidden lg:border-0",
+            "lg:transition-[width] lg:duration-200",
+            traced ? "lg:w-96" : "lg:w-80",
+            !panelOpen && "lg:hidden",
+            full && "max-h-none",
+          )}
+          style={wide ? { top: PANEL_TOP, bottom: ZOOM_CLEARANCE } : undefined}
+        >
+          <Tabs
+            value={tab}
+            onValueChange={(value) => onTab(value as PanelTab)}
+            className="min-h-0 flex-1 gap-0"
+          >
+            <div className="flex items-center border-b border-border px-3 pt-1.5">
+              <TabsList variant="line" className="h-10 gap-3">
+                <TabsTrigger value="routes" className="flex-none px-1">
+                  {t.attackPaths.tabRoutes}
+                  <span className="rounded-full bg-foreground/8 px-1.5 text-caption text-muted-foreground tabular-nums">
+                    {map.routes.length}
+                  </span>
+                </TabsTrigger>
+                <TabsTrigger value="simulate" className="flex-none px-1">
+                  {t.attackPaths.tabSimulate}
+                  {simulated && (
+                    <span className="rounded-full bg-ok-bg px-1.5 text-caption text-ok tabular-nums">
+                      {simulated.links.length}
+                    </span>
+                  )}
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            <TabsContent value="routes" className="flex min-h-0 flex-1 flex-col">
+              {routesPanel}
+            </TabsContent>
+
+            <TabsContent value="simulate" className="flex min-h-0 flex-1 flex-col">
+              {simulationPanel}
+            </TabsContent>
+          </Tabs>
+        </aside>
       </div>
 
       {meta.drawn < meta.total && (
@@ -721,6 +1070,176 @@ function RouteMapFrame({
       )}
     </section>
   );
+}
+
+/**
+ * The page's link, with what it is narrowed to, traced and planned, as an
+ * icon on the view's island; a check says it was copied.
+ */
+function CopyLink() {
+  const t = useT();
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+  return (
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      aria-label={copied ? t.connection.copied : t.attackPaths.copyInvestigation}
+      title={t.attackPaths.copyInvestigation}
+      onClick={() => {
+        void navigator.clipboard.writeText(window.location.href);
+        setCopied(true);
+        if (timer.current) clearTimeout(timer.current);
+        timer.current = setTimeout(() => setCopied(false), 2000);
+      }}
+    >
+      {copied ? <CheckIcon className="text-ok" /> : <LinkIcon />}
+    </Button>
+  );
+}
+
+/** Where the panels float over the canvas rather than stack under it. */
+const WIDE = "(min-width: 1024px)";
+/** Wide enough for the fix plan, the routes and two columns of drawing at once. */
+const ROOMY = "(min-width: 1680px)";
+
+/**
+ * A panel floating over the drawing, on a wide screen: frosted glass on the
+ * popover surface -- opaque enough that the lines under it do not read
+ * through, blurred where they show -- with a deep, soft shadow (§259). Below
+ * that breakpoint it is a band of the frame.
+ */
+const FLOATING =
+  "lg:pointer-events-auto lg:z-10 lg:rounded-2xl lg:bg-popover/85 lg:shadow-2xl lg:shadow-black/30 lg:ring-1 lg:ring-foreground/8 lg:backdrop-blur-xl lg:backdrop-saturate-150";
+
+// The panels' geometry in pixels, so what they cover can be told to the
+// canvas (`insets`): 12px from each edge, the side panels under the top bar
+// and clear of the legend and the zoom buttons at the foot.
+const EDGE = 12;
+const PANEL_TOP = 60;
+const FOOT_HEIGHT = 56;
+/** The routes panel stops above the zoom buttons, which sit over the attribution. */
+const ZOOM_CLEARANCE = 88;
+const SIMULATING_HEIGHT = 44;
+const PLAN_WIDTH = 352;
+/** The fix plan folded to its rail still covers this much of the left edge. */
+const RAIL_WIDTH = 52;
+const ROUTES_WIDTH = 320;
+const READING_WIDTH = 384;
+
+/**
+ * A panel's fold, remembered in this browser: a per-viewer convenience, so
+ * storage that refuses or forgets only means it opens unfolded (§259).
+ */
+function useStoredFlag(
+  key: string,
+  initial: boolean,
+): [boolean, (next: (was: boolean) => boolean) => void] {
+  const [value, setValue] = useState(() => {
+    try {
+      const stored = localStorage.getItem(key);
+      return stored === null ? initial : stored === "1";
+    } catch {
+      return initial;
+    }
+  });
+  function set(next: (was: boolean) => boolean) {
+    setValue((was) => {
+      const now = next(was);
+      try {
+        localStorage.setItem(key, now ? "1" : "0");
+      } catch {
+        // Storage refused: the fold lasts until the page is left.
+      }
+      return now;
+    });
+  }
+  return [value, set];
+}
+
+/** Whether a media query matches, kept current. `matchMedia`-less means no. */
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(
+    // Guarded: jsdom has no `matchMedia`, and without one nothing is wide.
+    () => typeof window.matchMedia === "function" && window.matchMedia(query).matches,
+  );
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const list = window.matchMedia(query);
+    const onChange = () => setMatches(list.matches);
+    list.addEventListener("change", onChange);
+    return () => list.removeEventListener("change", onChange);
+  }, [query]);
+  return matches;
+}
+
+/**
+ * The frame filling the screen (§259). It is laid over the window by CSS
+ * first, so full screen works wherever the browser refuses the Fullscreen API
+ * (an iframe, a missing gesture); the API, where granted, then takes the
+ * browser's own chrome away too. The document element is what goes full
+ * screen, not the frame, so menus and tooltips -- portalled to the body --
+ * still show over it. Escape, the browser leaving full screen, or F again
+ * puts it back; F is a single-key shortcut, so it can be turned off (§155).
+ */
+function useFullScreen(): { full: boolean; toggleFull: () => void } {
+  const [full, setFull] = useState(false);
+
+  function toggleFull() {
+    if (full) {
+      setFull(false);
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {
+          // Already left: the browser's own Escape got there first.
+        });
+      }
+      return;
+    }
+    setFull(true);
+    document.documentElement.requestFullscreen?.().catch(() => {
+      // Refused: the frame still covers the window, which is most of the point.
+    });
+  }
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "f" && singleKeyShortcut(event)) {
+        event.preventDefault();
+        toggleFull();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  useEffect(() => {
+    if (!full) return;
+    // The page behind does not scroll under a frame that covers it.
+    const root = document.documentElement;
+    const overflow = root.style.overflow;
+    root.style.overflow = "hidden";
+    function onChange() {
+      if (!document.fullscreenElement) setFull(false);
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape" && !event.defaultPrevented && !dialogOpen()) setFull(false);
+    }
+    document.addEventListener("fullscreenchange", onChange);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      root.style.overflow = overflow;
+      document.removeEventListener("fullscreenchange", onChange);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [full]);
+
+  return { full, toggleFull };
 }
 
 /**
@@ -739,13 +1258,13 @@ function RouteList({
   onTrace,
   onPreview,
   query,
-  onQuery,
-  sort,
-  onSort,
   picked,
   onClearPick,
   place,
   onClearPlace,
+  compromised,
+  onCut,
+  onCompromise,
 }: {
   map: RouteMap;
   nodes: ReadonlyMap<string, RouteMapNode>;
@@ -754,22 +1273,17 @@ function RouteList({
   onTrace: (key: string) => void;
   onPreview: (key: string | null) => void;
   query: string;
-  onQuery: (query: string) => void;
-  sort: RouteSort;
-  onSort: (sort: RouteSort) => void;
   picked: string | null;
   onClearPick: () => void;
   place: Place | null;
   onClearPlace: () => void;
+  /** Whether the drawing shows what the picked box would reach if taken (§255). */
+  compromised: boolean;
+  onCut: (edge: RouteMapEdge) => void;
+  onCompromise: () => void;
 }) {
   const t = useT();
   const byKey = useMemo(() => new Map(map.routes.map((route) => [route.key, route])), [map.routes]);
-  const labels: Record<RouteSort, string> = {
-    hops: t.attackPaths.sortHops,
-    sensitive: t.attackPaths.sortSensitive,
-    exposed: t.attackPaths.sortExposed,
-    tracked: t.attackPaths.sortTracked,
-  };
   const pickedNode = picked ? nodes.get(picked) : undefined;
   // Named by any node in the subscription; the id alone when none drawn is.
   const placeNode = place ? map.nodes.find((node) => node.scope_id === place.scope) : undefined;
@@ -803,42 +1317,22 @@ function RouteList({
         </div>
       )}
       {pickedNode && (
-        <div className="flex items-center gap-2 border-b border-border p-2 pl-3">
-          <p className="min-w-0 flex-1 text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">{pickedNode.name}</span>{" "}
-            {t.attackPaths.routesThrough(pickedNode.routes)}
-          </p>
-          <Button variant="ghost" size="sm" onClick={onClearPick}>
-            <UndoIcon data-icon="inline-start" />
-            {t.attackPaths.clearTrace}
-          </Button>
+        <AssetCard
+          node={pickedNode}
+          map={map}
+          through={listing.order.flatMap((key) => byKey.get(key) ?? [])}
+          compromised={compromised}
+          onTrace={onTrace}
+          onCut={onCut}
+          onCompromise={onCompromise}
+          onClose={onClearPick}
+        />
+      )}
+      {pickedNode?.asset_id && !pickedNode.sensitive && (
+        <div className="border-b border-border px-3 py-2">
+          <DeclareSensitive assetId={pickedNode.asset_id} name={pickedNode.name} />
         </div>
       )}
-      <div className="flex shrink-0 items-center gap-2 border-b border-border p-2">
-        <div className="relative min-w-0 flex-1">
-          <SearchIcon
-            className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <Input
-            type="search"
-            value={query}
-            onChange={(event) => onQuery(event.target.value)}
-            placeholder={t.attackPaths.searchPlaceholder}
-            aria-label={t.attackPaths.searchLabel}
-            data-page-search
-            className="h-8 pl-8 text-xs md:text-xs"
-          />
-        </div>
-        <SelectField
-          value={sort}
-          onValueChange={(value) => onSort(value as RouteSort)}
-          options={ROUTE_SORTS.map((value) => ({ value, label: labels[value] }))}
-          ariaLabel={t.attackPaths.sortLabel}
-          idleValue="hops"
-          className="w-36"
-        />
-      </div>
       <LiveStatus
         quietFirst
         message={
@@ -847,7 +1341,7 @@ function RouteList({
             : emptyLine
         }
       />
-      <div className="flex flex-col gap-4 overflow-y-auto p-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-3">
         {listing.count === 0 && <p className="text-xs text-muted-foreground">{emptyLine}</p>}
         {listing.patterns.length > 0 && (
           <div className="flex flex-col gap-2">
@@ -921,6 +1415,11 @@ function NothingFound({ meta }: { meta: AttackPathMeta }) {
         icon={RouteIcon}
         title={t.attackPaths.emptyNoTargets}
         detail={t.attackPaths.emptyNoTargetsDetail}
+        action={
+          <Link to="/assets" className={buttonVariants({ variant: "outline", size: "sm" })}>
+            {t.attackPaths.emptyNoTargetsAction}
+          </Link>
+        }
       />
     );
   }

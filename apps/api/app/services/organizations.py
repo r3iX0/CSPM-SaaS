@@ -4,17 +4,17 @@ import re
 import secrets
 from uuid import UUID
 
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import commit_unless_externally_managed
 from app.core.deps import TenantContext
-from app.core.enums import Role
-from app.core.errors import OrganizationNotFound, PermissionDenied
+from app.core.enums import OrganizationMode, Role
+from app.core.errors import ConflictError, OrganizationNotFound, PermissionDenied
 from app.core.security import AuthenticatedUser
-from app.models.organization import Organization, OrganizationMember
-from app.schemas.organization import OrganizationCreate, OrganizationUpdate
+from app.models.organization import Organization, OrganizationInvitation, OrganizationMember
+from app.schemas.organization import FixWithinDays, OrganizationCreate, OrganizationUpdate
 from app.services import audit
 
 _SLUG_STRIP = re.compile(r"[^a-z0-9]+")
@@ -124,8 +124,21 @@ async def update_organization(
         raise OrganizationNotFound()
 
     changes = payload.model_dump(exclude_unset=True)
+    if changes.get("mode") == OrganizationMode.SOLO and org.mode != OrganizationMode.SOLO:
+        await _require_alone(session, org.id)
+    solo = changes.get("mode", org.mode) == OrganizationMode.SOLO
+    if changes.get("acceptance_approval_from") is not None and solo:
+        raise ConflictError("A second approver needs a second person; switch to a team first")
+    if "fix_within_days" in changes:
+        # The policy is sent whole: a severity left out is cleared, null clears them all, and the
+        # audit row records the policy that resulted rather than the keys that were sent (§225).
+        changes["fix_within_days"] = (payload.fix_within_days or FixWithinDays()).model_dump()
     for field, value in changes.items():
-        setattr(org, field, value)
+        if field == "fix_within_days":
+            for severity, days in value.items():
+                setattr(org, f"fix_within_days_{severity}", days)
+        else:
+            setattr(org, field, value)
     await audit.record(
         session, tenant, "organization.updated", "organization", org.id, {"changed": changes}
     )
@@ -135,6 +148,37 @@ async def update_organization(
     # transaction-scoped ``SET LOCAL ROLE authenticated`` that RLS depends on.
     await commit_unless_externally_managed(session)
     return org
+
+
+async def _require_alone(session: AsyncSession, organization_id: UUID) -> None:
+    """Refuse solo while anybody else is in the organization or invited to it (§236).
+
+    Solo hides members and invitations, so switching with somebody else there would leave a
+    colleague nobody can see or remove, and an open invitation that would bring one in.
+    """
+    others = (
+        await session.execute(
+            select(func.count())
+            .select_from(OrganizationMember)
+            .where(OrganizationMember.organization_id == organization_id)
+        )
+    ).scalar_one()
+    invited = (
+        await session.execute(
+            select(func.count())
+            .select_from(OrganizationInvitation)
+            .where(
+                OrganizationInvitation.organization_id == organization_id,
+                OrganizationInvitation.accepted_at.is_(None),
+                OrganizationInvitation.revoked_at.is_(None),
+                OrganizationInvitation.expires_at > func.now(),
+            )
+        )
+    ).scalar_one()
+    if others > 1 or invited:
+        raise ConflictError(
+            "Solo is for one person: remove the other members and withdraw open invitations first"
+        )
 
 
 async def delete_organization(

@@ -257,3 +257,78 @@ describe("the findings list", () => {
     expect(screen.queryByText("No verdict", { selector: "dt" })).not.toBeInTheDocument();
   });
 });
+
+describe("confidence on the findings list (§262)", () => {
+  const reading = {
+    observed_at: "2026-01-01T00:00:00Z",
+    fresh_until: "2026-01-02T12:00:00Z",
+    stale_at: "2026-01-08T00:00:00Z",
+  };
+  const stale = {
+    ...reading,
+    level: "LOW",
+    freshness: "STALE",
+    reasons: [{ code: "EVIDENCE_STALE", fields: [] }],
+  };
+  const settled = { ...reading, level: "HIGH", freshness: "FRESH", reasons: [] };
+
+  beforeEach(() => {
+    requested = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: RequestInfo | URL) => {
+        const url = urlOf(input);
+        if (url.includes("/findings")) requested.push(url);
+        const rows = [
+          { ...finding(0), confidence: stale },
+          { ...finding(1), confidence: settled },
+        ];
+        return Promise.resolve(
+          Response.json({
+            data: url.includes("/dashboard") ? null : rows,
+            error: null,
+            meta: { total: 2, limit: 50, offset: 0, confidence: { HIGH: 1, MEDIUM: 0, LOW: 1 } },
+          }),
+        );
+      }),
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("says a finding rests on stale evidence, and narrows to it on request", async () => {
+    renderPage();
+
+    expect(
+      await screen.findByText("1 finding rests on stale evidence. Rescan before acting on it."),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Show them" }));
+
+    await waitFor(() => expect(requested.some((url) => url.includes("confidence=LOW"))).toBe(true));
+  });
+
+  it("marks each row with how sure, the reason in its name", async () => {
+    renderPage();
+
+    expect(
+      await screen.findByRole("img", { name: /^Confidence: Low\. Read .*The estate may have/ }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /^Confidence: High\./ })).toBeInTheDocument();
+  });
+
+  it("opens on the confidence a link names, and drops the banner there", async () => {
+    renderPage("/findings?confidence=LOW");
+    await screen.findByText(/of 2 findings/);
+
+    expect(requested[0]).toContain("confidence=LOW");
+    expect(screen.queryByText(/rests on stale evidence/)).not.toBeInTheDocument();
+  });
+});
+
+/** The address a stubbed fetch was asked for, whatever form it was given in. */
+function urlOf(input: RequestInfo | URL): string {
+  if (typeof input === "string") return input;
+  return input instanceof URL ? input.href : input.url;
+}

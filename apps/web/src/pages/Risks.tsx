@@ -26,9 +26,10 @@ import { LiveStatus } from "@/components/common/LiveStatus";
 import { Pager } from "@/components/common/Pager";
 import { useUrlFilters } from "@/lib/useUrlFilters";
 import { singleKeyShortcut, useRowNavigation } from "@/lib/keyboard";
-import { useIsDemo } from "@/lib/useDemo";
+import { useCurrentOrganization, useIsDemo } from "@/lib/useDemo";
 import { cn, formatDate } from "@/lib/format";
 import { Checkbox } from "@/components/ui/checkbox";
+import { AcceptanceRequests } from "@/components/security/AcceptanceRequests";
 import { RiskTriageBar } from "@/components/security/RiskTriage";
 import { GraphLink } from "@/components/graph/GraphLink";
 
@@ -104,6 +105,7 @@ export function RisksPage() {
   const activeRow = useRowNavigation(risks.map((risk) => `/risks/${risk.id}`));
   const rowsLayout = listLayout(risks.map((risk) => risk.id));
   const isDemo = useIsDemo();
+  const organization = useCurrentOrganization();
 
   // Ids rather than rows, so a refetch after a decision shows each selected
   // risk's new status. Only the rows on screen count: a selection is what the
@@ -290,6 +292,8 @@ export function RisksPage() {
       </div>
 
       <LiveStatus quietFirst message={!data ? null : risks.length > 0 ? countLine : emptyTitle} />
+
+      {!isDemo && <AcceptanceRequests organization={organization} />}
 
       {isLoading && <CardsSkeleton />}
 

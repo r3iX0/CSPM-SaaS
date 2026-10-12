@@ -32,8 +32,10 @@ from app.models.finding import Finding
 from app.models.organization import Organization
 from app.models.remediation import RemediationTask
 from app.models.resource import ResourceRecord
+from app.schemas.attack_path import MAX_SIMULATED_CUTS
 from app.services import compliance as compliance_service
 from app.services import graph as graph_service
+from app.services.cut_fix import cut_sentence
 from app.services.dashboard import build_dashboard
 
 # How many findings the technical report lists. A tenant with four thousand
@@ -139,6 +141,7 @@ async def build_report(
 
     if "attack_paths" in chosen:
         report["attack_paths"] = await _attack_paths(session, organization_id)
+        report["fix_plan"] = await _fix_plan(session, organization_id)
 
     if "remediation" in chosen:
         report["remediation"] = await _remediation(
@@ -287,6 +290,30 @@ async def _attack_paths(session: AsyncSession, organization_id: UUID) -> list[di
             }
         )
     return serialized
+
+
+async def _fix_plan(session: AsyncSession, organization_id: UUID) -> dict:
+    """The changes that close the routes, in order, as the page leads with them.
+
+    The same plan, so the document and the page never disagree about what to
+    do first (DECISIONS.md section 252), each change said in a sentence and
+    with what it closes once the earlier ones are made.
+    """
+    graph = await graph_service.load_graph(session, organization_id)
+    plan = await graph_service.off_loop(lambda: graph.fix_plan(limit=MAX_SIMULATED_CUTS))
+    closed = 0
+    cuts = []
+    for cut in plan.cuts:
+        closed += len(cut.closes)
+        cuts.append(
+            {
+                "sentence": cut_sentence(cut.step),
+                "detail": cut.step.detail(),
+                "closes": len(cut.closes),
+                "closed_after": closed,
+            }
+        )
+    return {"cuts": cuts, "total": plan.before, "remaining": plan.remaining}
 
 
 async def _remediation(

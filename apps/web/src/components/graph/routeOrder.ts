@@ -1,5 +1,6 @@
 import { LEVEL_RANK } from "@/lib/changes";
-import type { MappedRoute, RouteMap, RouteMapNode, RoutePattern } from "@/lib/types";
+import type { MappedRoute, RouteMap, RouteMapEdge, RouteMapNode, RoutePattern } from "@/lib/types";
+import { matchesFacets, type RouteFacets } from "./routeFacets";
 
 /**
  * The routes in the order the attack-path panel lists them, narrowed the way
@@ -8,9 +9,18 @@ import type { MappedRoute, RouteMap, RouteMapNode, RoutePattern } from "@/lib/ty
  * (DECISIONS.md §142).
  */
 
-export type RouteSort = "hops" | "sensitive" | "exposed" | "tracked";
+export type RouteSort = "worst" | "hops" | "sensitive" | "exposed" | "tracked";
 
-export const ROUTE_SORTS: readonly RouteSort[] = ["hops", "sensitive", "exposed", "tracked"];
+export const ROUTE_SORTS: readonly RouteSort[] = [
+  "worst",
+  "hops",
+  "sensitive",
+  "exposed",
+  "tracked",
+];
+
+/** The order the panel opens in (DECISIONS.md §250). */
+export const DEFAULT_SORT: RouteSort = "worst";
 
 /**
  * A subscription, or a group in one, as the estate map opens it. `group`
@@ -60,6 +70,8 @@ export interface RouteNarrowing {
   sort: RouteSort;
   /** The routes the risks queue tracks, by key, for sorting them first. */
   tracked?: ReadonlySet<string>;
+  /** The facets the query bar sets (§253). */
+  facets?: RouteFacets;
 }
 
 export interface RouteListing {
@@ -82,6 +94,15 @@ const rank = (level: string) => LEVEL_RANK[level] ?? 0;
 function comparing(sort: RouteSort, tracked?: ReadonlySet<string>) {
   return (a: MappedRoute, b: MappedRoute): number => {
     switch (sort) {
+      case "worst":
+        // A tracked route by its risk's score, then the rest by what they
+        // reach, then by hops (§250). Untracked routes have no score to rank
+        // by, and inventing one is the made-up number the engine avoids.
+        return (
+          (b.risk?.risk_score ?? -1) - (a.risk?.risk_score ?? -1) ||
+          rank(b.target.data_sensitivity) - rank(a.target.data_sensitivity) ||
+          a.hops - b.hops
+        );
       case "hops":
         return 0;
       case "sensitive":
@@ -100,14 +121,15 @@ function comparing(sort: RouteSort, tracked?: ReadonlySet<string>) {
 export function listRoutes(
   map: RouteMap,
   nodes: ReadonlyMap<string, RouteMapNode>,
-  { picked, place, query, sort, tracked }: RouteNarrowing,
+  { picked, place, query, sort, tracked, facets }: RouteNarrowing,
 ): RouteListing {
   const words = query.trim().toLowerCase();
   const kept = map.routes.filter(
     (route) =>
       (!picked || visits(route).includes(picked)) &&
       (!place || visits(route).some((id) => inPlace(nodes.get(id), place))) &&
-      (!words || names(route).some((name) => name.toLowerCase().includes(words))),
+      (!words || names(route).some((name) => name.toLowerCase().includes(words))) &&
+      (!facets || matchesFacets(route, facets)),
   );
   const compare = comparing(sort, tracked);
   const byKey = new Map(kept.map((route) => [route.key, route]));
@@ -137,4 +159,14 @@ export function listRoutes(
       ...loose.map((route) => route.key),
     ],
   };
+}
+
+/** The link touching a box that closes the most routes, if any closes one (§254). */
+export function bestCutAt(edges: readonly RouteMapEdge[], id: string): RouteMapEdge | null {
+  let best: RouteMapEdge | null = null;
+  for (const edge of edges) {
+    if (edge.source !== id && edge.target !== id) continue;
+    if (edge.severs > (best?.severs ?? 0)) best = edge;
+  }
+  return best;
 }

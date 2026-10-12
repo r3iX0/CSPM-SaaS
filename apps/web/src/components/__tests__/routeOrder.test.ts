@@ -19,6 +19,7 @@ function route(
   return {
     key,
     pattern: null,
+    risk: null,
     entry: { id: entry, name: entry, resource_type: "virtual_machine", public_exposure: "HIGH" },
     target: {
       id: target,
@@ -102,6 +103,7 @@ const MAP: RouteMap = {
   ],
   loose: [C.key],
   choke_points: [],
+  plan: { cuts: [], total_routes: 0, remaining: 0 },
 };
 const NODES = new Map(MAP.nodes.map((each) => [each.id, each]));
 const ALL = { picked: null, place: null, query: "", sort: "hops" as const };
@@ -137,5 +139,28 @@ describe("listRoutes", () => {
     ).toBe(B.key);
     // Hops keeps the server's order, which already ranks the shortest first.
     expect(listRoutes(plain, NODES, ALL).order).toEqual([A.key, B.key, C.key]);
+  });
+
+  it("puts the worst tracked route first, then the rest by what they reach (§250)", () => {
+    const risk = (score: number) => ({
+      id: `r-${score}`,
+      status: "OPEN",
+      risk_level: "HIGH" as const,
+      risk_score: score,
+    });
+    const plain = {
+      ...MAP,
+      patterns: [],
+      routes: [
+        { ...A, pattern: null, risk: risk(40) },
+        { ...B, pattern: null },
+        { ...C, pattern: null, risk: risk(80) },
+      ],
+    };
+    expect(listRoutes(plain, NODES, { ...ALL, sort: "worst" }).order).toEqual([
+      C.key,
+      A.key,
+      B.key,
+    ]);
   });
 });

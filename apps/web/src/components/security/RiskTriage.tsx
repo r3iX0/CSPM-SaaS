@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/common/DatePicker";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -82,23 +82,38 @@ export function RiskDecisions({
 
   const decide = useMutation({
     mutationFn: (decision: { status: Decision; reason?: string; expires_at?: string }) =>
-      api.post("/api/v1/risks/status", {
+      api.post<Risk[]>("/api/v1/risks/status", {
         risk_ids: risks.map((risk) => risk.id),
         ...decision,
       }),
-    onSuccess: (_, decision) => {
-      toast.success(DONE[decision.status], {
-        description:
-          decision.status === "ACCEPTED"
-            ? "Recorded in the audit log with your reason. Accepted risks stay listed under Accepted — never hidden."
-            : "A status is intent, not proof. A risk resolves when a scan observes the fix.",
-      });
+    onSuccess: (response, decision) => {
+      // An acceptance the organization's policy covers comes back unaccepted: it waits for a
+      // second owner or admin (DECISIONS.md §239).
+      const waiting =
+        decision.status === "ACCEPTED" &&
+        response.data.filter((risk) => risk.status !== "ACCEPTED").length;
+      if (waiting) {
+        toast.success(
+          waiting === 1 ? "Sent for a second approval" : `${waiting} sent for a second approval`,
+          {
+            description:
+              "Another owner or admin approves or rejects it under Risks. Nothing changes until then.",
+          },
+        );
+      } else {
+        toast.success(DONE[decision.status], {
+          description:
+            decision.status === "ACCEPTED"
+              ? "Recorded in the audit log with your reason. Accepted risks stay listed under Accepted — never hidden."
+              : "A status is intent, not proof. A risk resolves when a scan observes the fix.",
+        });
+      }
       setAccepting(false);
       setReason("");
       setUntil("");
       onDone?.();
       // The risk page and every finding in it show the status just written.
-      for (const key of ["risks", "risk", "findings", "finding", "dashboard"]) {
+      for (const key of ["risks", "risk", "findings", "finding", "dashboard", "acceptances"]) {
         queryClient.invalidateQueries({ queryKey: [key] });
       }
     },
@@ -192,13 +207,11 @@ export function RiskDecisions({
             </Field>
             <Field>
               <FieldLabel htmlFor="risk-accept-until">Until (optional)</FieldLabel>
-              <Input
+              <DatePicker
                 id="risk-accept-until"
-                type="date"
                 min={tomorrowDay()}
                 value={until}
-                onChange={(e) => setUntil(e.target.value)}
-                className="w-fit"
+                onChange={(day) => setUntil(day ?? "")}
               />
               <FieldDescription>
                 {until

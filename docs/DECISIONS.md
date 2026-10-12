@@ -162,6 +162,8 @@ add richer components remains possible.
 
 ## 13. Cloud-only: no local development mode
 
+**Superseded in part by §240:** a change can now be run locally under `APP_ENV=local`.
+
 **Spec:** `ARCHITECTURE.md` §1 listed Docker Compose for local development.
 
 CloudGuard now targets exactly one environment — Supabase, Railway, Vercel —
@@ -12130,6 +12132,1474 @@ Celery's banner and `beat: Starting`.
 read the worker's `--queues` from `worker.json`, and failed once it was deleted. It now finds the
 one Celery worker start command in `.railway/railway.ts`, so a step routed to a queue the
 deployed worker does not consume still fails the build.
+
+## 224. The queue's own faults: stopped work, the phone, one note and one date picker
+
+Written as §223 on its branch; renumbered when the Railway entry's §223 reached `main` first, so
+the branch's commit that cites §223 for the queue means this entry.
+
+A browser audit of `/remediation` on 4 October 2026 found faults that needed no decision
+(`docs/REMEDIATION_PLAN.md`, "What the audit found"). This entry records how four of them were
+fixed.
+
+**Work somebody stopped is not an asset of the fix (faults 1 and 3).** Cancelling a task hands its
+finding back to OPEN (§212), but the task stays in `GET /remediation`. The rule sheet counted it as
+one of the rule's assets ("6 assets, 5 still to do"), and also left its finding out of "Track N
+more", so nothing in the sheet could track it again. Tracked again from the finding, the asset was
+listed twice, once "In progress" and once "Not tracked": the likeliest cause of fault 1, which
+matches the audit but was not confirmed against production's rows. The sheet now lists, counts and
+scripts only tasks that were not cancelled, and a cancelled task's finding is offered with the rest
+to track. The queue's rows are unchanged.
+
+**A row on a phone (fault 4).** A row's figures and its action wrap onto their own line under the
+title. Their fixed widths, which line them up in columns beside the title, now apply from `sm` up
+only. On their own line those widths centred the button, so the line now runs full width with the
+button at its end. In the line under the title, only the asset's name truncates, and the route
+count wraps rather than being cut off.
+
+**Said once (fault 5).** "Marked done does not close a finding" was said under the queue, under the
+fix sheet's controls and in the rule sheet, and both sheets open over the queue. It is said once
+under the queue, shortened to one line, and the toast that answers "Mark done" says it at the
+moment it matters. The text is out of `i18n/overBudget.ts`.
+
+**One date picker (fault 7).** The browser's own date input drew `dd.mm.yyyy` in its own chrome.
+`DatePicker` (`components/common/DatePicker.tsx`) is a button that opens shadcn's `Calendar` in a
+`Popover`, with a "Clear date" action, and it keeps the API's `YYYY-MM-DD` string, read and written
+in local time so no time zone moves the day. It replaces both date inputs: a task's due date and
+an acceptance's end date. `calendar.tsx` was copied from the `base-nova` registry by hand rather
+than added with the CLI, because the CLI would also overwrite `button.tsx` and drop its
+`forwardRef`, `focusableWhenDisabled` and merged `buttonVariants` (§135, §165). It adds one
+dependency, `react-day-picker`, which shadcn's calendar is built on. It is a primitive's engine,
+not a second UI kit.
+
+## 225. Work is due by policy, and the queue shows what a scan fixed
+
+The remediation plan's next step was Part 3's first two items: due dates by severity and progress
+numbers (`docs/REMEDIATION_PLAN.md`). The audit behind it found "Overdue 0" meaningless while nobody
+set due dates, and finished work vanishing from the page. Neither needs the Jira sync, so both are
+built first. The Jira sync will carry the same deadline out as the issue's due date.
+
+**A deadline policy per organization.** `organizations` gains four nullable day counts,
+`fix_within_days_critical` to `fix_within_days_low` (migration 0053). Each allows 1 to 365 days;
+null means no deadline. Columns rather than a JSON document, so the database refuses a bad count
+whoever writes it. The API reads and writes them as one object, `fix_within_days`, on
+`GET`/`PATCH /organizations`. Owners and admins set it, as the rest of the organization's profile
+(`org_update` already limits writes to them), and the change is audited. The policy is sent whole:
+a severity left out is cleared, null clears all four, and the audit row records the resulting
+policy, not the keys sent. Settings > General has a "Fix deadlines" form beside the profile, with
+its own "Save deadlines" button. Two buttons both named "Save changes" on one page cannot be told
+apart by a screen reader.
+
+**Derived at read time, never stored on the task.** A task's `due_on` is its `due_date` where a
+person set one. Otherwise it is the policy's days for the finding's severity, counted from the
+finding's `first_detected_at` as a UTC day, with `due_by_policy` true. `due_date` stays what a
+person set, so the fix sheet can show the policy's day as the date picker's placeholder rather than
+as a chosen date. Storing the policy's day on each task at creation was rejected: changing the
+policy would then move nothing, and tasks tracked before the policy existed would never get a day.
+
+- **The clock starts at detection, not at tracking.** A deadline is about how long an exposure
+  stands. A clock started by tracking would reward leaving work untracked. An old finding is
+  overdue the moment a policy is set, which is true.
+- **The deadline does not reorder the queue.** Priority, impact against effort (§127), still
+  decides what comes first. A late fifteen-minute change and a late redesign are both late.
+- **Due today is not overdue.** The page compared `new Date(due_date) < new Date()`, which reads a
+  `YYYY-MM-DD` day as midnight UTC and called work overdue on its own due day. It now compares day
+  strings in the reader's calendar (`isPast` in `lib/remediation.ts`). That matches how a fix is
+  judged on time: observed on or before its due day.
+
+**`GET /remediation/progress?days=30`.** The endpoint counts findings a scan resolved in the window
+(7 to 365 days), tracked or not, and never tasks marked done. Only an observation closes a finding
+(§18). It answers per severity: the count, the median days from first detection to the resolving
+scan, and how many met their deadline or missed it. It also names the latest ten fixes. A fix with
+no deadline is neither on time nor late: counting it on time would make an unset policy look met.
+The counting is a pure module, `services/deadlines.py`, unit-tested without a database.
+
+- **Judged against today's policy.** No history of the policy is kept. A fix made before a 7-day
+  policy existed counts as late against it. That is the standard the organization holds now, and
+  keeping policy versions to soften it is not worth a table yet.
+- **A fix found again is not counted.** A resolved finding detected again is open, so the window
+  counts fixes that held. A finding resolved twice is timed from its first detection, so its
+  median time to fix may read long.
+- **Verified time is later than the fix.** A fix is timed to the scan that observed it, and §18's
+  verification backoff can add hours. Deadlines are whole days, so this rarely changes the verdict.
+
+The queue page draws this under the queue as "Fixed in the last 30 days": the counts, a per-severity
+table, and the latest fixes with on time or late. With no policy set, it says so, and offers owners
+and admins a link to set one. The demo organization is seeded with 7, 30 and 90 days for Critical,
+High and Medium, so a visitor sees deadlines.
+
+## 226. The Jira sync is designed: Cleave referees, Jira carries the work
+
+Designed, not built. `docs/TICKETING.md` is the specification. The 2026-09-20 product review
+ranked a ticket sync first among remediation's next features, and practitioners' most common ask
+was a ticket that closes only when the fix is verified. This entry records the shape, so each build
+step's own entry has something to depart from.
+
+**Chosen.** Jira Cloud first, behind a `TicketProvider` seam for GitHub Issues and Linear. One
+issue per rule group (§203) per Jira project, which gives a rule group a server identity for the
+first time (`ticket_links`). Status and assignee sync back into Cleave, and comments stay in Jira.
+Groups are sent by hand, or by an opt-in rule over severities and attack paths. Each subscription
+routes to a project, with an organization default that directory findings use. A new failing asset
+joins the rule's open issue; after the issue is done, a new issue links the old one.
+
+**Checked against Atlassian on 8 October 2026**, and changed by what was found:
+
+- **A dynamic webhook registration carries no secret.** The HMAC signature some guides describe
+  does not apply. Deliveries carry a bearer token signed with the app's client secret, whose
+  algorithm the guide does not name. So a delivery is verified, then treated as a hint only: the
+  issue is read again with Cleave's own token, and only that reading changes anything.
+- **Five webhooks per app, per user, per site**, owned by the account that connected. One webhook
+  per connection is filtered by `project IN (...)`. A 15-minute poll is the floor, because the
+  webhook dies with its account and expires after 30 days unless refreshed.
+- **Refresh tokens rotate** and expire after 90 days unused. The new token is stored with the
+  access token in one transaction; a refused refresh marks the connection broken and tells owners
+  and admins.
+- **Emails can be hidden** by a Jira user's privacy setting, so matching an assignee to a member
+  by email is best effort.
+
+**Changed from the plan.**
+
+- **Status categories, not a required status mapping.** Every Jira status is in `new`,
+  `indeterminate` or `done`, which map to `TODO`, `IN_PROGRESS` and `DONE`. A per-project mapping is
+  only an override.
+- **A verified fix closes the ticket.** When every asset passes, Cleave comments with the evidence
+  and moves the issue to done if nobody has. Otherwise a fixed rule's ticket would linger.
+- **The checklist is one status comment that Cleave edits in place**, not the description.
+  Rewriting the description would overwrite people's edits.
+- **Assignees go back only.** Cleave does not set the Jira assignee.
+
+**Kept from existing decisions.** A request never calls Jira: outbox rows are claimed under a lease
+and sent outside any transaction (§158, §164). Tokens are encrypted at the application layer, and
+the request role may write but never read them. The demo and guests are refused (§99, §219). The
+connect link's `state` names its purpose and is spent once (§147).
+
+## 227. Fix-as-Code finds a block by the customer's own state, and opens one pull request per rule and repository
+
+Designed, not built. `docs/FIX_AS_CODE.md` Phase 2 is the specification. Phase 1 measured that a
+literal resource name locates about 1% of blocks in public samples, so Phase 2 could not start until
+a searched repository could be matched. Two designs answered that on 2026-10-04: the remediation
+plan's, and Ermir's (`docs/superpowers/specs/2026-10-04-fix-as-code-pull-requests-design.md`).
+This entry settles between them.
+
+**A block is located by the customer's CI, not by a model.** A GitHub Action in the customer's
+pipeline reads `terraform show -json` and uploads each managed resource's address, type, index and
+`id`. An azurerm `id` is the asset's Azure Resource Manager id, so the match is exact through
+variables, `count`, `for_each` and local modules. The address then names the block. Ermir's design
+had a read-only model point at the block when a name search failed. It was well guarded, but it
+needs a model provider, key custody and data-processing terms that do not exist yet. It sends
+repository text to a third party, and it guesses where the index knows. Either fits behind the
+same locator output, so a model can still return for repositories with no index.
+
+- **Only four fields leave the runner.** State JSON holds secrets in plaintext, so the Action
+  keeps address, type, index and id, and never uploads state.
+- **No stored credential.** The Action authenticates with its GitHub Actions OIDC token. Cleave
+  accepts an index only from the default branch of a repository its GitHub App installation covers.
+- **The index marks assets IaC-managed**, so their CLI fix is offered as an emergency fix that will
+  drift. This gives the Action value before any pull request exists.
+- **New declines:** `module_external`; `partial_instances`, where `count`, `for_each` or several
+  workspaces share a block and not every instance fails; and `index_stale`.
+
+**One pull request per rule per repository**, not per finding, to match one Jira issue per rule
+group (§226). It edits every failing asset of the rule the repository defines and lists the ones it
+declined. A merge claims the fix for every finding in it, and the next scan decides (§190).
+
+**The upload stays.** Ermir's design removed it with `sole_block`. It is the only code fix for a
+customer without GitHub until pull requests ship, and its removal is decided on measured use after
+that.
+
+**Adopted from Ermir's design:** the GitHub App and its permissions, `code_integrations`,
+`repo_mappings` and `fix_pull_requests`, the `IacDialect` engine, the leased Celery task, the
+`FIX_PRS_ENABLED` rollout and logging every decline from the first day. His spec and plan carry a
+note saying which parts this entry replaced.
+
+## 228. A Terraform fix never replaces the resource it fixes
+
+The plan's first step for Fix-as-Code was to widen the editable rules, each hint held to the azurerm
+schemas (§190). Checking that first showed what the schemas cannot: `terraform providers schema
+-json` says whether an argument can be set, not what setting it costs. An argument the provider
+marks `ForceNew` makes `terraform apply` destroy the resource and create another. Three hints the
+upload diff would already write were of that kind:
+
+- `AZ-STO-007`, `infrastructure_encryption_enabled` on a storage account. The replacement is an
+  empty account, and the data stays with the old one.
+- `AZ-CMP-004`, `disable_password_authentication` on a Linux virtual machine.
+- `AZ-AKS-003`, `role_based_access_control_enabled` on a Kubernetes cluster.
+
+**Recorded from the provider's own documentation.** `tools/iac/trim_azurerm_docs.py` reads the
+documentation of each release the schema fixtures were dumped from (3.117.1 and 4.81.0). It keeps
+every documented argument and those whose text says "Changing this forces a new ... to be
+created", as `azurerm-<version>-docs.json`. A sentence that forces replacement only for some
+changes counts as forcing it, which errs toward declining.
+
+**`ExpectedState.terraform_replaces`.** It is true on those three hints and on one added below.
+`test_terraform_hints_schema` requires it to agree with the documentation in both directions, and
+every hinted argument to be documented in every checked release. The Terraform tab still shows such
+a hint, with a warning that it recreates the resource, so new code sets it. The upload never writes
+it, and declines `replaces_resource`. A pull request (§227) will not write it either.
+
+**Widened by three, to 35 hinted rules:** `AZ-COS-005` (`automatic_failover_enabled`), `AZ-DB-015`
+(`authentication.active_directory_auth_enabled`), and `AZ-DB-023` (`geo_redundant_backup_enabled`,
+which replaces the server and is new code only). Three candidates were left out because the
+one-value edit would break a working system:
+
+- `AZ-COS-006`: a periodic `backup` block's interval and retention arguments are invalid for
+  continuous backup.
+- `AZ-KV-003`: switching a vault to role-based access stops every access policy at once.
+- `AZ-WEB-005`: the `identity` block is usually absent, so the edit always declines.
+
+The rest need resource types the fixtures do not hold yet (MySQL, Windows virtual machines,
+application gateways), or are structural.
+
+**Open: an argument's name per release.** `local_authentication_disabled` (`AZ-COS-002`) is still in
+azurerm 4.81.0's schema but no longer documented: it is deprecated in favour of
+`local_authentication_enabled`. It works across the checked releases, so the test allows it by
+name, in a list that only shrinks. A hint that names the argument per release retires that list,
+and is needed before azurerm 5.
+
+## 229. The state index is stored and read; its upload route waits for the GitHub App
+
+The first half of §227's index, built without a GitHub App. The upload route checks a GitHub
+Actions OIDC token, and admits a repository only through the organization's App installation. No
+App is registered yet, so the route is not served. Everything on either side of it is built.
+
+**Storage (migration 0054).** `iac_indexes` holds one upload: repository (GitHub's numeric id,
+which survives a rename), working directory, workspace and commit. The next upload of the same four
+replaces it whole, because a resource removed from the code must stop being called managed in
+code. `iac_index_entries` holds address, type, instance key and the lower-cased Azure Resource
+Manager id. ARM ids are case-insensitive, and Terraform and Azure's listings write them in
+different cases. Members may SELECT both, and no role writes them through the request path. The
+upload is authenticated by the customer's pipeline, not by a person, so it is written through the
+owner connection scoped to the organization, as change events are (`services/iac_index.py`).
+
+**What an upload may hold** (`app/remediation/iac/index.py`). Four fields per entry; a managed
+azurerm address; an ARM id under a subscription; at most 20,000 entries; no address twice.
+Anything else refuses the whole upload rather than keeping the part that looks right, because an
+Action that sends more has been changed.
+
+**The Action** is a script, `tools/iac/github/cleave-index.sh`, that the customer's existing plan
+job runs after `terraform init`, with `tools/iac/github/cleave-index.example.yml` beside it. It
+reads `terraform show -json` and keeps the four fields of managed azurerm resources whose id is an
+ARM id. That leaves out data sources, other providers, and a key vault secret, whose id is a URL
+naming it. The filter was run over a sample state holding a secret attribute, which did not
+survive. The customer commits a reviewed copy of the script rather than fetching one at run time:
+it runs with their state credentials.
+
+**From an address to its block.** `find_resource_block` follows each `module` call's literal local
+`source` from the working directory, and declines `module_external` for a registry or git source
+or a path outside the repository. It declines `index_stale` when the module or the
+`resource "<type>" "<label>"` is no longer there. `edit_terraform` takes the block's `label` in
+place of the name search (`matched_by: "address"`), which finds a block whose `name` is an
+expression, the 99% that name matching missed (§190). `count` and `for_each` still decline;
+`partial_instances` comes with pull requests, which need the failing set across instances.
+
+**Managed in code.** `GET /findings/{id}` returns `managed_in_code`, the index's locations for the
+asset. The fix sheet then says where the asset is defined, opens on the Terraform tab, and calls
+the CLI tab "Emergency fix", because the next `terraform apply` undoes a change made elsewhere.
+
+**Waiting on the App:** `PUT /iac-indexes`, the OIDC check against
+`https://token.actions.githubusercontent.com`, mapping `repository_id` to an organization through
+the installation, and accepting only the default branch.
+
+**An id is checked in any case.** An upload's `id` must be an Azure Resource Manager id under a
+subscription, and the check ignores case: Azure ids are case-insensitive, and Terraform writes an
+id in the case the resource was created with, not the case ARM lists it in. Checked in lower case
+only, an index naming `/SUBSCRIPTIONS/…` was refused whole even though it matched its asset.
+
+## 230. A Terraform hint names its argument per azurerm release
+
+§228 left one argument allowed by name: `AZ-COS-002`'s `local_authentication_disabled`, still in
+azurerm 4.81.0's schema but no longer documented. It was more than untidy. azurerm 4 renamed it,
+with the sense turned round, to `local_authentication_enabled`, and both names are accepted below
+version 5. A v4 block that already set the new name got the old one added beside it, which sets one
+argument twice, and `terraform plan` refuses that. The upload diff would have handed that over as a
+fix.
+
+**`ExpectedState.terraform_renamed`**, a tuple of `TerraformRename(since, attribute, value)`: the
+argument's name, and its value in that name's terms, from a major release on. `AZ-COS-002`
+declares `local_authentication_enabled = false` from 4. `terraform_attribute` stays the name every
+checked release accepts.
+
+**Which name is written.** First, the name the block already sets, whichever it is, so the conflict
+cannot arise. Otherwise, the newest name the lock file's release documents. With no lock file, the
+original name, which every checked release still accepts. A release is known only from a lock file:
+a `required_providers` constraint is a range, not a release.
+
+**Held by the fixtures.** `test_terraform_hints_schema` checks each name against the schema and the
+documentation of the releases that use it, and that the original name is still settable in every
+checked release. It also checks that a rename comes after the oldest checked release, and applies
+§228's replacement check to every name. The list of undocumented arguments allowed by name is gone.
+
+**Shown as a comment.** The Terraform tab prints the later name under the original as
+`# azurerm 4+: local_authentication_enabled = false`, and the API carries it as `renamed` on each
+hint.
+
+## 231. A GitHub installation is linked on GitHub's word, and a state index on a job's token
+
+The GitHub App is registered, so §229's upload route is built. With it comes the link from an App
+installation to an organization, and the App's webhook. All of it is behind `FIX_PRS_ENABLED`, off
+by default, and needs the six `GITHUB_APP_*` variables. The Jira sync stays unbuilt and unoffered.
+
+**Linking is proven, not asserted.** GitHub sends a person back from installing the App with
+`installation_id` in the query string, and anybody can edit a query string. Linking whatever id
+arrived would let one organization claim another's installation, then read its state index and,
+once pull requests exist, open them on its repositories. So the App's OAuth half is on: GitHub
+returns a one-time `code` too. The web app posts the id, the code and the `state` under the
+signed-in person's session. The API checks three things before linking: the `state` is signed for
+this purpose and bound to this person and organization (§147); the `code` exchanges for the
+person's own token; and GitHub lists the installation among that token's installations. The token
+is used once and never stored. `code_integrations.installation_id` is unique, so an installation
+linked elsewhere is a `409` rather than a second owner. Without the OAuth half there is no safe way
+to link, so `github_configured` requires the client id and secret as well as the App's key.
+
+**The upload's credential is the job's own OIDC token** (`integrations/github_oidc.py`). The token
+must be RS256, from `https://token.actions.githubusercontent.com`, with this API's `API_URL` as its
+audience, and within its expiry. GitHub's keys are read through the same non-blocking, rate-limited
+`SigningKeys` the Supabase keys use (§158). Then the App says which installation covers the token's
+repository, and that installation must be linked. The repository's numeric id must match the
+token's, so a renamed repository cannot stand in for another. The token's ref must be the default
+branch. The repository and the commit are taken from the token, never from the body. GitHub is
+asked before any database session opens, and the index is written through the owner connection
+scoped to the linked organization, so a stranger's token holds no pooled connection.
+
+**Smaller choices:**
+
+- **At most 4,000 entries**, down from §229's 20,000. At about 250 bytes an entry, that is what
+  fits the 1 MiB request limit, which is not raised for one route.
+- **The App's JWT names its client id** as `iss`, as GitHub now recommends, and is issued a minute
+  early against clock skew.
+- **The webhook is verified by HMAC** of the exact body (`X-Hub-Signature-256`). For now it acts
+  only on an uninstall, which unlinks the installation everywhere. Pull-request merges come with
+  pull requests.
+- **Unlinking leaves the App installed on GitHub**, and the toast says so. Revoking its access is
+  the customer's, on GitHub.
+- **The callback is a page of the web app** (`/settings/integrations/github`), not an open API
+  route. That keeps the person's session in the request, so the state's binding can be checked.
+
+## 232. A rule's fix becomes one pull request per repository, opened by a sweep
+
+Fix-as-Code's pull requests (§227), on the linked App (§231) and the state index (§229). Behind
+`FIX_PRS_ENABLED`.
+
+**Asked for per rule.** `POST /remediation/pull-requests` takes a rule. The rule's open findings
+are matched to the organization's state indexes by Azure Resource Manager id, and one request is
+queued per repository, with the findings it covers. A failing finding no index names is counted in
+`not_indexed`, never guessed into a repository. With nothing indexed, the request is `422`. A
+request already queued, opening or open for that rule and repository is answered rather than
+repeated: a partial unique index on `fix_pull_requests` holds that.
+
+**Opened by a sweep, not a task per request.** `cloudguard.open_fix_pull_requests` runs every
+minute, as webhook deliveries do (§164). It claims up to five queued requests under a ten-minute
+lease (`FOR UPDATE SKIP LOCKED`), reads everything each needs from the database, and closes the
+session. Then GitHub is asked: which installation covers the repository (it must be one of this
+organization's links), the default branch, and every `.tf` and lock file at its head, through the
+Git Data API under caps of 400 files and 4 MiB. A tree GitHub truncated is declined rather than
+half-read. The result is written in a fresh session. A failure to reach GitHub goes back to the
+queue, and becomes `FAILED` after three attempts. There is no enqueue to refuse, so no
+refused-enqueue path is needed (§158).
+
+**Planned without a guess** (`remediation/iac/pull_request.py`, pure). Each target's block is found
+by its address and edited by its label (§229). Two assets in one block are one edit, and edits to
+one file build on each other. A block that defines more than one asset, through `count`, `for_each`
+or several workspaces of one directory, is edited only where every asset it defines fails the rule,
+and declines `partial_instances` otherwise. Workspaces count because they are the same code with
+other state. `edit_terraform(..., allow_repeated=True)` is how the planner says it has checked;
+nothing else passes it. Everything §190, §228 and §230 decline still declines, and is listed beside
+what was edited.
+
+**One pull request per rule per repository** (§227), from `cloudguard/fix-<rule>-<id>` to the
+default branch. It is never pushed to the default branch and never merged. Its body names each
+edited address and file, each declined address and why, and says that a merge is a claim, not a
+fix. The branch carries the request's id, so a second request after a closed pull request never
+collides with the first's branch.
+
+**A merge claims; a scan decides.** The App's `pull_request` `closed` delivery, verified by HMAC
+(§231), marks the request `MERGED` or `CLOSED`. On a merge, each edited finding's task is marked
+done and its verification opened (§18), claimed by whoever asked. A merge is not an apply, so the
+finding closes only when a scan sees the change.
+
+**In the rule sheet**, where a GitHub installation is linked: "Open pull request", and each
+request's repository, state, link and how many of its assets were edited. The list is read again
+every five seconds while one is in flight.
+
+## 233. A fix passed into a module is written on the call, and a module's edit counts every call
+
+Most real Terraform sets an argument in a module from the module's inputs: `min_tls_version =
+var.tls`, with `tls = "TLS1_0"` on the `module` call. §190 declines `variable_value` there, and the
+state index (§229) did not change that. It found the block, but the value was not in it.
+
+**Written where the value is.** Where the argument in a module's resource block is exactly
+`var.<name>`, the module call that sets `<name>` is edited instead: its literal value is changed, or
+the input is added where the call leaves it to the variable's default. Where that call itself
+passes `var.<other>` along, the edit moves up one more call, as far as the root. A value from the
+root module's own variables declines `variable_value`: it is set in a `.tfvars` file or the
+pipeline, outside the code. Only a bare `var.<name>` is followed. `"${var.name}"`, `var.name.x` and
+`!var.name` transform the value on the way, so the value to pass is not the one the argument
+needs.
+
+**Only where the variable does nothing else.** The module must use `var.<name>` exactly once, in
+that argument. Used anywhere else, setting it changes more than the fix, and it declines
+`variable_shared`. A variable with a `validation` block declines `variable_value`, because the rule
+may refuse the value the fix needs and only `terraform plan` could say. A default that already
+meets the rule is not written onto a call that omits the input: that answers `already_set`. A
+call that omits an input with no default declines `index_stale`, since Terraform could not have
+applied it. A fix with some arguments passed in and others written in the block declines, rather
+than editing two places for one fix.
+
+**An edit in a module reaches every call of it.** §232 counted the assets of one address with its
+instance keys taken out, so a literal edited in `modules/storage` for `module.logs` also changed
+`module.data`, which it never counted. The planner now resolves every indexed address to the
+blocks it is written through, and an edit counts every asset whose address passes through the
+edited block and ends at the same resource. All of them must fail the rule, or it declines
+`partial_instances`. A module call no indexed address passes through, at any depth (an `examples/`
+directory, a root without the Action), declines `unindexed_caller`: what it deployed is unknown.
+An edit on a call changes only the assets under that call, so other callers of the module do not
+hold it back. Two failing calls that share one edit get one change and the same outcome.
+
+Modules from a registry or git still decline `module_external` (§229). A module other
+repositories use by git source changes for them only when they move to the new ref, which is
+their decision.
+
+## 234. A pull request's plan is judged by the rules' Terraform hints, and reported as a check run
+
+The last step of Fix-as-Code's first release (`docs/REMEDIATION_PLAN.md` Part 2, step 6): judge a
+change before it is applied, so a misconfiguration is caught in review instead of by the next
+scan. It runs on the GitHub App (§231) and uses the job's OIDC token as the state index does
+(§229). Behind `FIX_PRS_ENABLED`.
+
+**Judged by the hints, not the rule engine.** A rule reads Azure Resource Manager's JSON for an
+asset, and a plan is Terraform's JSON for a resource. Translating one into the other would be a
+guess per resource type, and the rule engine stays deterministic over the evidence it was written
+for. What already speaks Terraform is each rule's fix: the arguments `rule_checks` builds from
+its hints, held to the azurerm 3.117.1 and 4.81.0 schemas and documentation (§190, §228, §230).
+The guardrail compares planned values against those, with the same accepted values and the newer
+name of a renamed argument where the plan carries it. That is 35 Azure rules today. A rule with
+no hint is not judged in the pull request, and the scan still judges everything deployed. A hint
+that would replace the resource (§228) is judged too: Cleave never edits existing code to set it,
+but new code should.
+
+**Only the allowlist leaves the runner.** A plan holds every attribute in plain text, secrets
+included. `GET /iac-guardrail/allowlist` publishes, per azurerm type, every argument path a
+guarded rule reads. It is open, because it is the same for everyone and holds no secret.
+`tools/iac/github/cleave-guardrail.sh` reads `terraform show -json` on the runner. For each
+azurerm resource the plan creates or updates, it keeps those paths' planned and prior values and
+which ones are known only after apply. It drops any value Terraform marks sensitive, even an
+allowlisted one. A nested block is read only where it holds exactly one block. `POST
+/iac-guardrail/plans` refuses the whole upload if it holds anything else, as the index does
+(§229): another field, another path, a value that is not one scalar, or another provider.
+
+**A failure counts only where the change brings it.** A resource the plan leaves alone or only
+deletes is the scan's to judge, so it is not sent. A failing rule on a new resource, or on one that
+passed before the change, is _brought by this change_, and only those make the check fail. A
+failure the resource already had is listed as _already failing_, so a pull request is not blocked
+for debt it did not add. A value known only after apply, or not set in the plan, is UNKNOWN. It is
+never a pass and never a failure, and it is listed. A replacement counts as a new resource.
+
+**Proven, as the index is.** The token must be GitHub's, for this API, and its ref must be a pull
+request's, `refs/pull/<n>/merge`. The repository must be covered by an installation an
+organization linked, with the token's repository id (`linked_repository`, shared with the index).
+That ref names the merge commit GitHub made, which nobody pushed. So the check is posted on the
+pull request's head commit, read from GitHub, and a closed pull request is refused. A pull
+request from a fork gets no OIDC token, so it is not judged.
+
+**Reported twice.** The answer carries every verdict and the conclusion, and the script prints the
+failures and exits non-zero on `failure`, so the job fails. It is also a check run on the pull
+request, named for its working directory and workspace so that two roots do not replace each
+other. Its summary lists what the change brings and what is already failing, with the planned and
+expected values, and what is unknown. A check run needs the App's `checks: write` permission. That
+permission is new, so each installation must accept it on GitHub. Until one does, GitHub refuses
+the check run, the job still fails on the verdicts, and `check_run_detail` says why.
+
+**Smaller choices:**
+
+- **Nothing is stored.** The check run is the record, on the pull request it judged. Measuring the
+  time from a guardrail failure to its fix (`docs/REMEDIATION_PLAN.md` Part 3) will need a table.
+  It is added with that measure.
+- **No annotations on lines.** A plan names addresses, not files. Placing each one would mean
+  reading the pull request's tree and following its modules, as pull requests do (§233). That can
+  come later behind the same verdicts.
+- **A script of its own**, not a mode of `cleave-index.sh`. Each copy a customer reviews does one
+  thing. Both scripts run with the same state credentials.
+- **Severity does not gate.** Any failure the change brings fails the check, and branch protection
+  decides whether it blocks a merge. That is the customer's setting, on GitHub.
+
+## 235. The score's movement is split into its causes, from a ledger each reading keeps
+
+Practitioners describe a Defender for Cloud score that fell from 72% to 50% with no visible cause,
+while their CFO watched the number (`docs/REMEDIATION_PLAN.md` Part 4, gap 2). Cleave's dashboard
+had the same fault in a smaller form. `score_delta` said the score moved and which way, but not
+why. A reader had to compare two lists of findings from memory to find out.
+
+**Each reading keeps what it charged.** The score deducts once per open finding risk, by the band
+it is charged at. A reading stored only the total and a few counts, so which risks made the
+difference could not be recovered later: findings are reclassified, risks re-banded, and rows go
+with a deleted connection. Migration 0057 adds `charges` (each charged risk's id to its band) and
+`rule_versions` (each rule to the version that ran) to `risk_history`. Readings written before it
+have neither, and a movement from one is said to be unavailable (`not_recorded`) rather than
+reconstructed. `open_charges` is now the one query the score is computed from, at scan time and on
+the dashboard, so the ledger and the score cannot disagree.
+
+**A movement is the risks whose charge changed.** `GET /dashboard/score-movement` compares the same
+two points the delta does: the reading before the latest scan's, and the charges as they stand now.
+Each risk charged differently is given one cause from what was recorded in between:
+
+- **New failures**, from a detection or a regression.
+- **Fixes a scan verified**, from a scan's resolution.
+- **Rules added or changed**, where the finding's rule ran under another version, or not at all,
+  in the earlier reading.
+- **Assets that appeared**, where the finding's asset was first seen, or seen again, since then.
+- **Assets removed from Cleave**, where the risk itself is gone, with its connection or its scan
+  (§124).
+- **Acceptances that ran out** (§104), and **risks accepted**.
+- **Status changed by hand**: a false positive, or a finding reopened by a person.
+- **Risk context changed**: the same risk charged at another band, without a new rule version.
+- **Not recorded**: anything else. It is listed, and never given the nearest cause, because a score
+  that explains itself wrongly is worse than one that says it cannot.
+
+A risk that rose is explained by the first of its findings to open, and one that fell by the last
+to close, since that is what changed its charge.
+
+**The points are split exactly.** The score is `100 × exp(-D / k)`, so a cause's points cannot be
+found by scoring it alone, and applying the causes one after another gives a different answer for
+each order. `ln S` is linear in `D`, so the change is split in log space, as an index decomposition
+does. A cause whose deductions changed by `ΔD_i` takes `-L × ΔD_i / k` of the change, where `L` is
+the logarithmic mean of the two scores. The parts are exact and signed, do not depend on order, and
+sum to the change. Rounding to whole points moves the causes nearest the next point, so they sum to
+the delta shown. A share under a point says so instead of showing 0. A gap the curve does not
+account for, such as a scoring change between the readings, goes to _not recorded_.
+
+**Read on asking.** The dashboard draws "Why it moved" under the delta only when there is a
+movement. The breakdown is fetched when the popover opens, since it diffs two ledgers and reads the
+events between them. Each cause shows its points, how many risks it moved, and up to five of the
+findings that decided it, each linking to its page.
+
+**The cost.** A ledger is about 50 bytes per open risk per reading, so an estate with 5,000 open
+risks scanned daily adds about 90 MB a year. If that becomes a problem, ledgers older than the
+retention window can be dropped. Only the two newest readings' ledgers are read.
+
+## 236. An organization is one person or a team, and a team routes unassigned work by its rules
+
+The remediation plan's accountability step (`docs/REMEDIATION_PLAN.md` Part 3, item 1) routes work
+to owners by subscription, resource group or Azure tag. Cleave is used by teams and by one
+person alone, and for one person every task is already theirs: owners, members and invitations
+are noise. So the organization says which it is, and a team gets ownership rules.
+
+**`organizations.mode`, `SOLO` or `TEAM`** (migration 0059). Owners and admins choose it under
+Settings > General, "Who uses Cleave here", as an instant choice answered in a toast. Every
+organization that existed is a team, so nobody's screens change until they choose. Solo leaves
+out the Members and Ownership pages, the owner on a task in the queue and in the fix sheet, and
+the queue's owner filter. It is refused (`409`) while anybody else is a member or holds an open
+invitation, because hiding them would leave a colleague nobody can see or remove. An invitation
+is refused in solo (`409`), and so is a new ownership rule. The mode changes what is shown, not
+what is stored: assignments and rules survive a switch, and come back with a team.
+
+**Ownership rules** (`ownership_rules`, migration 0058; `/ownership-rules`). A rule names a
+member for a scope: the organization's `DEFAULT`, a `SUBSCRIPTION`, a `RESOURCE_GROUP` in one,
+or an Azure `TAG` key and value such as `owner=platform-team`. There is one rule per scope.
+Members read the rules, and owners and admins write them. A tag's key is compared ignoring case
+and its value exactly, as Azure compares them. A resource group's name ignores case, as Azure's
+resource ids do. Tags do not inherit, because Azure's do not: only the asset's own tags count.
+
+**A task's owner is derived, never written.** A task handed to a person (`assigned_to`) stays
+theirs. Any other task is owned by the most specific rule its asset matches: a tag, then its
+resource group, then its subscription, then the default. Of two matching tags, the rule made
+first wins, so a later rule never quietly takes work from an owner who had it. The queue
+derives `owner_id` and `owner_by_rule` when it is read, as a policy's due date is (§225). So a
+rule changed today reroutes every unassigned task at once, with no batch write (§203), and never
+overwrites a person's choice. A rule whose owner has left the organization is skipped, and is
+listed with "Left the organization", so the work falls to the next rule rather than to somebody
+who can no longer see it. A directory object, with no subscription, has only the default.
+
+**Narrowed by owner.** `GET /remediation?owner=me|none|<member id>` narrows the queue to one
+person's work as derived. Because the owner is derived rather than stored, it is narrowed after
+deriving, over a queue that is already read whole for its ordering. The page narrows on its own
+side (`?owner=` in its URL, Everyone, Mine or Nobody's) rather than through that parameter.
+The fix sheets read the whole queue under one key to find a finding's task, and a narrowed
+queue would hide another person's task from them.
+
+**Next from the same step:** a weekly digest per owner and overdue work sent to the security
+lead through Slack or Teams (§164). Both read the owner this entry derives. Built in §237.
+
+## 237. A weekly digest and a daily escalation say what is due, through the notifications
+
+The last of the remediation plan's accountability step (`docs/REMEDIATION_PLAN.md` Part 3,
+item 1): a weekly digest per owner, and overdue work sent to the security lead through Slack or
+Teams. Deadlines (§225) and owners (§236) were derived on the queue page only, so a missed
+deadline was seen by whoever opened that page, and nobody was told.
+
+**Two notification kinds, not a second channel.** `WORK_DIGEST` and `WORK_OVERDUE` join the
+three scan-derived kinds (§164), so both reach the bell and any Slack, Teams or signed webhook
+that asks for them, with the same retries and the same delivery log. Cleave sends no email, and
+Slack and Teams webhooks post to a channel rather than to a person. So "the security lead" is
+whoever reads the channel an owner or admin points at `WORK_OVERDUE`, and "per owner" is one
+line per owner in one message. One message per owner to a shared channel would be ten posts
+saying one thing, and the bell is shared by the organization anyway. No migration was needed
+for the kinds: the column is text.
+
+- **The digest, every Monday.** Its title says how many fixes are overdue, how many are due in
+  the next seven days, and how many a scan verified fixed in the week before (counted as §225's
+  progress counts them). Its detail splits overdue and due work by owner, the most first, five
+  named and the rest counted, and says how many of the overdue have no task yet. A week with
+  none of the three says nothing.
+- **The escalation, every day.** It names the fixes whose last day was yesterday, worst first,
+  with their asset and owner, five named and the rest counted. Only those: the digest carries the
+  standing count. So a deadline policy set for the first time, which makes old findings overdue
+  all at once, does not arrive as one enormous message.
+- **A solo organization** (§236) gets both, without owners.
+
+**Every open finding counts, tracked or not.** A finding is due by its task's date where a person
+set one and otherwise by the policy, from first detection, and is owned by the person assigned
+or else by the ownership rule its asset matches: the derivations §225 and §236 make for the
+queue, made here by `work_digest.open_work`. The queue lists only tracked work, but counting only
+that here would let leaving work untracked hide it from its owner, which is what §225 starts the
+clock at detection to prevent. The digest says how many are untracked, so the gap between the
+message and the queue is explained.
+
+**Sent at 07:00 UTC, from the five-minute notification sweep.** `work_digest.derive` runs beside
+the scan-derived notifications, in a savepoint, and writes only within the hour from 07:00 UTC.
+It is keyed by day (`overdue:2026-10-09`) and by ISO week (`digest:2026-W41`) on the existing
+unique index, so a second sweep in the hour writes nothing twice. A day with nothing overdue is
+looked at again each sweep in that hour, a dozen reads of the open findings at most. A worker
+down for the whole hour skips that day's escalation, and the next digest still counts the work.
+Organizations have no time zone yet, so UTC is the one choice that is wrong for nobody in
+particular; a time zone per organization would move the hour, not the design.
+
+**The scan sweep's watermark ignores these kinds.** `notifications.derive` reads events newer
+than the newest notification. A digest is stamped 07:00, not with anything a scan observed, so
+counting it would move the watermark past events a scan wrote minutes earlier, and they would
+never be said. The watermark is now the newest of `notifications.EVENT_KINDS` only.
+
+**The worker reads the organization, its members and its rules** (migration 0060). The sweep runs
+as `cloudguard_worker` under one organization's claim. Migration 0012 granted that role SELECT
+on `organizations` and `organization_members` but no policy arm, so row-level security showed it
+neither, and 0058 gave `ownership_rules` no worker arm. Each now has a SELECT arm on the claim,
+as every worker arm is. Nothing lets the worker change an owner or a deadline.
+
+## 238. An audit package carries the fixes behind its controls
+
+The remediation plan's proof of progress (`docs/REMEDIATION_PLAN.md` Part 3, item 2) asks for fix
+evidence in the audit package (§208): for each control, which ticket, which pull request, and
+when the verification passed. A package said how each control stood on the sealing date. An
+auditor of a period also asks what was found wrong during it and how it was put right, and the
+answer sat in the queue, the verifications and the pull requests, none of which a package kept.
+
+**What a fix is.** A finding of a rule a sealed control rests on, resolved by a scan within the
+window, and still resolved when the package is sealed. Only a scan's observation counts, never a
+status a person set (§18), and a fix that did not hold is not counted, as the progress report
+counts (§225). A finding fixed twice in the window is dated by the later fix. Untracked fixes
+count: a fix nobody queued is still a fix, and the record says it had no task.
+
+**What each fix carries.** The finding, its rule, severity, asset, first detection, the time and
+scan that observed the fix, and the days between; the task not cancelled, with its state and when
+it was marked done; the latest verification (§18), with its status, when it was claimed and
+settled and by which scan; and the Fix-as-Code pull requests (§232) that edited the code defining
+the asset, by repository, number, link and state. **No ticket.** The Jira sync (§226) is not
+built, and a ticket field that is always empty would claim it is. It is added when the sync
+ships, under a new manifest version.
+
+**The window.** The declared audit period in whole UTC days, or the year before sealing where none
+is declared, and never past the sealing: a package cannot vouch for a fix not yet observed. The
+window is written into the manifest, so nobody has to guess it. This is the one place the declared
+period is more than informational (§208): the controls' verdicts are still the closing scan's.
+
+**Bounded.** A package keeps the latest 5,000 fixes and says how many there were in all, rather
+than letting a cut list pass for a whole one. Sealing reads them in batches of 1,000 finding ids.
+
+**Manifest version 2, and version 1 still verifies.** The fixes are a JSONB column on
+`audit_packages` (migration 0061), hashed into the manifest as `fixes`. A package sealed before
+this has `manifest_version` 1 and a NULL column, and the manifest is built without the key for it,
+so its hash is what it was sealed under. Rebuilding every old manifest with `"fixes": null` would
+have broken every package already handed to an auditor. The auditor's read path needed nothing:
+`app.audit_grant_package` returns the table's row type, which includes the new column.
+
+**In the archive, per control.** `fixes.csv` has one row per control and each fix of a rule it
+rests on, so a fix of a rule two controls share is listed under both: an auditor reads the
+evidence one control at a time. The README gives the count and window, and says that a fix is an
+observation, not a status. A version 1 archive has no `fixes.csv`. The package's detail answers
+with counts (`fixes`: total, listed, confirmed by verification, changed by pull request), as it
+does for the controls, and the summary the owner and the auditor both read draws one line from it.
+
+## 239. An acceptance can wait for a second approver
+
+The remediation plan's proof of progress (`docs/REMEDIATION_PLAN.md` Part 3, item 2) asks for a
+second approver on an exception (§104). Anyone who may write could accept a critical finding,
+alone, with a reason nobody else read. Auditors and security leads ask for a second person on
+exactly that decision, and practitioners describe one person's acceptance as the hole in an
+exception process.
+
+**A policy by severity, per organization.** `organizations.acceptance_approval_from` is the lowest
+severity whose acceptance waits for a second owner or admin, or null for none (migration 0062).
+An owner's or admin's own acceptance does not wait (§242).
+`HIGH` covers High and Critical. Owners and admins set it under Settings > General as an instant
+choice answered in a toast, through `PATCH /organizations`. It is a team's only: a solo
+organization has nobody else, so setting it there is refused (`409`) and a policy kept through a
+switch to solo does nothing until the organization is a team again. A severity, rather than a
+yes or no, because a team that wants four eyes on Critical rarely wants them on every Low.
+
+**A waiting acceptance changes nothing.** Where the policy covers a finding's severity, accepting
+it writes an `exceptions` row with status `PENDING` and leaves the finding as it was: still open,
+still counted, still verified. The answer is the finding unchanged, which is how the caller
+tells. The risks triage passes through the same path, so a grouped risk's members each wait.
+Approving makes the acceptance take effect through the one function that applies any acceptance
+(`findings.apply_acceptance`): the same timeline event, exception and audit row, with the
+approver named. Rejecting needs a note, shown to the person who asked, and changes nothing else.
+A waiting acceptance of a finding already accepted leaves the running one in place until the new
+one is approved, which then replaces it.
+
+**Routes wait too, or the policy has a hole.** A route or an escalation is accepted on the risk
+itself (§103, §104). Gating findings only would leave the riskier decision, that a route is by
+design, to one person. So an exception row may name a risk instead of a finding (`risk_id`, one
+of the two exactly). It is used only while a route's acceptance waits; once approved, the
+acceptance lives on the risk as before.
+
+**Four eyes, in the database.** The service refuses a decision by the person who asked (`403`)
+and by anyone but an owner or an admin. The row also carries `second_approval`, and a CHECK
+constraint refuses `decided_by = requested_by` on such a row, so no code path, present or later,
+can approve its own request. `requested_by` is new and was backfilled from `approved_by` on
+earlier rows, where one person did both.
+
+**Lifecycle.** `PENDING` becomes `ACTIVE` (approved), `REJECTED`, `REVOKED` (asked again, which
+replaces the request; one waits per finding or risk at a time, by a unique partial index) or
+`EXPIRED`. The `expire-acceptances` sweep (§104) ends a request whose end date passes undecided,
+since approving it then would accept something for a time already over. Approval is also refused
+(`409`) once the finding or route has moved on: fixed, marked a false positive, or resolved.
+
+**Where it is seen.** `GET /acceptances?status=` lists the requests for any member, since a
+request is part of the finding's story. The risks page lists what waits above the queue, with
+Approve and Reject for an owner or admin who did not ask, and "waits for another owner or admin"
+for the person who did. The finding page says an acceptance waits, and the triage toast says a
+decision was sent for approval rather than made. A notification for an approver is not built:
+the queue is where acceptances are decided, and it says what waits at the top.
+
+**Judged at the level the queue shows.** The first version judged a finding by its rule's
+severity, and running it locally (§240) showed the gap at once: the queue ranks by a risk's scored
+level, so a Medium rule on a sensitive asset sits on a row labelled High, and a reviewer who chose
+"High and Critical" watched it accepted by one person. An acceptance of a finding is now judged at
+the higher of its severity and the level of every risk it belongs to (`level_of_finding`), and a
+route at its own scored level. An unscored (`UNKNOWN`) risk neither lowers nor raises a finding.
+The approvals list shows that same level, so a request reads as the row it was asked from.
+
+**Not built: reminders before an acceptance expires.** The plan asks for them through Jira, which
+is not built (§226). Slack or Teams reminders would be a notification kind like §237's.
+
+## 240. A change can be run on a developer's machine before it ships
+
+CloudGuard was cloud-only (§13): no local mode, and the API refused a localhost address. Every
+change was proven by unit tests, by CI's integration suite, and then in production. Features that
+live across the API, the worker, the database and the browser -- a second approver, a digest at
+07:00, a sealed package -- could not be tried as a person uses them before they were live, and the
+product needs them tried before they ship.
+
+**`APP_ENV=local`, the mirror of a deployment.** A deployment refuses an address on this machine; a
+local run refuses any address that is not. It runs every other startup check as a deployment does,
+so a missing value is still refused. Setting it by mistake on a deployed service stops it from
+starting, rather than running against real data with a developer's settings. `test` still skips
+the checks, for CI.
+
+**Supabase's own local stack, not a stand-in.** `infrastructure/local` is a Supabase CLI project,
+pinned to one CLI release (§241), started with only Postgres, Auth, its gateway and the mail
+catcher. The application relies on what Supabase provides -- the `authenticated` and `anon` roles, `auth.users`,
+guest sign-in -- so running against plain Postgres or a token minted by the API would test
+something other than what ships. The API grows no token-minting code; Auth issues the tokens.
+
+**Three scripts in `tools/local`.** `up.sh` starts Supabase and a Redis container, applies
+`roles.sql` with a local-only password (the committed file keeps its placeholder, which CI checks),
+and runs the migrations. `run.sh` starts the API, the worker with the beat schedule Railway runs,
+and the web app. `seed.sh` creates an owner and an admin through the Auth admin API, the owner's
+organization from the demo recording through the real pipeline (the admin a member, fix deadlines
+set), and the shared demo. The seed now finds its files from its own location rather than the
+image's `/srv`, so the same script runs in both. The worker connects as `cloudguard_worker`, so
+local runs exercise its row-level security, as production's should.
+
+**What it found on first use.** All 62 migrations ran cleanly on Postgres 17. The second approver
+judged the wrong level (§239), which unit and integration tests had not caught, because both
+asserted the rule as it was written.
+
+## 241. The local stack is the cloud's, setting by setting
+
+From 2026-10-09 every change is built and tested locally before it goes to git and the cloud,
+so the local stack has to fail where the cloud fails. §240 ran the code against a Supabase of
+its own; this makes each layer the cloud's, and names what still differs.
+
+**Database.** The cloud project's exact Postgres build (`17.6.1.165`, set in `tools/local/up.sh`
+and written to the CLI's `.temp/postgres-version`), with the cloud's installed extensions only:
+the CLI adds `pg_graphql` and `pg_net`, which the cloud does not have, so `up.sh` drops them. A
+local run that leaned on either would break once deployed. That build needs a newer CLI than
+§240 pinned, so the CLI is pinned at 2.118.0, a release two weeks old when chosen.
+
+**Auth.** Tokens are signed with an ES256 key, as the cloud's are (its JWKS publishes one), so
+the API verifies through the JWKS path it uses in production rather than the shared-secret path
+it never sees there. The key is generated per machine by `up.sh` and never committed. Email
+confirmation is on and TOTP is offered, as in the cloud; guest sign-in is on. The emails are
+Cleave's own, written into the local config from the same source the cloud's are pushed from
+(`tools/supabase/email_templates.py local`), and land in the mail catcher. The CLI has no
+setting for the security notices, so those are sent by the cloud only.
+
+**API and worker.** Built from `infrastructure/docker/api.Dockerfile` and started with the
+commands `.railway/railway.ts` gives them (`infrastructure/local/docker-compose.yml`): the API
+migrates and then serves, the worker runs Celery with its beat schedule. The seed runs inside
+that image, as production's does from Railway's shell. The containers reach Postgres and Auth by
+the local stack's container names, so `APP_ENV=local` accepts a host carrying `cleave-local` as
+well as localhost; such a name exists only on that Docker network. Comparing hosts rather than
+substrings also closed a hole: `localhost.attacker.example` used to pass as local.
+
+**Redis.** Password-protected, as Railway's is.
+
+**Web.** `tools/local/run.sh` builds the app as Vercel does and serves it with `vercel.json`'s
+headers and rewrite (`vite preview`), so a page the deployed Content-Security-Policy blocks is
+blocked locally first. Two changes, because the local stack speaks plain HTTP: the policy also
+allows the local API and Auth origins and drops `upgrade-insecure-requests`, and
+Strict-Transport-Security is not sent. `run.sh --dev` keeps hot reload for writing code; a change
+is confirmed in the default mode before it is committed.
+
+**Environment.** Production runs `APP_ENV=staging` with an Azure and an AWS identity, and with
+the GitHub App and `FIX_PRS_ENABLED` unset. Locally the same flags are unset. The cloud
+identities are secrets and are not copied: a developer who wants to scan a real tenant puts a
+development identity in the gitignored `infrastructure/local/.env.local`, and the recording the
+seed replays stands in otherwise.
+
+**Kept off GitHub.** The tooling (`tools/local`, `infrastructure/local`) stays on the
+developer's machine and is gitignored, so a push carries no local deployment. What is in the
+repository is the application's own support, inert in the cloud: `APP_ENV=local` and its checks,
+the seed's paths, the email templates' `local` command and `vite preview`'s headers.
+
+**Still different, on purpose.** HTTP rather than HTTPS; the mail catcher rather than Supabase's
+mailer; Google and Microsoft sign-in, which need their own OAuth clients registered for the local
+callback; and one replica of each process. Each is listed in the local stack's own README.
+
+## 242. An owner's or admin's acceptance needs no second approver
+
+§239 held every acceptance the policy covers to a second owner or admin, the asker's own role
+regardless. An owner or admin who accepted a critical finding then waited for a colleague to
+approve what they could have approved themselves, had anyone else asked. The policy is there to
+put an approver's judgement on the decision; an owner's or admin's acceptance already carries
+one.
+
+**The policy holds analysts, IT admins and advisors.** `approval_policy.policy_for` answers for
+the caller rather than the organization: none for an owner or admin, as none in solo. Their
+acceptance of a finding or a route is made at once, with them as approver, as one below the
+threshold is. Everyone else who may write still waits for an owner or admin.
+
+**A request it answers is withdrawn.** An acceptance that takes effect revokes the request still
+waiting on that finding or route (`approval_policy.withdraw`, which asking again already used),
+so an approver is never offered a decision an owner or admin has made since.
+
+**Four eyes, still in the database.** A requester is now never an owner or admin when asking,
+but may become one later, so the service's refusal of a self-approval and the CHECK constraint
+behind it stay.
+
+## 243. A plan's document is removed once the plan is built
+
+Two documents described work that is now built, and read as if it were still to do. A reader
+following either would be steered wrong: the Azure connector redesign told the operator to grant
+admin consent in CloudGuard's own tenant, which `AZURE_INTEGRATION.md` §2.1 says not to do.
+
+- **`docs/AZURE_CONNECTOR_REDESIGN.md`** is removed. Its two-phase onboarding, consent and then
+  Deploy to Azure, is built (§71, §92, §114), and `AZURE_INTEGRATION.md` describes the flow and
+  the one-time app registration as they are. The one code comment that cited it,
+  `REQUIRED_GRAPH_PERMISSIONS` in `connectors/azure/auth.py`, now cites §2.1 there.
+- **`docs/design_handoff_cleave_redesign/`** is removed: the README, the token patch and the HTML
+  prototype. The redesign is built (§144, §145), and the lint, Prettier and pre-commit
+  exclusions kept for it are gone with it. §144, §145 and §220 still name the folder, as history;
+  it is in git at `0327037`, the last commit to touch it.
+
+What stays: a plan with work still to do (`REMEDIATION_PLAN.md`, `ATTACK_PATH_PLAN.md`,
+`TICKETING.md`, `FIX_AS_CODE.md`, `ROADMAP.md`, `MULTI_CLOUD.md`), and the dated reviews, which
+are snapshots by rule (`MARKDOWN_GUIDELINES.md` §2), not plans.
+
+## 244. A route ledger records which routes existed at each reading
+
+The attack-path page rebuilt every route live from the stored graph, which answers what is open
+now and nothing else. It could not say which routes were new, which had closed, or whether there
+were fewer than last week, because nothing kept them: a route was a pure function of the graph,
+and the graph is only ever the latest one. Tracked marks had the same root. The scan wrote risks
+for the routes with something misconfigured on them, and the browser fetched up to 500 of those
+risks and matched them to routes by their ends, so a tenant with more lost marks past the 500th.
+
+**ANALYZE writes a ledger of episodes.** `services/scan/ledger.py` runs inside correlation, from
+the graph the scan already builds, and commits through the scan's fenced writer (§65, §108). It
+records every route the graph holds, misconfigured or not, in `route_episodes`: one row per
+stretch of time a route was open, keyed by its ends as the page keys it (`route_key`, §103). A
+route with no open episode opens one; a route seen again carries its episode forward; an open
+episode the scan did not see closes. A route that closes and comes back opens a second row, so a
+reopening is visible rather than overwritten. `route_events` records the moments: OPENED,
+REROUTED and CLOSED, appended in bulk. A retried ANALYZE writes no event twice: what the first
+attempt opened is carried, what it closed is no longer open, and a shape is never compared with
+one the same scan wrote.
+
+**A scan closes only what it could have seen.** The rule is correlation's (§100): a scan of one
+subscription sees only its own routes and the directory's, so an episode with any asset in a
+scope the scan did not read stays open. An asset with no row left, or one marked absent, counts
+as inside, because it is gone and so is every route through it, and the CLOSED event says
+`ASSET_GONE` rather than `LINK_REMOVED`, so a deleted asset never reads as a fix. A deleted
+connection takes its routes' history with it (`connection_id` cascades) rather than leaving them
+open forever or closing them as if fixed. A route that crosses two connections is seen whole by no
+scan, so it has no episode, and the page shows no mark on it rather than a wrong one.
+
+**A reroute is said.** A route closes only when nothing connects its ends (§103), which is right
+for counting and silent when a change forces the route another way round. Each episode keeps its
+shape, the links it crosses keyed as `removal_key` keys them (§127), so an escalation line and the
+role line it comes from are one link. A route seen again with another shape records a REROUTED
+event with the way it used to run, and the episode is marked rerouted.
+
+**Read, not rebuilt.** `GET /attack-paths/history` answers from the ledger: every open episode
+and every one closed within `days`, each NEW (the scan that last saw it opened it), OPEN or
+CLOSED, whether it reopened, and how it was rerouted or closed; the routes open at the end of each
+day, counted from the episodes' times, because a scan may read part of one connection; and the
+latest scan that moved the ledger, by name, with what it moved. There is no organization-wide
+"last scan": connections scan on their own schedules, so "new" and "closed" are said per route
+and per scan. The live rebuild stays for what only it can answer: what is open now, and every
+what-if.
+
+**Tracked marks are joined on the server.** `GET /attack-paths/graph` carries each route's `risk`
+(id, status, level, score), joined by the route's ends in `graph_service.tracked_routes`. It does
+not wait for the ledger, which is empty until the first scan after release; a tracked mark that
+vanished until then would be a regression.
+
+**History starts at release.** Past scans did not keep their routes, and a reconstructed history
+would be a guess shown as fact, so nothing is backfilled and `meta.recorded_since` says when the
+record begins. Both tables are tenant tables under RLS: members read them, and only the worker
+writes them, under one organization's claim (migration 0063).
+
+## 245. The attack-path page leads with a fix plan
+
+The page opened on three counts, a canvas of every route and a list sorted by hops. The best cut
+existed, in the Simulate tab's choke points, but a reader had to go looking for it, and the
+people who open this page (a security engineer, the engineer handed the change, a manager) all
+ask "what do I do first" before they ask to read a graph. Defender for Cloud, Orca, XM Cyber and
+Wiz all lead with what to fix. Cleave computes a better answer than most, exact severance for
+every link (§122) and whole-plan simulation (§141), and did not put it first.
+
+**A card above the frame says what to change.** "5 changes close all 17 routes", then each change
+on one line with what it closes once the ones before it are made ("closes 5 routes", "then 5
+more", "then the last one"). It replaces the three-count strip, whose counts move into the card's
+sentence. "Try this plan" loads the changes into the simulator in plan order (`cut` in the URL),
+so the existing simulation is the proof.
+
+**Picked greedily, counted exactly.** `AssetGraph.fix_plan` takes the link that closes the most
+routes, then the link that closes the most of what is left with the plan so far made, read from
+the severance of the estate _without_ the earlier links, so a link whose way round an earlier
+change removed is found in its turn. After each change the routes are enumerated again, so every
+count on the card is exact. The plan is not guaranteed to be the fewest changes, and the card
+never says "the fewest". It stops at the simulator's limit (`MAX_SIMULATED_CUTS`, 10), or when
+no single further change closes anything: what is left then needs two changes made together, and
+the card says how many routes that leaves and sends the reader to the simulator, rather than
+guessing a pair. The plan is memoized on the graph, which is cached against the data's version,
+and sent in `GET /attack-paths/graph` as `plan`.
+
+**A tie goes to the cheaper change.** `CUT_COST` in `graph/severance.py` orders kinds of change
+by what they cost the customer to make: removing a role assignment or a group membership (1);
+taking away a directory role or an application's owner (2); detaching a managed identity or
+closing a network path, which can break a workload's traffic (3). Containment is not removable at
+all. The table is deterministic and every change in the plan carries its `cost`. It only breaks
+ties for now. A plan found as a weighted minimum cut over these costs is a later decision: that
+cut ignores the hop limit (`MAX_DEPTH`), so it would need `simulate()` to confirm it.
+
+## 246. Every cut says how to make it
+
+A cut stopped at "what if". The fix plan (§245), a hop being read in the route navigator (§142)
+and a change in the simulator (§141) all named a link and what removing it would close, and none
+said how to remove it, so the loop from cut to work to a verified fix ended on the attack-path
+page.
+
+**"How to fix", wherever a cut is shown.** A disclosure on each change in the fix plan, on each
+removable hop in the navigator and on each change in the simulator opens three things, read from
+`GET /attack-paths/fix?source=&relationship=&target=` only when it is opened:
+
+- **The change in one sentence**, built from the link's facts (§121) in neutral words (§78):
+  "Remove the Contributor role from vm-jumpbox on Production", "Close the network path from a to
+  b", "Take the Global Administrator role away from Arben K". A "runs as" link offers the role
+  beyond it as the other way, because detaching a managed identity can break the workload.
+- **The provider's commands, where one command removes the link exactly.** A command is the
+  provider's own, so it comes from the connector (`CloudConnector.cut_commands`, default none),
+  never from the neutral half or the browser (§74). Azure writes `az role assignment delete` for
+  each role the principal holds at the scope, named by object id, role and the scope the
+  assignment was made at (a management group, for an inherited one), and `az ad group member
+  remove` for a membership. A managed identity, a network path, an application's credential and a
+  directory role have more than one right way to remove them, and a command that guessed would be
+  worse than none, so they have no command and say so. AWS names no command until its connector
+  has run against a live account.
+- **The open findings on the link's two ends**, worst first, each linking to its fix sheet
+  (`/remediation?fix=`, §202) and offering Track (§205), or saying it is tracked. They are said
+  to be the findings on those two assets, never "what this change resolves": whether removing a
+  role assignment also resolves a finding is the rule's question, and only the next scan answers
+  it.
+
+So the loop runs on: a cut, then a task, then a scan that verifies it (§18), then the route
+leaves the page and the ledger records it closed (§244).
+
+## 247. A route says itself in one sentence
+
+A hop reads "app-payments-api runs as app-payments-api (managed identity) (service principal)".
+It is accurate, and it is not a story a manager can repeat. The route navigator now opens on one
+sentence above the hops: "From the internet, app-payments-api runs as its own identity, which
+holds Key Vault Secrets User over kv-payments."
+
+**Built from the hops alone** (`routeSentence.ts`). Each hop becomes a verb phrase from its
+relationship and its first fact (§121), joined by "which", so each clause's subject is the hop
+before. A system-assigned identity named after its workload is "its own identity". Containment at
+the end of a route is where the target sits, not something anybody did, so a tail of it collapses
+into "and so reaches X inside Y". Nothing is said that the hops do not already say, in neutral
+words (§78).
+
+**In the navigator, not on every row.** The plan put it on the rows too; a second line on each row
+of a narrow panel repeats every name the row already shows, so the sentence is where one route is
+read, and the rows stay a list to scan. The hop-by-hop navigator stays below it, unchanged.
+
+## 248. The route map opens at a zoom its names can be read at
+
+Fitted to the whole estate, seventeen routes drew boxes too small to read at the default frame
+height. The map now frames itself on arrival at `READABLE_ZOOM` (0.7) or closer: the whole estate
+where it fits at that zoom, and otherwise the columns from the way in that do (`readableFit`), so
+reading starts at the left and the rest is a pan away rather than a blur. Clearing a trace returns
+to the same frame. The frame is taller on large screens (42rem from `xl`, 48rem from `2xl`). A
+traced route was already framed whole with the rest faded; that is unchanged.
+
+## 249. The attack-path page says whether it is getting better
+
+Nothing on the page said whether there were more or fewer routes than before, or which routes
+were new. It reads the route ledger now (§244), through `GET /attack-paths/history`:
+
+- **What the latest scan moved, by name**, under the fix plan's sentence: "Scan of 9 Oct,
+  Production: 2 new, 6 closed, 1 rerouted." Never "since the last scan": connections scan on their
+  own schedules, so an organization has no single last scan, and the line names the one it
+  describes.
+- **A trend** of the routes open at the end of each day over the last 30 days, as a sparkline
+  (§149), counted from the episodes' own times.
+- **The routes closed in that window**, behind a disclosure, each struck through with the day it
+  closed and why: "a link on it was removed", or "an asset on it is gone", so a deleted asset
+  never reads as a fix.
+- **A mark on each live route** the ledger has news of: "New" when the scan that last saw it
+  opened it, "Back" when an earlier episode of it had closed, and "Rerouted" when a scan saw the
+  same ends by another way round, which wins because it says a change moved the attacker rather
+  than stopped them. A route no single scan sees whole has no episode, and so no mark rather than
+  a wrong one.
+
+Before the first scan after the ledger shipped, the line says history starts with the next scan;
+nothing earlier is reconstructed.
+
+## 250. Routes list worst first
+
+The default order was hops, so a two-hop route to a High key vault sat above a three-hop route to
+a Critical ledger, and the risk score of a tracked route, which ranks exactly that, was not on the
+list. "Worst first" is now the default (`DEFAULT_SORT`): a route a risk tracks by that risk's
+score, then the rest by what they reach, then by hops. An untracked route has no score, and the
+list does not invent one: it sorts after every tracked route. Each tracked row shows the risk's
+score beside "Tracked", with its level said to a screen reader. "Shortest first" and the other
+orders stay one choice away, and a sort in the URL still wins.
+
+## 251. An asset can be declared to hold data that matters
+
+A route ends only where data is sensitive, and sensitivity is only what tags and names declare,
+so the most common reason a customer saw "no routes" or the wrong routes was that Cleave did not
+know which store held the payroll export. Risk context was declared per subscription (§207), and
+`ContextDeclarationRecord` deferred per-resource declarations until something asked for them. The
+attack-path page asks.
+
+**One asset, sensitivity only.** `asset_declarations` (migration 0064) holds one row per asset,
+cascading with it: a level and a note, who said it and when. Criticality and environment stay per
+subscription; sensitivity is what gives a route its end. `PUT /assets/{id}/context` declares and
+`DELETE` withdraws, audited (`asset_context.declared`, `.cleared`), refused for viewers and in the
+demo like every write, and `UNKNOWN` is refused because it is Cleave's answer, not the customer's.
+
+**A floor, applied by the next scan.** Capture applies it after the subscription's declaration,
+through the same `resolve_resource` (`services/scan/capture.py`), with the customer as the source
+of the claim rather than the subscription. Like every declaration it can raise a level and never
+lower one, so it can give a route an end and never hide one. That is why the page offers
+"Sensitive" and "Critical" and no "this does not": lowering a level is the one mistake that
+removes routes, and an acceptance (§104) is how a customer says a route does not matter. Nothing
+is rescored or rerouted on the call: a route is what a scan's graph holds.
+
+**Where it is asked.** On the attack-path page, a box picked that is not already sensitive shows
+the question under its routes; the asset's own page shows it beside its data sensitivity; and the
+"nothing has been classified as sensitive" empty state links to the assets.
+
+## 252. The fix plan can be handed over
+
+The fix plan (§245) said what to change and, opened, how (§246), and stopped at the page: tracking
+its work was a click per finding, and the PDF report listed routes with each one's own cut and not
+the plan.
+
+**"Track the findings on these changes".** One button on the plan card reads how to make each
+change (`GET /attack-paths/fix`, cached), collects the open findings on the changes' ends that no
+live task tracks, and queues them together through the same `POST /remediation` a single fix
+sends (`useTrackAll`, §205). It is named for what it does: it tracks the findings on those assets,
+never the changes themselves, which only a scan confirms were made. Hidden in the demo, like every
+write.
+
+**The plan is in the report.** When the attack-path section is chosen, the report leads it with
+the same plan the page leads with (`reports._fix_plan`, from `AssetGraph.fix_plan`), each change
+said in its sentence (§246) with what it closes and the running count, and how many routes need
+changes made together where single changes stop. The routes, each with its own cut, follow as
+before, so a document and the page never disagree about what to do first.
+
+## 253. A query bar narrows the routes and the drawing together
+
+The search and the sort sat in the panel, which then did three jobs: narrowing, reading a route and
+simulating. An engineer checking a cut wants to narrow by more than a name, and to hand the
+narrowed view to somebody else.
+
+**A bar above the frame** (`RouteQueryBar`) holds the search, the sort and five facets: what the
+route reaches (High or worse, Critical), its way in (the internet, or an identity signing in), a
+kind of link it crosses (a role, a network path, an identity), tracked or not, and at most N hops.
+Each is in the URL (`reaches`, `way`, `link`, `tracked`, `hops_max`) beside `q` and `sort`, read
+by `readFacets`, which ignores what it does not recognise rather than refusing the page. "Copy
+investigation link" copies the page's URL with everything in it, and "Clear" puts every facet and
+the search back. The subscription and box narrowings stay in the panel, where they are reached
+from the drawing.
+
+**The drawing fades, it does not lose routes.** `listRoutes` applies the facets, so the list and
+the navigator's count agree (§142), and the routes the search and facets keep are passed to the
+canvas as `narrowed`: everything off them fades as everything off a selection does (`kept`,
+§134), under a pick or a pointer, which still read one box. A route read out of its place would be
+a route read wrong.
+
+**The panel folds and widens.** On a wide screen it folds away to a button for a look at the whole
+drawing, and widens from 20rem to 24rem while a route is read, which carries the most text. It
+stays docked (§137): a slide-over would cover the boxes being inspected.
+
+**Not yet.** Folding each resource group into one box past a node threshold, as the estate map
+does (§111), and turning the panel into a sheet below the `lg` breakpoint, where it now stacks
+under the drawing, are left for when an estate's map needs them; the route map already caps at 200
+routes and says so.
+
+## 254. A box you can ask, and an inspector that reads deeper
+
+A click on a box landed on a list of the routes through it: the box said nothing about itself, and
+an engineer handed a cut had to leave the page to check it.
+
+**The asset card.** A box picked opens a card at the top of the panel, with its routes below it
+(`AssetCard`): its name, type and place, linking to its page; how many routes run through it, how
+many ways in reach it and how many targets it leads to, counted from the routes on the page; the
+**best cut here**, the link touching it that closes the most, read from the `severs` already on
+every line (§122), with "Add to the plan"; its open findings, worst first, each linking to its fix
+sheet; and **Trace worst route** (the first through it in the list's order), **If compromised**
+(§255) and **Copy link** (`?through=`).
+
+**Gestures.** A click selects, as on every canvas (§134). A double click, or Enter on the box the
+arrow keys are on, frames the box with every route through it, as Enter opens on the estate map
+(§133); Escape puts the box down. On a picked box, `t` traces its worst route, `c` plans its best
+cut and `b` shows what a compromise reaches, through `singleKeyShortcut`, so they can be turned
+off (§155). Nothing floats over the box: actions live in the panel, which covers nothing being
+read, and hover tooltips do not exist on touch.
+
+**The inspector reads deeper**, from what Cleave already holds, through one read,
+`GET /attack-paths/inspect/{id}`:
+
+- **Defined in code**: where the customer's Terraform state index (§229) says the asset lives, as
+  repository, directory and address, or "Not in an indexed repository".
+- **Recent activity**: its latest change events, and for an account its last sign-in. Where no
+  reading covered the account it says sign-in activity was not read and the licence may not allow
+  it (§196), never "never signed in", which is a different, stronger claim. It is named recent
+  activity, not runtime context: Cleave reads configuration and runs no agent, so it has no
+  process, traffic or exploit telemetry, and nothing here pretends to.
+- **Who holds access**, behind a disclosure, is the access view the asset page already has
+  (`/attack-paths/access`, §125): each role's evaluated actions, with a data action under a
+  condition shown as not claimed.
+
+## 255. What-if answers at once where it can, and a box can show its blast radius
+
+**One cut is drawn at once.** Each line already names the routes it alone closes (`closes`,
+§122), so with one cut in the plan the drawing prunes immediately, before the server answers.
+From two cuts on it waits for `POST /attack-paths/simulate`: two cuts can close what neither
+closes alone (§141), and the browser never guesses.
+
+**"If compromised".** From the asset card, or `b`, the drawing shows what the picked box would
+reach if it were taken, from the existing blast-radius read: those boxes and the lines between
+them at full strength, everything else faded, as every selection fades the rest (§134). It wins
+over the pick that asked for it, gives way to a traced route or a simulated plan, and is put
+down with the pick.
+
+## 256. Motion on the route map says what changed and where
+
+The canvas moved in a few places: the camera framing a traced route, its lines marching, new
+boxes rising, and a settled plan striking its routes in turn (§146). Each new interaction above
+moves too, under the rules the product already keeps (§149, §167): something moves only when a
+value it shows changed or the reader caused it; timings come from `DURATION`; only opacity,
+transforms and strokes move, never the layout; lines animate in CSS (`index.css`), the panel's
+cards through `m.*`; and with reduced motion every state lands at once.
+
+- **Pointing** fades lines and labels in `instant` (120ms), through a transition on the map's
+  edges (`.cg-route-map`).
+- **Tracing a route** reveals its lines from the way in, one step apart (`cg-reveal`,
+  `cg-step-N`, at most eight steps), once per trace: the classes are added only when the route
+  changes, so a re-render never replays it. **Stepping to a hop** pulses that hop's line once
+  (`cg-pulse`).
+- **Framing a box** moves the camera in `page`; **the asset card** rises in `quick` (`fadeUp`)
+  and its counts count up.
+- **Simulating**: one cut prunes at once (§255); from two cuts on, the planned lines march while
+  the server checks, the one loop on the canvas, stopping when the answer lands; the banner's
+  count runs down to what is left ("17 → 0"). With reduced motion the global rule in `index.css`
+  stops every animation and zeroes the step delays.
+- **"Try this plan"** sends one simulation for the whole plan, not one per change: simulation is
+  costly (§161) and five requests a second would spend the allowance on a flourish. The plan is
+  told in order instead: its rows light one step apart on the card while the drawing shows the
+  answer.
+
+**Not taken.** A Rerouted route fading its old way out as the new one draws in needs the ledger's
+old way on the canvas, which only the history panel holds; the panel says it in words (§249).
+
+## 257. A role-assignment cut knows the block that defines it
+
+A cut is usually a role assignment, and where a customer manages access in Terraform, a command
+removes the assignment until the next apply puts it back. Fix-as-Code (§232) edits a rule's
+arguments; removing an assignment is deleting a block, a different edit.
+
+**Each role entry records its assignment's id.** The Azure normalizer writes `assignment_id`, the
+assignment's ARM id, beside each role a principal holds, which is what Terraform state records the
+assignment under. Neutral code reads it like any other role field.
+
+**"How to fix" names the block.** `GET /attack-paths/fix` returns `code` for a role cut: each
+assignment it removes that the organization's state index (§229) places in a repository, as
+repository, directory and address. The panel shows it as "Defined in code: delete this block", and
+says that a command alone would be undone by the next apply.
+
+**The deletion is planned, purely.** `remove_resource_block` (`remediation/iac/terraform.py`) takes
+a `resource "<type>" "<label>"` block out whole, with its trailing blank line, found by its label
+from the state address, as an edit is. `plan_removal` (`remediation/iac/cut.py`) plans a cut's
+deletions over a repository: two in one file build on each other, two assignments in one block are
+one deletion, and a block under `count` or `for_each` is deleted only where every assignment it
+defines is in the cut, the rule §232 applies to an edit; otherwise it declines
+`count_or_for_each` rather than take away access nobody asked to remove.
+
+**Opening the pull request** is §258.
+
+## 258. A cut can be opened as a pull request
+
+§257 planned a role-assignment cut's deletion but stopped short of opening it: the pull-request
+machinery (§232) was keyed by a rule, and its rows by findings, and a cut has neither.
+
+**A second kind of request.** `fix_pull_requests` takes `kind` (migration 0065): `RULE` for every
+existing row, and `CUT` for a link, which names no rule and carries `cut_key` (the link as the page
+keys it, an escalation line as the assignment it comes from, §127) and `cut` (the link and its
+sentence, for the title and body). A check constraint holds each kind to its own subject, and at
+most one cut request is in flight or open per organization, link and repository, as a rule's is per
+rule. `fix_pull_request_assignments` holds the role assignments a cut request removes, each with
+its state address and, once read, whether its block was deleted, where, or why not. The rule
+listing (`GET /remediation/pull-requests`) shows rule requests only.
+
+**Asked from "How to fix".** `POST /attack-paths/pull-requests` with the link (`202`, `Location` at
+`GET /attack-paths/pull-requests`) matches the link's role assignments, by the ids each principal
+records (§257), to the organization's state indexes and queues one request per repository defining
+any of them; an assignment no index names is counted in `not_indexed`. Only a role assignment can
+be removed in code; any other link is refused, and so is a cut whose assignments no index names.
+It needs GitHub offered on the deployment (`FIX_PRS_ENABLED`, §231), like every pull request, and
+is audited (`fix_pull_request.requested`). `GET /attack-paths/fix` says whether one can be asked
+for (`pull_request_offered`) and lists the cut's requests with their state, and the panel offers
+"Open a pull request" only while none is in flight or open.
+
+**Opened by the same sweep.** The worker's sweep claims both kinds under one lease and one attempt
+count; a cut request is read whole from the database, the session closed, and only then is GitHub
+asked: the repository's Terraform is read, the deletions planned with `plan_removal` (§257), and
+the changed files committed on `cloudguard/cut-<id>` with a pull request to the default branch.
+The body says the cut, what was deleted where, and what was not and why. Nothing deletable is
+`DECLINED`, and a GitHub failure retries up to the sweep's limit.
+
+**A merge makes the cut, it does not prove it.** Merging marks the request `MERGED`; no finding is
+claimed, because a cut is not a finding. The assignment goes on the next apply, and only the next
+scan's ledger closing the link's routes (§244) shows the cut worked. Merging stays a person's
+review: Cleave never merges or applies.
+
+## 259. The route map is the page, with everything that reads it floating over it
+
+The attack-path page stacked four bands before the drawing: the fix plan (§245), the query bar
+(§253), the legend and the frame of canvas and panel (§137). The drawing is the one thing on the
+page that says "forty routes through one identity" at a look, and it started below the fold.
+
+**One frame, the height of the window.** The frame fills what the shell leaves
+(`calc(100dvh - 11rem)`, at least 34rem) and the canvas fills the frame. On a wide screen (1024px
+and up) the rest floats over the canvas as panels on the popover surface: the query bar and the
+view's controls along the top, the fix plan on the left, the routes and the simulation on the
+right, the legend at the foot and the zoom buttons in the corner, clear of React Flow's
+attribution. The simulation banner floats over the open part of the drawing. Below 1024px the
+panels stack under the canvas in that order, as the page did.
+
+**The facets sit behind one "Filters" control** that counts how many narrow the routes; search,
+sort, "Clear" and the investigation link stay on the bar. Every facet is still in the URL (§253).
+
+**Each side panel folds away**, from the bar or the panel's own header, and the fold is remembered
+in this browser; a folded fix plan is a button saying its headline. While a route is traced the fix
+plan yields its width to the reading, until somebody opens it again for that route.
+
+**Fits frame the drawing in what the panels leave open.** The page tells the canvas how far in each
+panel reaches (`insets`), and every fit -- the readable estate (§248, now at most life size), a
+traced route, a framed box -- pads by it, as does centring a hop or a box brought into view. A
+change of frame size (full screen, a panel folded) frames the view again (`frameKey`).
+
+**Full screen.** A button on the bar, or F (a single-key shortcut, so it can be turned off, §155),
+lays the frame over the window with CSS first, so it works where the browser refuses the
+Fullscreen API, then asks for the API on the document element, not the frame, so menus and
+tooltips portalled to the body still show. Escape, the browser leaving full screen, or F again puts
+it back. The page behind does not scroll meanwhile, and in full screen the wheel zooms, because
+there is no page left to scroll past (the reason it does not elsewhere).
+
+**Not taken.** Widening the shell's 1240px column for this page alone: full screen is the wide
+look, and one page breaking the column would make the shell's width a per-page decision.
+
+## 260. The route map's panels are frosted islands, and asset names lead
+
+§259 made the drawing the page; this is how it is drawn. Mocked first in Figma, then built.
+
+**Panels are frosted glass** on the popover surface (85%, blurred and saturated behind), with
+16px corners and a deep, soft shadow. The top bar is two islands: narrowing on the left, the view
+on the right (copy the link, fold either panel, full screen). In full screen the left island also
+names the page, since the page's heading is under the frame. Each facet in use is a chip on the
+bar that takes it off, so what narrows the drawing stays in sight rather than behind Filters.
+
+**Asset names lead.** A box is its name first: 13px semibold, with its role a strip on its left
+edge (a way in, or what is worth taking) rather than its whole border, its type in an icon tile,
+and its marks in tinted tiles. Boxes are 52px tall (`BOX_HEIGHT`). In the fix plan, a step's
+sentence keeps its words muted and sets the two assets it names apart (`Named`), matched on the
+cut's own `source` and `target` names.
+
+**The fix plan opens on its answer:** the routes there are and the routes left, large, and a bar of
+one segment per change sized by what it closes. Its steps are a numbered timeline, the first one
+lit. "Try this plan" and tracking the findings stay at the foot while the steps scroll. Folded, the
+plan is a slim rail with its mark and its count of changes.
+
+**The routes panel** has line tabs with their counts as pills. Routes are rows, not cards, and a
+route's shape is a dot a stop and a line a hop, the earliest cut in the colour a cut is drawn in.
+
+**The drawing:** the route being read glows in the primary colour (`cg-glow`, a drop shadow on the
+line itself); a line's label is a rounded pill; a faint primary glow sits under the dot grid; and
+the zoom is a floating bar saying its level between minus and plus, whose fit frames the readable
+estate in the room the panels leave (§248, §259).
+
+**Not taken.** Soft, borderless severity pills: `SeverityBadge` is shared across every page, and
+changing it here alone would give one meaning two looks. The 10x changes mocked beside this
+(cutting from a line's own chip, an explore and a simulate mode, lenses, a hover card and a
+right-click menu) wait for their own decisions.
+
+## 261. Walking a route moves one highlight; the simulate tab reads as cards
+
+Stepping along a traced route reflowed the panel at every hop: the read link opened where it sat,
+with its facts, what cutting it closes, the cut and how to make it, so the list jumped under the
+reader's eye and the stops carried every detail at once. The simulate tab was a column of bordered
+boxes in a monospaced font, its numbers in prose.
+
+**The navigator (§142) keeps its shape.** Its summary is the route's two ends, one sentence clamped
+to two lines, and pills: what it reaches, its hops, what the plan does to it, the risk tracking it,
+and "Explore in graph". Every stop is one line (its name first, its type, and only the marks that
+matter there) with where the route enters a place under it. Every link is one line whichever is
+read: a highlight slides to the read one (`layoutId`), the earliest cut is marked with scissors and
+the link closing the most with a dot. What the read link says is in a dock at the panel's foot:
+"Hop n of m" with its own arrows, the link's sentence with its assets set apart (`Named`, now its
+own module), the earliest-cut and closes-the-most pills with the link's facts, what cutting it
+closes, and the cut and how to make it. The dock cross-fades as the hop changes and gives way
+before the list does, which always shows a few rows.
+
+**The simulate tab (§141)** opens on the outcome as a card, its count large, the bar under it.
+Each change in the plan is numbered, its sentence keeps its words muted with the assets set
+apart, and what it does is two pills (alone, and only with it, in the colour that says whether the
+rest of the plan already covers it). Copying the plan and clearing it sit on the plan's heading.
+Suggestions are cards with their help behind a question mark, and the routes still open and closed
+are compact rows.
+
+The keyboard is unchanged: up and down walk the links, left and right the routes, Escape returns.
+
+**What a full pass in the browser found, and fixed.**
+
+- **A hop step cost a 386ms task.** The layout was worked out again at every hop, and the
+  facets, the place and the plan were rebuilt from the URL on every change, so the whole route list
+  was redone each step. The layout is now memoised on the map alone (`layoutRouteMap`), and each
+  URL-derived value changes only with its own parameters.
+- **The focus stayed on the first hop.** The read row was found through a ref handed from row to
+  row, and the old row detaching cleared it. It is now found by `aria-current`.
+- **Only one column of the drawing showed on arrival.** With both panels open at 1440px about 460px
+  is left. Below 1680px wide (`ROOMY`) the fix plan starts as its rail unless the reader chose a
+  fold, the rail's width counts as covered, and the readable fit no longer takes its margin twice.
+- **The panel's content spilt below it on a short screen.** The tab contents now fill the panel and
+  scroll inside it. The hop dock keeps a minimum height, the route's sentence is one line below 760px
+  tall, and "Explore in graph" is a small link among the route's pills.
+
+## 262. Every finding and route says how sure Cleave is, apart from how bad it is
+
+A finding said what failed and how risky it was, and nothing about whether either still held. The
+risk score ranked a critical finding resting on a reading three weeks old exactly where it ranked
+the same finding read an hour ago, and it ranked an asset whose criticality nobody declared (scored
+cautiously at 3.5, `RISK_ENGINE.md` §1) or guessed from its name (`ContextSource.INFERRED`) beside
+one a customer had declared. Both orders are defensible, and neither told the reader that the
+position was provisional. The evidence behind a finding was spread across four places (the excerpt,
+"How we know", the remediation spec, the verification) and could not be handed to anybody whole.
+
+**Confidence is its own axis** (`Confidence`: HIGH, MEDIUM, LOW), never folded into severity or
+risk. Severity is the rule's judgement of a class of mistake; risk is where the finding ranks;
+confidence is how far either can be trusted today. Folding it into the score would let a stale
+critical sink below a fresh low, the order an attacker would choose. So confidence **filters and
+never sorts**, and it decides the next action rather than the position: look again, or declare the
+context.
+
+**It is judged from two things** (`app/risk/confidence.py`, pure):
+
+- **The evidence's age, against the connection's own schedule.** A finding is as current as its
+  oldest citation (`finding_evidence.collected_at`; its last detection where none is cited). It is
+  FRESH for one and a half scan intervals (a missed scan's grace), AGING after that, and STALE after
+  three intervals or a week, whichever is later. A connection scanned by hand is held to a day. The
+  week floor stops "stale" firing on an ordinary weekend for a connection scanned every few hours,
+  which would teach people to ignore it.
+- **The context its rank multiplies that a customer can declare.** Criticality or data sensitivity
+  that is UNKNOWN, or that Cleave inferred from a name, is a reason. A type floor is not: a database
+  holds data whatever it is called. Exposure is not judged here: it is read off configuration
+  rather than declared, so a reason about it would offer a remedy that does not exist (subscriptions
+  and service principals have none to read), and a rule that needs exposure and cannot read it says
+  so through its own evidence, as UNKNOWN.
+
+STALE is LOW. AGING, or any context reason, is MEDIUM. Context never takes a finding below MEDIUM,
+because a cautious default is a deliberate rank rather than a doubt that the misconfiguration exists.
+Each reason names the fields it concerns, and each has its remedy beside it on the finding: **Rescan
+to refresh** for evidence, **Declare its context** (the subscription's declaration, §207) for
+context. A tenant-wide finding has no asset, so only its evidence is judged.
+
+**One judgement, two implementations, held together.** The findings list filters and counts by
+confidence in SQL (`_confidence_sql`, built from the same constants) and explains each row in
+Python, because paging needs the filter in the database (§157) and the reasons need the Python. The
+detail page and the evidence package read the finding through the list's own statement (`row_of`),
+so the three cannot disagree, and `test_finding_confidence` checks the SQL and the Python against
+the same rows. `GET /findings?confidence=` narrows; `meta.confidence` counts the filtered set by
+level, ignoring the confidence filter itself, so each count is what choosing that level would show.
+
+**A route is as current as its least recently seen hop** (`ResourceRecord.last_seen_at` against its
+connection's interval), and provisional where its target's sensitivity was guessed from a name,
+since a route exists only because its target counts as sensitive. Its entry's exposure is read off
+configuration and needs no caveat. `/attack-paths/graph` dates every node (`observed_at`) and gives
+every route a `confidence`. The readings are fetched before the drawing goes off the loop, which never
+holds a session (§161).
+
+**What failed, said as the setting is written.** `GET /findings/{id}` carries `condition`: each
+expected state the rule declares (`RemediationSpec.expected`, the same declaration the fix is
+generated from), with the value the finding's excerpt recorded beside it. A field the excerpt does
+not carry is `observed_recorded: false` and drawn as "Not in the excerpt", never as null: an unset
+setting and an unrecorded one are different facts, and only the first is about the asset. Rules that
+declare no expected state keep their condition in prose, and the package says so.
+
+**The evidence package** (`GET /findings/{id}/evidence-package`, `format: "cleave.evidence-package"`,
+`version: 1`) is the finding as one document for a ticket or an auditor. It holds the asset under its
+cloud identifier, the condition, the excerpt, the rule and the version that raised it beside today's,
+the citations with their permissions, endpoints and read times, the confidence, the remediation, and
+how a fix is verified: a rescan observing the check pass, never a person. It also names its
+`limitations`: no citation recorded, a capture no longer stored, a reading that came back
+incomplete, a rule changed or retired since, an undeclared condition. Each is one sentence, because
+a list of codes is a list a customer has to look up. `build` names the deployed commit that
+assembled it (`RAILWAY_GIT_COMMIT_SHA`), so a verdict can be traced to the code that reached it.
+It is JSON in the envelope rather than a file, so it is typed in the contract like every other
+answer, and the page saves or copies it. A read: viewers and the demo may ask.
+
+**On the page.**
+
+- **Findings:** a confidence filter beside severity, with each level's count. A Confidence column
+  draws three rising bars (`ConfidenceMark`), quiet at High. It is not a pill and uses nothing from
+  the severity scale: a "Low" confidence drawn like a severity would read as a low-severity finding.
+  LOW fills its one bar in `unknown`, the colour of a gap in knowledge. When open findings rest on
+  stale evidence, a banner above the queue says how many, with **Show them** and **Scan now**.
+- **Finding detail:** **What failed** leads the main column, expected beside observed. The rail says
+  how sure, how long ago it was read and until when that is current, each reason in a sentence, and
+  the remedy beside it. **Evidence package** downloads or copies the document and sits in the header
+  for everyone, the demo included, while the decisions stay out of the demo.
+- **Attack paths:** a route short of High is marked in the list ("Stale", "Ageing", "Target
+  guessed"). The traced route is always dated ("seen 3 hours ago") among its pills.
+
+The mark's accessible name is the whole account (level and every reason), so a screen reader hears
+why, not just "Low". A resolved finding shows no confidence: a verified fix's evidence is meant to
+age.
 
 ## Open items carried forward
 

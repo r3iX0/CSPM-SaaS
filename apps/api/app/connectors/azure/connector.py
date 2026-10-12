@@ -12,13 +12,15 @@ from app.connectors.azure.auth import (
 )
 from app.connectors.azure.client import ArmClient, GraphClient, ResourceGraphClient
 from app.connectors.azure.collector import AzureCollector
+from app.connectors.azure.cuts import cut_commands as azure_cut_commands
 from app.connectors.azure.evidence import BASELINE_EVIDENCE, keys_in
 from app.connectors.azure.normalizer import AzureNormalizer
 from app.connectors.base import CloudConnector, ConnectionCheck, NormalizedState, RawSnapshot
 from app.connectors.evidence import EvidenceCategory, EvidenceKey
 from app.connectors.planning import CollectionPlan
-from app.core.enums import Provider
+from app.core.enums import Provider, RelationshipType
 from app.core.logging import get_logger
+from app.domain.resource import CloudResource
 
 log = get_logger(__name__)
 
@@ -188,6 +190,12 @@ class AzureConnector(CloudConnector):
     @staticmethod
     def evidence_keys_in(category: EvidenceCategory) -> frozenset[EvidenceKey]:
         return frozenset(keys_in(category))
+
+    @staticmethod
+    def cut_commands(
+        source: CloudResource, relationship: RelationshipType, target: CloudResource
+    ) -> list[str]:
+        return azure_cut_commands(source, relationship, target)
 
     @staticmethod
     def baseline_evidence() -> frozenset[EvidenceKey]:

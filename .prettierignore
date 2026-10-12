@@ -14,6 +14,3 @@ apps/web/src/components/ui/
 apps/web/eslint-suppressions.json
 apps/web/src/lib/geo/worldDots.ts
 docs/api/
-
-# Design handoff, kept as received.
-docs/design_handoff_cleave_redesign/

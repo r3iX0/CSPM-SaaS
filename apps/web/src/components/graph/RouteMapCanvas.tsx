@@ -20,6 +20,8 @@ import {
   type Edge,
   type Node,
   type NodeProps,
+  type FitViewOptions,
+  type PanelPosition,
 } from "@xyflow/react";
 // The structural stylesheet only. `style.css` is React Flow's own theme, and
 // the colours here come from the tokens in index.css like everything else.
@@ -31,7 +33,15 @@ import { FACTOR_ICONS, resourceTypeIcon } from "@/lib/icons";
 import { DURATION, usePrefersReducedMotion } from "@/lib/motion";
 import { ARROWS, FIT, FLOW_TOKENS, HIDDEN_HANDLE, kept, type GraphSelection } from "./flowChrome";
 import { ZoomButtons } from "./ZoomButtons";
-import { BOX_HEIGHT, BOX_WIDTH, layoutRouteMap, pairSpeakers, placeLabels } from "./routeMapLayout";
+import {
+  BOX_HEIGHT,
+  BOX_WIDTH,
+  layoutRouteMap,
+  pairSpeakers,
+  placeLabels,
+  READABLE_ZOOM,
+  readableFit,
+} from "./routeMapLayout";
 import { stepFrom } from "./neighborhoodLayout";
 import { hopKey } from "./routeKeys";
 
@@ -74,6 +84,8 @@ interface CanvasActions {
   active: string;
   setActive: (id: string) => void;
   pick: (id: string) => void;
+  /** Frames a box and every route through it, and picks it (§254). */
+  frameAround: (id: string) => void;
   /** Previewed under the pointer or the keyboard: faded around, not picked. */
   preview: (id: string | null) => void;
   picked: string | null;
@@ -88,6 +100,20 @@ function useActions(): CanvasActions {
   if (!actions) throw new Error("A route map node rendered outside RouteMapCanvas");
   return actions;
 }
+
+/**
+ * How far in from each edge of the canvas the page's floating panels reach,
+ * in pixels (§259). A fit frames the drawing in what is left open, and a box
+ * brought into view is centred there, so nothing lands under a panel.
+ */
+export interface CanvasInsets {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+
+const NO_INSETS: CanvasInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 
 export interface RouteMapCanvasProps {
   map: RouteMap;
@@ -113,6 +139,21 @@ export interface RouteMapCanvasProps {
   /** The box picked, whose routes the rail is showing. */
   picked?: string | null;
   /**
+   * The routes the query bar's search and facets keep, by key, or null when
+   * nothing narrows them (§253). The rest fade; nothing is removed.
+   */
+  narrowed?: ReadonlySet<string> | null;
+  /**
+   * What a compromise of the picked box would reach (§255): those boxes, and
+   * the lines between them, at full strength; everything else faded.
+   */
+  reach?: ReadonlySet<string> | null;
+  /**
+   * The server is checking a plan of two or more cuts: its lines march until
+   * the answer lands, the one loop on the canvas (§256).
+   */
+  checking?: boolean;
+  /**
    * Called when a box is pressed: on the traced route the page reads the hop
    * arriving there, anywhere else the rail shows what runs through it.
    */
@@ -124,6 +165,20 @@ export interface RouteMapCanvasProps {
    * anywhere else it goes into the plan, or out of it.
    */
   onPickLink: (edge: RouteMapEdge) => void;
+  /** What the page's floating panels cover (§259); none by default. */
+  insets?: CanvasInsets;
+  /**
+   * Changes whenever the frame changes size -- full screen, a panel folded --
+   * and the view is framed again for the room it now has.
+   */
+  frameKey?: string;
+  /**
+   * Whether the wheel zooms. Only in full screen, where there is no page to
+   * scroll past the canvas and so no trap.
+   */
+  wheelZoom?: boolean;
+  /** Where the zoom buttons sit, clear of the page's panels. */
+  zoomPosition?: PanelPosition;
 }
 
 /**
@@ -161,25 +216,33 @@ function Canvas({
   preview = null,
   simulated = null,
   picked = null,
+  narrowed = null,
+  reach = null,
+  checking = false,
   onPickNode,
   onPickLink,
   onClearPick,
+  insets = NO_INSETS,
+  frameKey,
+  wheelZoom = false,
+  zoomPosition,
 }: RouteMapCanvasProps) {
   const reduced = usePrefersReducedMotion();
-  const {
-    nodes,
-    edges: drawn,
-    at,
-  } = useMemo(
+  // Where every box sits depends on the estate alone, so it is worked out once
+  // per map rather than at every hop read or cut tried (§261).
+  const at = useMemo(() => layoutRouteMap(map), [map]);
+  const { nodes, edges: drawn } = useMemo(
     () =>
       toFlow(
         map,
+        at,
         traced ?? preview,
         traced ? hop : null,
         simulated,
         reduced || (preview !== null && !traced),
+        checking,
       ),
-    [map, traced, preview, hop, simulated, reduced],
+    [map, at, traced, preview, hop, simulated, reduced, checking],
   );
   // A traced or previewed route, or a simulated cut, draws its own fading, and wins.
   const [previewed, setPreviewed] = useState<GraphSelection | null>(null);
@@ -188,7 +251,44 @@ function Canvas({
     [picked, at],
   );
   const on = traced || preview || simulated ? null : (pickedOn ?? previewed);
-  const around = useMemo(() => kept(drawn, on), [drawn, on]);
+  // What the query bar keeps, faded around like a selection, under it in
+  // precedence: a pick or a pointer still reads one box (§253).
+  const narrowedAround = useMemo(() => {
+    if (!narrowed) return null;
+    const boxes = new Set<string>();
+    const lines = new Set<string>();
+    for (const route of map.routes) {
+      if (!narrowed.has(route.key)) continue;
+      boxes.add(route.entry.id);
+      for (const step of route.steps) {
+        boxes.add(step.target_id);
+        lines.add(hopKey(step.source_id, step.relationship, step.target_id));
+      }
+    }
+    return { boxes, edges: lines };
+  }, [map, narrowed]);
+  // A compromise's reach wins over the pick that asked for it (§255).
+  const reachAround = useMemo(
+    () =>
+      reach
+        ? {
+            boxes: new Set(reach),
+            edges: new Set(
+              drawn
+                .filter((edge) => reach.has(edge.source) && reach.has(edge.target))
+                .map((edge) => edge.id),
+            ),
+          }
+        : null,
+    [reach, drawn],
+  );
+  const around = useMemo(
+    () =>
+      (traced || preview || simulated ? null : reachAround) ??
+      kept(drawn, on) ??
+      (traced || preview || simulated ? null : narrowedAround),
+    [drawn, on, traced, preview, simulated, narrowedAround, reachAround],
+  );
   const edges = useMemo(() => {
     const faded = around
       ? drawn.map((edge) =>
@@ -236,10 +336,20 @@ function Canvas({
     if (width === 0 || height === 0) return true;
     return points.every(
       (p) =>
-        p.x * zoom + dx >= 0 &&
-        (p.x + BOX_WIDTH) * zoom + dx <= width &&
-        p.y * zoom + dy >= 0 &&
-        (p.y + BOX_HEIGHT) * zoom + dy <= height,
+        p.x * zoom + dx >= insets.left &&
+        (p.x + BOX_WIDTH) * zoom + dx <= width - insets.right &&
+        p.y * zoom + dy >= insets.top &&
+        (p.y + BOX_HEIGHT) * zoom + dy <= height - insets.bottom,
+    );
+  }
+
+  // Centred in the part of the canvas the panels leave open, not under one.
+  function centreOn(x: number, y: number, duration: number) {
+    const zoom = flow.getZoom();
+    void flow.setCenter(
+      x + (insets.right - insets.left) / (2 * zoom),
+      y + (insets.bottom - insets.top) / (2 * zoom),
+      { zoom, duration },
     );
   }
 
@@ -247,28 +357,49 @@ function Canvas({
   // the hop is out of view, keeping the zoom, so the route stays where the
   // reader left it rather than jumping -- as walking did on the estate map.
   const framed = useRef<string | null>(null);
+  // The estate at a zoom its names can be read at, from the way in (§248).
+  function frameReadable(duration: number) {
+    const width = (frame.current?.clientWidth ?? 0) - insets.left - insets.right;
+    // Between panels the margin is already the room they leave, in pixels;
+    // taking the relative padding off as well counted it twice, and one column
+    // was all that "fit" while the next sat under the routes panel (§261).
+    const covered = insets.left + insets.right > 0;
+    void flow.fitView({
+      padding: paddingFor(insets, FIT.padding, ROOM),
+      nodes: readableFit(at, width - (covered ? ROOM * 2 : 0), covered ? 0 : FIT.padding).map(
+        (id) => ({ id }),
+      ),
+      minZoom: READABLE_ZOOM,
+      // A narrow opening between the panels fits one column; at life size,
+      // not blown up to fill it.
+      maxZoom: 1,
+      duration,
+    });
+  }
+  function frameRoute(route: MappedRoute, duration: number) {
+    void flow.fitView({
+      nodes: [route.entry.id, ...route.steps.map((step) => step.target_id)].map((id) => ({ id })),
+      padding: paddingFor(insets, 0.3, ROOM * 2),
+      maxZoom: 1.1,
+      duration,
+    });
+  }
   useEffect(() => {
     if (!traced) {
       if (framed.current) {
         framed.current = null;
-        void flow.fitView({ ...FIT, duration: reduced ? 0 : DURATION.quick });
+        frameReadable(reduced ? 0 : DURATION.quick);
       }
       return;
     }
     const duration = reduced ? 0 : DURATION.quick;
-    const ids = [traced.entry.id, ...traced.steps.map((step) => step.target_id)];
     if (framed.current !== traced.key) {
       // Two frames on: a bar arriving above the drawing can shrink the canvas,
       // and React Flow learns its new size from a resize observer.
       let frameId = requestAnimationFrame(() => {
         frameId = requestAnimationFrame(() => {
           framed.current = traced.key;
-          void flow.fitView({
-            nodes: ids.map((id) => ({ id })),
-            padding: 0.3,
-            maxZoom: 1.1,
-            duration,
-          });
+          frameRoute(traced, duration);
         });
       });
       return () => cancelAnimationFrame(frameId);
@@ -279,13 +410,58 @@ function Canvas({
     if (ends.length === 0 || inView(ends)) return;
     const x = ends.reduce((sum, p) => sum + p.x, 0) / ends.length + BOX_WIDTH / 2;
     const y = ends.reduce((sum, p) => sum + p.y, 0) / ends.length + BOX_HEIGHT / 2;
-    void flow.setCenter(x, y, { zoom: flow.getZoom(), duration });
+    centreOn(x, y, duration);
     return undefined;
     // The route and the hop are what move the view.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only the route and the hop move the view.
   }, [traced?.key, hop]);
 
+  // The frame changed size -- full screen, a panel folded or opened -- so the
+  // view is framed again for the room it now has, once React Flow has
+  // measured it (two frames, as above).
+  const lastFrameKey = useRef(frameKey);
+  useEffect(() => {
+    if (lastFrameKey.current === frameKey) return;
+    lastFrameKey.current = frameKey;
+    const duration = reduced ? 0 : DURATION.quick;
+    let frameId = requestAnimationFrame(() => {
+      frameId = requestAnimationFrame(() => {
+        if (traced) frameRoute(traced, duration);
+        else frameReadable(duration);
+      });
+    });
+    return () => cancelAnimationFrame(frameId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only a new frame size moves the view.
+  }, [frameKey]);
+
+  // A double click or Enter on a box frames it with every route through it,
+  // as Enter opens on the estate map (§133, §254); Escape puts it down.
+  function frameAround(id: string) {
+    const ids = new Set([id]);
+    for (const route of map.routes) {
+      const stops = [route.entry.id, ...route.steps.map((step) => step.target_id)];
+      if (stops.includes(id)) for (const stop of stops) ids.add(stop);
+    }
+    if (picked !== id) onPickNode(id);
+    void flow.fitView({
+      nodes: [...ids].map((each) => ({ id: each })),
+      padding: paddingFor(insets, 0.25, ROOM * 2),
+      maxZoom: 1.1,
+      duration: reduced ? 0 : DURATION.page,
+    });
+  }
+
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "Enter" && at.has(marked)) {
+      event.preventDefault();
+      frameAround(marked);
+      return;
+    }
+    if (event.key === "Escape" && picked) {
+      event.preventDefault();
+      onClearPick?.();
+      return;
+    }
     const direction = ARROWS[event.key];
     if (!direction || event.altKey || event.ctrlKey || event.metaKey) return;
     event.preventDefault();
@@ -298,10 +474,7 @@ function Canvas({
     const to = at.get(next)!;
     // Brought into view rather than left for the reader to pan to: a mark that
     // moves off-screen is a mark nobody can see.
-    void flow.setCenter(to.x + BOX_WIDTH / 2, to.y + BOX_HEIGHT / 2, {
-      zoom: flow.getZoom(),
-      duration: reduced ? 0 : DURATION.quick,
-    });
+    centreOn(to.x + BOX_WIDTH / 2, to.y + BOX_HEIGHT / 2, reduced ? 0 : DURATION.quick);
   }
 
   return (
@@ -310,6 +483,7 @@ function Canvas({
         active: marked,
         setActive,
         pick: onPickNode,
+        frameAround,
         preview: (id) => setPreviewed(id ? { kind: "box", id } : null),
         picked,
         lit: around?.boxes ?? null,
@@ -318,10 +492,11 @@ function Canvas({
       {/* An 18px dot grid, from the text colour at 9%, so the drawing reads as
           a surface to press on in either theme without a canvas background
           kit (base.css only, §101). It does not pan with the view: it is
-          texture, not coordinates. */}
+          texture, not coordinates. A faint glow of the primary colour sits
+          under it where the drawing is (§259). */}
       <div
         ref={frame}
-        className="size-full bg-[radial-gradient(color-mix(in_oklab,var(--foreground)_9%,transparent)_1px,transparent_1px)] bg-[length:18px_18px]"
+        className="cg-route-map size-full bg-[radial-gradient(color-mix(in_oklab,var(--foreground)_9%,transparent)_1px,transparent_1px),radial-gradient(ellipse_at_42%_38%,color-mix(in_oklab,var(--primary)_7%,transparent),transparent_65%)] bg-[length:18px_18px,100%_100%]"
         onKeyDown={onKeyDown}
       >
         <ReactFlow
@@ -329,8 +504,10 @@ function Canvas({
           edges={edges}
           nodeTypes={NODE_TYPES}
           style={FLOW_TOKENS}
-          fitView
-          fitViewOptions={FIT}
+          onInit={() => {
+            // A link that arrives tracing a route is framed on that route.
+            if (!traced) frameReadable(0);
+          }}
           minZoom={0.2}
           maxZoom={1.5}
           nodesDraggable={false}
@@ -347,15 +524,42 @@ function Canvas({
           onPaneClick={() => onClearPick?.()}
           // The canvas sits in a scrolling page. A wheel that zoomed the graph
           // would trap somebody scrolling past it; zoom is on the buttons.
-          zoomOnScroll={false}
-          preventScrolling={false}
+          // Full screen has no page to scroll, so there the wheel zooms.
+          zoomOnScroll={wheelZoom}
+          preventScrolling={wheelZoom}
         >
           <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="var(--border)" />
-          <ZoomButtons />
+          <ZoomButtons
+            position={zoomPosition}
+            island={zoomPosition !== undefined}
+            onFit={() => frameReadable(reduced ? 0 : DURATION.quick)}
+          />
         </ReactFlow>
       </div>
     </Actions.Provider>
   );
+}
+
+/** Breathing room around a fit, in pixels, past what the panels cover. */
+const ROOM = 24;
+
+/**
+ * A fit's padding. With no panels over the canvas it is the relative padding
+ * every canvas uses; with panels, each side is what its panel covers plus a
+ * little room, so the drawing is framed in what is left open (§259).
+ */
+function paddingFor(
+  insets: CanvasInsets,
+  relative: number,
+  room: number,
+): FitViewOptions["padding"] {
+  if (insets.top + insets.right + insets.bottom + insets.left === 0) return relative;
+  return {
+    top: `${insets.top + room}px` as const,
+    right: `${insets.right + room}px` as const,
+    bottom: `${insets.bottom + room}px` as const,
+    left: `${insets.left + room}px` as const,
+  };
 }
 
 /**
@@ -372,22 +576,30 @@ const hopOf = (hop: Hop) => hopKey(hop.source, hop.relationship, hop.target);
 
 function toFlow(
   map: RouteMap,
+  at: Map<string, { x: number; y: number }>,
   traced: MappedRoute | null,
   hop: number | null,
   simulated: SimulatedPlan | null,
   reduced: boolean,
+  checking = false,
 ): {
   nodes: Node[];
   edges: Edge<LabelRank>[];
-  at: Map<string, { x: number; y: number }>;
 } {
-  const at = layoutRouteMap(map);
   const origin = { x: 0, y: 0 };
 
   const tracedHops = traced
     ? new Set(traced.steps.map((step) => hopKey(step.source_id, step.relationship, step.target_id)))
     : null;
   const reading = traced && hop !== null ? traced.steps[hop] : undefined;
+  // Where each hop of the traced route falls from the way in, for revealing
+  // its lines in order (§256).
+  const tracedOrder = new Map(
+    (traced?.steps ?? []).map((step, index) => [
+      hopKey(step.source_id, step.relationship, step.target_id),
+      index,
+    ]),
+  );
   const readingKey = reading
     ? hopKey(reading.source_id, reading.relationship, reading.target_id)
     : null;
@@ -527,10 +739,21 @@ function toFlow(
       // Marching dashes along the route being read, in the direction reach
       // runs. The one animation here that says something the static picture
       // cannot — and it is off for a reader who asked for less motion.
-      animated: !reduced && onTraced && !isCut,
+      animated: !reduced && ((onTraced && !isCut) || (isCut && checking)),
+      // Revealed in order from the way in when the route is traced, and the hop
+      // being read pulses when it is reached; both once, as classes are added
+      // only when the trace or the hop changes (§256).
+      // The route being read also glows (`cg-glow`), so it reads at a look
+      // even where the lines around it are heavy (§259).
+      className: now
+        ? "cg-pulse cg-glow"
+        : onTraced
+          ? `cg-reveal cg-step-${Math.min(tracedOrder.get(key) ?? 0, 7)} cg-glow`
+          : undefined,
       labelStyle: { fill: labelFill, fontSize: 11 },
-      labelBgStyle: { fill: "var(--card)" },
-      labelBgPadding: [4, 2] as [number, number],
+      labelBgStyle: { fill: "var(--popover)", stroke: "var(--border)" },
+      labelBgPadding: [7, 3] as [number, number],
+      labelBgBorderRadius: 999,
       style: { stroke, strokeWidth: width, strokeDasharray: dash, opacity },
       markerEnd: {
         type: MarkerType.ArrowClosed,
@@ -541,12 +764,18 @@ function toFlow(
     };
   });
 
-  return { nodes, edges, at };
+  return { nodes, edges };
 }
 
 const LEVEL_TEXT: Record<string, string> = {
   CRITICAL: "text-critical",
   HIGH: "text-high",
+};
+
+/** A mark's tile, tinted from the same level as its glyph. */
+const MARK_BG: Record<string, string> = {
+  CRITICAL: "bg-critical-bg",
+  HIGH: "bg-high-bg",
 };
 
 function AssetNode({ id, data }: NodeProps<AssetFlowNode>) {
@@ -570,53 +799,72 @@ function AssetNode({ id, data }: NodeProps<AssetFlowNode>) {
         onPointerEnter={() => actions.preview(id)}
         onPointerLeave={() => actions.preview(null)}
         onClick={() => actions.pick(id)}
+        onDoubleClick={() => actions.frameAround(id)}
         style={{
           animationDelay: `${Math.min(data.arrival, 6) * 60}ms`,
           transitionDelay: data.closed ? `${data.closeDelay}ms` : undefined,
         }}
         className={cn(
-          "nopan flex w-[220px] cursor-pointer items-center gap-2 rounded-lg border bg-card px-2 py-1.5 text-left",
-          "transition-[opacity,filter] duration-500 hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring",
+          // A box is the asset's name first: the role is a strip on its left
+          // edge -- a way in, or what is worth taking -- rather than its whole
+          // border, so the name is what the eye lands on (§259).
+          "nopan relative flex h-[52px] w-[220px] cursor-pointer items-center gap-2.5 rounded-xl border border-foreground/12 bg-card pr-2.5 pl-3 text-left shadow-lg shadow-black/25",
+          "transition-[opacity,filter,box-shadow] duration-500 hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring",
           data.arrival > 0 && "animate-[cg-rise_180ms_ease-out_both]",
-          data.entry
-            ? "border-critical-border"
-            : data.sensitive
-              ? "border-high-border"
-              : "border-border",
           (data.dimmed || (actions.lit && !actions.lit.has(id))) && "opacity-30",
           actions.picked === id && "ring-2 ring-foreground/70 ring-offset-2 ring-offset-card",
-          data.current && "border-primary ring-3 ring-primary/30",
+          data.current && "border-primary ring-4 ring-primary/20 shadow-primary/20",
           // Out of reach once the considered link is gone. Desaturated rather
           // than hidden: the asset is still in the estate, it is the route to
           // it that would be over.
           data.closed && "opacity-40 grayscale",
         )}
       >
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground">
+        {(data.entry || data.sensitive) && (
+          <span
+            aria-hidden
+            className={cn(
+              "absolute top-3 -left-px h-[26px] w-[3px] rounded-r-full",
+              data.entry ? "bg-high" : "bg-critical",
+            )}
+          />
+        )}
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-foreground/5 text-foreground">
           {createElement(resourceTypeIcon(data.resource_type), {
-            className: "size-3.5",
+            className: "size-4",
             "aria-hidden": true,
           })}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-xs font-medium text-foreground">{data.name}</span>
+          <span className="block truncate text-body font-semibold tracking-tight text-foreground">
+            {data.name}
+          </span>
           <span className="block truncate text-caption text-muted-foreground">
             {resourceTypeLabel(data.resource_type)}
           </span>
         </span>
         <span className="flex shrink-0 items-center gap-1">
           {data.entry && (
-            <span title={`Internet exposure ${data.public_exposure.toLowerCase()}`}>
-              <Exposure className={cn("size-3.5", LEVEL_TEXT[data.public_exposure])} aria-hidden />
+            <span
+              title={`Internet exposure ${data.public_exposure.toLowerCase()}`}
+              className={cn(
+                "flex size-5 items-center justify-center rounded-md",
+                MARK_BG[data.public_exposure],
+              )}
+            >
+              <Exposure className={cn("size-3", LEVEL_TEXT[data.public_exposure])} aria-hidden />
               <span className="sr-only">, reachable from the internet</span>
             </span>
           )}
           {data.sensitive && (
-            <span title={`Data sensitivity ${data.data_sensitivity.toLowerCase()}`}>
-              <Sensitive
-                className={cn("size-3.5", LEVEL_TEXT[data.data_sensitivity])}
-                aria-hidden
-              />
+            <span
+              title={`Data sensitivity ${data.data_sensitivity.toLowerCase()}`}
+              className={cn(
+                "flex size-5 items-center justify-center rounded-md",
+                MARK_BG[data.data_sensitivity],
+              )}
+            >
+              <Sensitive className={cn("size-3", LEVEL_TEXT[data.data_sensitivity])} aria-hidden />
               <span className="sr-only">, holds sensitive data</span>
             </span>
           )}
@@ -624,7 +872,7 @@ function AssetNode({ id, data }: NodeProps<AssetFlowNode>) {
             <span
               title={`${data.findings.open} open finding${data.findings.open === 1 ? "" : "s"}`}
               className={cn(
-                "rounded border px-1 text-micro leading-4 font-medium tabular-nums",
+                "flex h-5 min-w-5 items-center justify-center rounded-md border px-1 text-caption font-semibold tabular-nums",
                 levelStyle(data.findings.worst ?? "UNKNOWN"),
               )}
             >

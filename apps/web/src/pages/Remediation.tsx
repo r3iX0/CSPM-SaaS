@@ -8,9 +8,12 @@ import type { Finding, FindingDetail, Member, RemediationTask } from "@/lib/type
 import {
   FIX_PARAM,
   RULE_PARAM,
+  dueOn,
   groupByRule,
   groupUntracked,
   isOpenTask,
+  isOverdue,
+  isPast,
   memberName,
   ruleTitle,
   taskFor,
@@ -28,15 +31,22 @@ import { useT } from "@/i18n";
 import { WorkPill } from "@/components/security/WorkPill";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
 import { FixSheet } from "@/components/security/FixSheet";
+import { FixProgressSection } from "@/components/security/FixProgress";
 import { RuleFixSheet, type RuleFixMember } from "@/components/security/RuleFixSheet";
 import { CardsSkeleton, EmptyState, ErrorState, PageHeader } from "@/components/common/states";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatStrip } from "@/components/common/StatStrip";
-import { useIsDemo } from "@/lib/useDemo";
+import { useCurrentOrganization, useIsDemo } from "@/lib/useDemo";
+import { isTeam } from "@/components/settings/sections";
+import { LiveStatus } from "@/components/common/LiveStatus";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Spinner } from "@/components/ui/spinner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn, formatDay, formatEffort, resourceTypeLabel } from "@/lib/format";
+
+/** Whose work the queue shows, in a team (§236): `me` or `none`; absent is everyone's. */
+const OWNER_PARAM = "owner";
 
 /**
  * The work queue.
@@ -57,6 +67,32 @@ export function RemediationPage() {
   const markAllDone = useMarkAllDone();
   const assignees = useAssignees();
   const owners = new Map((assignees.data ?? []).map((member) => [member.user_id, member]));
+
+  /**
+   * Whose work is shown, in the URL (`?owner=me|none`), for a team only (§236).
+   * Narrowed here rather than through the API's `?owner=`: the fix sheets read
+   * the whole queue under one key to find a finding's task, and a filtered
+   * queue would hide another person's task from them.
+   */
+  const team = isTeam(useCurrentOrganization());
+  const ownerFilter = team ? params.get(OWNER_PARAM) : null;
+  const viewer = (assignees.data ?? []).find((member) => member.is_you)?.user_id;
+  const shown = (data ?? []).filter((task) => {
+    const holder = task.owner_id ?? task.assigned_to ?? null;
+    if (ownerFilter === "me") return holder !== null && holder === viewer;
+    if (ownerFilter === "none") return holder === null;
+    return true;
+  });
+  const setOwnerFilter = (value: string | null) =>
+    setParams(
+      (previous) => {
+        const next = new URLSearchParams(previous);
+        if (value) next.set(OWNER_PARAM, value);
+        else next.delete(OWNER_PARAM);
+        return next;
+      },
+      { replace: true },
+    );
 
   /**
    * The fix the sheet is open on, in the URL: one finding's (`?fix=`,
@@ -107,7 +143,7 @@ export function RemediationPage() {
   // Grouped once every finding has arrived (or failed), so rows regroup once
   // rather than each time another title lands (§203).
   const settled = findings.every((query) => !query.isLoading);
-  const items = groupByRule(data ?? [], settled ? byFinding : new Map());
+  const items = groupByRule(shown, settled ? byFinding : new Map());
   const ruleMembers: RuleFixMember[] =
     ruleId === null
       ? []
@@ -147,11 +183,41 @@ export function RemediationPage() {
         </>
       )}
 
-      {data && data.length > 0 && <QueueSummary tasks={data} />}
+      {data && data.length > 0 && <QueueSummary tasks={shown} />}
+
+      {team && data && data.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3">
+          <ToggleGroup
+            aria-label={t.remediation.showOwner}
+            variant="outline"
+            size="sm"
+            spacing={0}
+            value={[ownerFilter ?? "all"]}
+            onValueChange={(value) => {
+              const next = value[0];
+              if (typeof next === "string") setOwnerFilter(next === "all" ? null : next);
+            }}
+          >
+            <ToggleGroupItem value="all">{t.remediation.ownerEveryone}</ToggleGroupItem>
+            <ToggleGroupItem value="me">{t.remediation.ownerMine}</ToggleGroupItem>
+            <ToggleGroupItem value="none">{t.remediation.ownerNobody}</ToggleGroupItem>
+          </ToggleGroup>
+          <span className="text-meta text-muted-foreground">
+            {t.remediation.ownerShown(shown.length)}
+          </span>
+          <LiveStatus message={t.remediation.ownerShown(shown.length)} quietFirst />
+        </div>
+      )}
+
+      {team && data && data.length > 0 && shown.length === 0 && (
+        <p className="text-meta text-muted-foreground">
+          {ownerFilter === "me" ? t.remediation.ownerNoneMine : t.remediation.ownerNoneNobody}
+        </p>
+      )}
 
       {/* One queue, one container. Divided rows read as a list to work down;
           a stack of separate cards read as a pile of separate problems. */}
-      {data && data.length > 0 && (
+      {data && shown.length > 0 && (
         <div className="divide-y divide-border overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
           {items.map((item) =>
             item.kind === "task" ? (
@@ -203,6 +269,9 @@ export function RemediationPage() {
       {/* A queue with work in it still says what is not in it (§205). */}
       {data && data.length > 0 && <WhereToStart tasks={data} onOpen={openFix} />}
 
+      {/* What the queue let go of: work a scan saw fixed (§225). */}
+      {data && <FixProgressSection />}
+
       <FixSheet findingId={fixId} onClose={() => openFix(null)} />
       <RuleFixSheet
         ruleId={ruleId}
@@ -213,6 +282,16 @@ export function RemediationPage() {
     </div>
   );
 }
+
+/**
+ * A row's figures and its action. On a phone they take a line of their own
+ * under the title, with the action at its end; the fixed widths that line the
+ * figures up in columns apply only beside the title, where there are columns
+ * to line up -- on their own line they centred the button (§224).
+ */
+const ROW_FIGURES =
+  "flex w-full flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground sm:w-auto";
+const ROW_ACTION = "ml-auto flex justify-end sm:ml-0 sm:w-24";
 
 /**
  * One job, said as a job.
@@ -246,7 +325,9 @@ function TaskCard({
   const t = useT();
   const done = task.status === "DONE" || task.status === "CANCELLED";
   const isDemo = useIsDemo();
-  const overdue = !done && task.due_date !== null && new Date(task.due_date) < new Date();
+  const team = isTeam(useCurrentOrganization());
+  const due = dueOn(task);
+  const overdue = isOverdue(task);
   const state = workState(task, finding);
 
   return (
@@ -287,45 +368,57 @@ function TaskCard({
             // does not reflow under the reader's cursor.
             <Skeleton className="h-4 w-72 max-w-full" />
           )}
-          <p className="mt-0.5 truncate text-caption text-muted-foreground">
-            {finding?.resource
-              ? `${finding.resource.name} · ${resourceTypeLabel(finding.resource.resource_type)}`
-              : finding
-                ? t.remediation.tenantWide
-                : " "}
+          {/* Only the asset's name gives way when the line is short: on a
+              phone the route count was the part cut off (§224). */}
+          <p className="mt-0.5 flex flex-wrap gap-x-1 text-caption text-muted-foreground">
+            <span className="max-w-full min-w-0 truncate">
+              {finding?.resource
+                ? `${finding.resource.name} · ${resourceTypeLabel(finding.resource.resource_type)}`
+                : finding
+                  ? t.remediation.tenantWide
+                  : " "}
+            </span>
             {/* Why it sits above an equally urgent task: the asset is on a
                 route. Counted by the API, and only said when it is true. */}
             {finding && (task.on_routes ?? 0) > 0 && (
               <span className="font-medium text-foreground">
-                {" · "}
-                {t.remediation.onRoutes(task.on_routes ?? 0)}
+                · {t.remediation.onRoutes(task.on_routes ?? 0)}
               </span>
             )}
-            {finding && task.assigned_to && (
-              <>
-                {" · "}
-                {t.remediation.ownedBy(memberName(owners.get(task.assigned_to)))}
-              </>
+            {/* Who has it, in a team: the person it was handed to, or the
+                owner a rule names, which the line says (§236). */}
+            {finding && team && (task.owner_id ?? task.assigned_to) && (
+              <span>
+                ·{" "}
+                {task.owner_by_rule
+                  ? t.remediation.ownedByRule(
+                      memberName(owners.get(task.owner_id ?? "")),
+                      t.remediation.ownerScope[task.owner_by_rule],
+                    )
+                  : t.remediation.ownedBy(
+                      memberName(owners.get(task.owner_id ?? task.assigned_to ?? "")),
+                    )}
+              </span>
             )}
           </p>
           {task.notes && <p className="mt-1 text-xs text-muted-foreground">{task.notes}</p>}
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
+      <div className={ROW_FIGURES}>
         {/* To do is the queue itself and needs no pill. Anything further
             says where the work has got to, as its sheet does: started, or
             claimed and what the checks have found since (§212). */}
         {state !== "todo" && <WorkPill state={state} />}
-        <span className="w-14 tabular-nums">{formatEffort(task.estimated_effort_minutes)}</span>
-        <span className={cn("w-[130px] tabular-nums", overdue && "font-medium text-critical")}>
+        <span className="tabular-nums sm:w-14">{formatEffort(task.estimated_effort_minutes)}</span>
+        <span className={cn("tabular-nums sm:w-[130px]", overdue && "font-medium text-critical")}>
           {done && task.completed_at
             ? t.remediation.doneOn(formatDay(task.completed_at))
-            : task.due_date
-              ? `${overdue ? "Overdue · " : "Due "}${formatDay(task.due_date)}`
+            : due
+              ? t.remediation.dueLine(formatDay(due), overdue)
               : null}
         </span>
-        <span className="flex w-24 justify-end">
+        <span className={ROW_ACTION}>
           {!done && !isDemo && (
             <Button variant="outline" size="sm" disabled={marking} onClick={onDone}>
               {marking ? (
@@ -377,10 +470,10 @@ function TaskGroup({
   const onRoutes = tasks.filter((task) => (task.on_routes ?? 0) > 0).length;
   const effort = open.reduce((sum, task) => sum + task.estimated_effort_minutes, 0);
   const due = open
-    .map((task) => task.due_date)
+    .map(dueOn)
     .filter((date): date is string => date !== null)
     .sort()[0];
-  const overdue = due !== undefined && new Date(due) < new Date();
+  const overdue = isPast(due ?? null);
   const severity = worstSeverity(
     tasks.flatMap((task) => {
       const finding = findings.get(task.finding_id);
@@ -409,19 +502,20 @@ function TaskGroup({
             >
               {lead?.rule_name ?? lead?.title}
             </button>
-            <p className="mt-0.5 truncate text-caption text-muted-foreground">
-              {t.remediation.groupLine(tasks.length, names)}
+            <p className="mt-0.5 flex flex-wrap gap-x-1 text-caption text-muted-foreground">
+              <span className="max-w-full min-w-0 truncate">
+                {t.remediation.groupLine(tasks.length, names)}
+              </span>
               {onRoutes > 0 && (
                 <span className="font-medium text-foreground">
-                  {" · "}
-                  {t.remediation.groupOnRoutes(onRoutes)}
+                  · {t.remediation.groupOnRoutes(onRoutes)}
                 </span>
               )}
             </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
+        <div className={ROW_FIGURES}>
           <CollapsibleTrigger
             className="inline-flex items-center gap-1 rounded-sm outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-ring"
             aria-label={expanded ? t.remediation.groupHide : t.remediation.groupShow(tasks.length)}
@@ -431,11 +525,11 @@ function TaskGroup({
               aria-hidden
             />
           </CollapsibleTrigger>
-          <span className="w-14 tabular-nums">{effort > 0 ? formatEffort(effort) : null}</span>
-          <span className={cn("w-[130px] tabular-nums", overdue && "font-medium text-critical")}>
-            {due ? `${overdue ? "Overdue · " : "Due "}${formatDay(due)}` : null}
+          <span className="tabular-nums sm:w-14">{effort > 0 ? formatEffort(effort) : null}</span>
+          <span className={cn("tabular-nums sm:w-[130px]", overdue && "font-medium text-critical")}>
+            {due ? t.remediation.dueLine(formatDay(due), overdue) : null}
           </span>
-          <span className="flex w-24 justify-end">
+          <span className={ROW_ACTION}>
             {open.length > 0 && !isDemo && (
               <Button variant="outline" size="sm" disabled={marking} onClick={onDoneAll}>
                 {marking ? (
@@ -461,15 +555,15 @@ function TaskGroup({
  *
  * What is left, what is moving, what it will cost, and what is late -- the
  * questions somebody opening this page on a Monday is actually asking, which a
- * list of rows answers only if they are all counted by eye.
+ * list of rows answers only if they are all counted by eye. Late is measured
+ * against the organization's policy as well as the dates people set, so it no
+ * longer reads 0 merely because nobody picked a date (§225).
  */
 function QueueSummary({ tasks }: { tasks: RemediationTask[] }) {
   const open = tasks.filter((task) => task.status === "TODO" || task.status === "IN_PROGRESS");
   const moving = tasks.filter((task) => task.status === "IN_PROGRESS").length;
   const minutes = open.reduce((sum, task) => sum + task.estimated_effort_minutes, 0);
-  const late = open.filter(
-    (task) => task.due_date !== null && new Date(task.due_date) < new Date(),
-  ).length;
+  const late = open.filter(isOverdue).length;
 
   return (
     <StatStrip

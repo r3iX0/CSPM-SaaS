@@ -22,7 +22,7 @@ from app.graph import AssetGraph, Path, PathStep
 from app.graph.estate import DIRECTORY_SCOPE, Placement
 from app.graph.facts import edge_facts
 from app.graph.patterns import PatternKind, route_patterns
-from app.services.graph import serialize_route_map, serialize_simulation
+from app.services.graph import serialize_fix_plan, serialize_route_map, serialize_simulation
 from app.services.placement import Placements
 
 GROUP = "/subscriptions/s/resourceGroups/data"
@@ -546,3 +546,109 @@ def test_the_page_is_told_which_routes_close_only_together() -> None:
     assert body["together"] == [f"{WEB}|{RECORDS}"]
     assert [(cut["alone"], cut["needed_for"]) for cut in body["cuts"]] == [(0, 1), (0, 1)]
     assert body["next"] == []
+
+
+# ------------------------------------------------------------------ fix plan
+def test_the_plan_leads_with_the_link_everything_passes_through() -> None:
+    """The diamond's two network hops are each other's way round; the role is not."""
+    plan = diamond().fix_plan()
+
+    assert [cut.step.key() for cut in plan.cuts] == [
+        (IDENTITY, RelationshipType.GRANTS_ROLE.value, GROUP)
+    ]
+    assert (plan.before, plan.remaining) == (1, 0)
+
+
+def two_estates() -> AssetGraph:
+    """Two ways in, two routes each through their own identity, and one more
+    route through the first identity alone -- so one cut closes two."""
+    second = "/principals/mi-web"
+    return AssetGraph.build(
+        [
+            node(WEB, ResourceType.VIRTUAL_MACHINE, public_exposure=Level.CRITICAL),
+            node(HOP_A, ResourceType.VIRTUAL_MACHINE, public_exposure=Level.CRITICAL),
+            node(IDENTITY, ResourceType.SERVICE_PRINCIPAL),
+            node(second, ResourceType.SERVICE_PRINCIPAL),
+            node(RECORDS, ResourceType.STORAGE_ACCOUNT, data_sensitivity=Level.CRITICAL),
+            node(LEDGER, ResourceType.STORAGE_ACCOUNT, data_sensitivity=Level.HIGH),
+        ],
+        [
+            (HOP_A, RelationshipType.HAS_IDENTITY, IDENTITY),
+            (IDENTITY, RelationshipType.GRANTS_ROLE, RECORDS),
+            (IDENTITY, RelationshipType.GRANTS_ROLE, LEDGER),
+            (WEB, RelationshipType.HAS_IDENTITY, second),
+            (second, RelationshipType.GRANTS_ROLE, LEDGER),
+        ],
+    )
+
+
+def test_each_change_closes_what_is_left_and_the_count_runs() -> None:
+    plan = two_estates().fix_plan()
+
+    assert [len(cut.closes) for cut in plan.cuts] == [2, 1]
+    assert plan.cuts[0].step.source.provider_resource_id == HOP_A
+    assert (plan.before, plan.remaining) == (3, 0)
+    served = serialize_fix_plan(two_estates().fix_plan())
+    assert [cut.closed_after for cut in served.cuts] == [2, 3]
+
+
+def test_a_tie_goes_to_the_cheaper_change() -> None:
+    """A network hop and a role on one route close the same: the role is cheaper."""
+    graph = AssetGraph.build(
+        [
+            node(WEB, ResourceType.VIRTUAL_MACHINE, public_exposure=Level.CRITICAL),
+            node(HOP_A, ResourceType.VIRTUAL_MACHINE),
+            node(IDENTITY, ResourceType.SERVICE_PRINCIPAL),
+            node(RECORDS, ResourceType.STORAGE_ACCOUNT, data_sensitivity=Level.CRITICAL),
+        ],
+        [
+            (WEB, RelationshipType.NETWORK_ACCESS, HOP_A),
+            (HOP_A, RelationshipType.HAS_IDENTITY, IDENTITY),
+            (IDENTITY, RelationshipType.GRANTS_ROLE, RECORDS),
+        ],
+    )
+
+    [cut] = graph.fix_plan().cuts
+    assert cut.step.relationship is RelationshipType.GRANTS_ROLE
+
+
+def test_routes_that_need_two_changes_together_are_left_and_counted() -> None:
+    """No single link closes a route with a full second way round, and the plan
+    says so rather than guessing a pair."""
+    other = "/principals/mi-other"
+    graph = AssetGraph.build(
+        [
+            node(WEB, ResourceType.VIRTUAL_MACHINE, public_exposure=Level.CRITICAL),
+            node(HOP_A, ResourceType.VIRTUAL_MACHINE),
+            node(HOP_B, ResourceType.VIRTUAL_MACHINE),
+            node(IDENTITY, ResourceType.SERVICE_PRINCIPAL),
+            node(other, ResourceType.SERVICE_PRINCIPAL),
+            node(RECORDS, ResourceType.STORAGE_ACCOUNT, data_sensitivity=Level.CRITICAL),
+        ],
+        [
+            (WEB, RelationshipType.NETWORK_ACCESS, HOP_A),
+            (WEB, RelationshipType.NETWORK_ACCESS, HOP_B),
+            (HOP_A, RelationshipType.HAS_IDENTITY, IDENTITY),
+            (HOP_B, RelationshipType.HAS_IDENTITY, other),
+            (IDENTITY, RelationshipType.GRANTS_ROLE, RECORDS),
+            (other, RelationshipType.GRANTS_ROLE, RECORDS),
+        ],
+    )
+
+    plan = graph.fix_plan()
+    assert plan.cuts == ()
+    assert (plan.before, plan.remaining) == (1, 1)
+
+
+def test_the_plan_stops_at_its_limit_and_says_what_is_left() -> None:
+    plan = two_estates().fix_plan(limit=1)
+    assert len(plan.cuts) == 1
+    assert plan.remaining == 1
+
+
+def test_the_route_map_carries_the_plan() -> None:
+    graph = diamond()
+    route_map = serialize_route_map(graph, graph.attack_paths(), {}, {}, total_routes=1)
+    assert route_map.plan.total_routes == 1
+    assert route_map.plan.remaining == 0
+    assert route_map.plan.cuts[0].cost == 1

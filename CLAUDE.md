@@ -27,6 +27,11 @@ Standards are the checks in `.pre-commit-config.yaml` (DECISIONS.md §191, `docs
 and mypy for Python, ESLint and Prettier for the web app, plus hygiene and gitleaks. Never commit
 with `--no-verify`; CI runs the same hooks.
 
+### Running locally
+
+The local stack's tooling is kept on the developer's machine and is not in the repository
+(`CLAUDE.local.md`, DECISIONS.md §240, §241). `APP_ENV=local` runs only against this machine.
+
 ### Backend (apps/api)
 
 ```bash
@@ -223,15 +228,20 @@ so the shell's own `<main>` is the page's only one (§155).
   close if it is cut, with the cut simulated in place (§123), no label printed over another — a pair
   of lines between one pair of boxes speaks once (`pairSpeakers`)
   and
-  `placeLabels` leaves out what would collide, most important first (§143), in one frame with a side
-  panel that lists the routes and reads a traced one (§137) and, in its Simulate tab, answers for a
+  `placeLabels` leaves out what would collide, most important first (§143), in one frame the
+  height of the window, the canvas filling it and the query bar, fix plan, legend and a side panel
+  floating over it on a wide screen as frosted islands, each folding away, with a full-screen mode
+  (§259, §260); the side
+  panel lists the routes and
+  reads a traced one (§137) and, in its Simulate tab, answers for a
   plan of up to ten cuts made together — from
   `POST /attack-paths/simulate`, never summed from the lines' numbers, since two cuts can close what
   neither closes alone — with the plan in the URL (`cut`)
   (§141); a traced route is read in the panel by
   `RouteNavigator` — its stops always shown with where each place is entered (a link to the estate
-  map), its links walked with up and down, the one being read saying what cutting it closes (the
-  earliest cut and the link closing the most both marked) with "Add to the plan" beside it, and the
+  map), its links walked with up and down as one highlight sliding along rows that keep their height,
+  the one being read said in a dock at the panel's foot -- what cutting it closes (the earliest cut
+  and the link closing the most both marked) with "Add to the plan" beside it (§261) -- and the
   routes before and after it in the list's order a left or right away; there is no step bar over the
   drawing, and a press on the traced route's own line or box reads that hop rather than planning it
   (§142). The list is ordered and narrowed by `listRoutes`
@@ -424,7 +434,7 @@ so the shell's own `<main>` is the page's only one (§155).
   cancelling hands the finding back to OPEN (§212)
 - Coverage by domain shows one framework at a time (`?domains=`), each section a row drawn by
   status with its counts, linking to the framework page narrowed to it (`?section=`) (§206)
-- Settings is one page per topic under `/settings/*` (General, Members, Risk context,
+- Settings is one page per topic under `/settings/*` (General, Members, Risk context, Ownership,
   Integrations, Activity, Preferences); a form holds edits until Save and asks before they are
   left (`LeaveGuard`), an instant control answers in a toast; risk context is a table read from
   `GET /context-declarations`, edited in a sheet (`?account=`) and settable across many
@@ -458,6 +468,60 @@ so the shell's own `<main>` is the page's only one (§155).
 - An Azure Policy assignment's managed identity is recognised from the assignments already read
   (`policy_assignments` on the identity): its privilege findings stand at exploitability 1 and
   name the assignment, and it is not counted as an Owner, unless a workload also runs as it (§222)
+- A day is picked with `DatePicker` (shadcn's `Calendar` in a `Popover`), never the browser's date
+  input; the rule sheet lists only tasks not cancelled, and offers a cancelled one's finding to
+  track again (§224)
+- A task with no due date is due by the organization's `fix_within_days` for its finding's
+  severity, counted from first detection and derived at read time (`due_on`, `due_by_policy`);
+  `GET /remediation/progress` counts scan-verified fixes, never tasks marked done (§225)
+- A Terraform hint that azurerm can only set by recreating the resource carries `terraform_replaces`,
+  held to the provider's documentation (`tools/iac/trim_azurerm_docs.py`); it is shown with a
+  warning and never written into existing code (`replaces_resource`) (§228); a renamed argument
+  is `terraform_renamed`, and the engine writes the name the block already uses, else the lock
+  file's release's, else the original (§230)
+- The customer's Terraform state index (`iac_indexes`, `iac_index_entries`) is four fields per
+  managed azurerm resource, written only through the owner connection and read by members; an
+  address finds its block through local module sources (`find_resource_block`), and an indexed
+  asset's CLI fix is an emergency fix (§229)
+- A GitHub App installation is linked only if GitHub lists it among the linking person's own
+  installations (the App's OAuth half, a signed `state` bound to them); `PUT /iac-indexes` takes a
+  job's GitHub Actions OIDC token for this API, from a linked installation's default branch, and
+  asks GitHub before opening a session; all behind `FIX_PRS_ENABLED` (§231)
+- A rule's fix is one pull request per repository its indexed assets are in, opened by a
+  minute's sweep under a lease (`open_fix_pull_requests`), planned purely
+  (`remediation/iac/pull_request.py`); a block defining more than one asset is edited only where
+  every one fails; a merge marks tasks done and opens their verification (§232)
+- An argument written `= var.x` in a module, with `x` used nowhere else there, is fixed on the
+  module call that sets it, up to the root; an edit inside a module counts every call's assets,
+  and a call no index covers declines `unindexed_caller` (§233)
+- The pull-request guardrail judges a plan, cut on the runner to the allowlist, against the rules'
+  Terraform hints, never the rule engine; it fails only on what the change brings, reports a check
+  run on the head commit, and stores nothing (§234)
+- Each posture reading keeps the risks it charged (`risk_history.charges`, `open_charges` is the
+  one score query); `GET /dashboard/score-movement` gives each changed risk one cause and splits
+  the points exactly in log space, so they sum to the delta; what nothing explains says so (§235)
+- An organization is `SOLO` or `TEAM` (`organizations.mode`); solo hides members, ownership and
+  task owners and is refused with anyone else there; a team's unassigned task is owned by the
+  most specific ownership rule its asset matches (tag, resource group, subscription, default),
+  derived on read like a due date, never written onto the task (§236)
+- Overdue work is said, not only shown: `WORK_OVERDUE` each morning names the fixes whose last day
+  was yesterday, and `WORK_DIGEST` each Monday counts overdue and due work by owner, tracked or
+  not; both are notifications (bell and webhooks), written at 07:00 UTC by the notification sweep,
+  which reads the organization, members and ownership rules under migration 0060 (§237)
+- An audit package (manifest version 2) carries the fixes a scan observed in its period for the
+  rules its controls rest on, each with its task, verification and Fix-as-Code pull requests, and
+  `fixes.csv` lists them per control; a version 1 package is hashed without them and still
+  verifies; no ticket field until the Jira sync ships (§238)
+- An organization may require a second approver for acceptances at or above a severity
+  (`acceptance_approval_from`, a team's only); a covered acceptance, of a finding or a route, is a
+  PENDING exception that changes nothing until another owner or admin approves or rejects it at
+  `/acceptances`; the database refuses a decision by the person who asked (§239); an owner's or
+  admin's own acceptance is made at once and withdraws a request waiting on it (§242)
+- Confidence is its own axis, never folded into severity or risk: a finding is as current as its
+  oldest citation against its connection's scan interval, and MEDIUM where its asset's context is
+  unknown or guessed; it filters and never sorts, and the list's SQL and the Python share one set of
+  constants (`app/risk/confidence.py`). A finding's `condition` puts expected beside observed, and
+  `GET /findings/{id}/evidence-package` is the whole record as one versioned document (§262)
 - The Azure demo replays `tests/fixtures/azure_raw/snapshot_demo.json`, generated by
   `build_snapshot_demo.py` as a superset of `snapshot_mixed.json` — edit the script, not the JSON
   (§102)
