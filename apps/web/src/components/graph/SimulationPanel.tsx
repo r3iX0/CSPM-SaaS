@@ -94,7 +94,7 @@ export function SimulationPanel({
 
   if (plan.length === 0) {
     return (
-      <div className="flex flex-col gap-4 overflow-y-auto p-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-3">
         <div className="flex items-start gap-3 rounded-xl bg-foreground/[0.035] p-4 ring-1 ring-border">
           <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-ok-bg text-ok">
             <ScissorsIcon className="size-4" aria-hidden />
@@ -142,7 +142,7 @@ export function SimulationPanel({
       <div
         aria-busy={checking}
         className={cn(
-          "flex flex-col gap-5 overflow-y-auto p-3 transition-opacity",
+          "flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-3 transition-opacity",
           checking && result && "opacity-60",
         )}
       >
@@ -159,7 +159,7 @@ export function SimulationPanel({
 
         <section aria-labelledby="plan-title" className="flex flex-col gap-2">
           <div className="flex items-center gap-2">
-            <h3 id="plan-title" className="text-meta font-semibold">
+            <h3 id="plan-title" className="text-meta font-semibold whitespace-nowrap">
               The plan{" "}
               <span className="ml-1 rounded-full bg-foreground/8 px-1.5 font-normal tabular-nums text-muted-foreground">
                 {plan.length} of {maxCuts}

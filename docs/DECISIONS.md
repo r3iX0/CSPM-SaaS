@@ -13491,6 +13491,21 @@ are compact rows.
 
 The keyboard is unchanged: up and down walk the links, left and right the routes, Escape returns.
 
+**What a full pass in the browser found, and fixed.**
+
+- **A hop step cost a 386ms task.** The layout was worked out again at every hop, and the
+  facets, the place and the plan were rebuilt from the URL on every change, so the whole route list
+  was redone each step. The layout is now memoised on the map alone (`layoutRouteMap`), and each
+  URL-derived value changes only with its own parameters.
+- **The focus stayed on the first hop.** The read row was found through a ref handed from row to
+  row, and the old row detaching cleared it. It is now found by `aria-current`.
+- **Only one column of the drawing showed on arrival.** With both panels open at 1440px about 460px
+  is left. Below 1680px wide (`ROOMY`) the fix plan starts as its rail unless the reader chose a
+  fold, the rail's width counts as covered, and the readable fit no longer takes its margin twice.
+- **The panel's content spilt below it on a short screen.** The tab contents now fill the panel and
+  scroll inside it. The hop dock keeps a minimum height, the route's sentence is one line below 760px
+  tall, and "Explore in graph" is a small link among the route's pills.
+
 ## Open items carried forward
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,

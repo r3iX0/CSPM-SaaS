@@ -228,21 +228,21 @@ function Canvas({
   zoomPosition,
 }: RouteMapCanvasProps) {
   const reduced = usePrefersReducedMotion();
-  const {
-    nodes,
-    edges: drawn,
-    at,
-  } = useMemo(
+  // Where every box sits depends on the estate alone, so it is worked out once
+  // per map rather than at every hop read or cut tried (§261).
+  const at = useMemo(() => layoutRouteMap(map), [map]);
+  const { nodes, edges: drawn } = useMemo(
     () =>
       toFlow(
         map,
+        at,
         traced ?? preview,
         traced ? hop : null,
         simulated,
         reduced || (preview !== null && !traced),
         checking,
       ),
-    [map, traced, preview, hop, simulated, reduced, checking],
+    [map, at, traced, preview, hop, simulated, reduced, checking],
   );
   // A traced or previewed route, or a simulated cut, draws its own fading, and wins.
   const [previewed, setPreviewed] = useState<GraphSelection | null>(null);
@@ -360,9 +360,15 @@ function Canvas({
   // The estate at a zoom its names can be read at, from the way in (§248).
   function frameReadable(duration: number) {
     const width = (frame.current?.clientWidth ?? 0) - insets.left - insets.right;
+    // Between panels the margin is already the room they leave, in pixels;
+    // taking the relative padding off as well counted it twice, and one column
+    // was all that "fit" while the next sat under the routes panel (§261).
+    const covered = insets.left + insets.right > 0;
     void flow.fitView({
       padding: paddingFor(insets, FIT.padding, ROOM),
-      nodes: readableFit(at, width, FIT.padding).map((id) => ({ id })),
+      nodes: readableFit(at, width - (covered ? ROOM * 2 : 0), covered ? 0 : FIT.padding).map(
+        (id) => ({ id }),
+      ),
       minZoom: READABLE_ZOOM,
       // A narrow opening between the panels fits one column; at life size,
       // not blown up to fill it.
@@ -570,6 +576,7 @@ const hopOf = (hop: Hop) => hopKey(hop.source, hop.relationship, hop.target);
 
 function toFlow(
   map: RouteMap,
+  at: Map<string, { x: number; y: number }>,
   traced: MappedRoute | null,
   hop: number | null,
   simulated: SimulatedPlan | null,
@@ -578,9 +585,7 @@ function toFlow(
 ): {
   nodes: Node[];
   edges: Edge<LabelRank>[];
-  at: Map<string, { x: number; y: number }>;
 } {
-  const at = layoutRouteMap(map);
   const origin = { x: 0, y: 0 };
 
   const tracedHops = traced
@@ -759,7 +764,7 @@ function toFlow(
     };
   });
 
-  return { nodes, edges, at };
+  return { nodes, edges };
 }
 
 const LEVEL_TEXT: Record<string, string> = {

@@ -482,9 +482,6 @@
   "src/pages/AttackPaths.tsx": {
     "@typescript-eslint/no-misused-promises": {
       "count": 1
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
     }
   },
   "src/pages/Changes.tsx": {

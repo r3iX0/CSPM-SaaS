@@ -1,4 +1,4 @@
-import { useEffect, useRef, type KeyboardEvent, type Ref } from "react";
+import { useEffect, useRef, type KeyboardEvent } from "react";
 import { Link } from "react-router-dom";
 import { m } from "motion/react";
 import {
@@ -92,7 +92,6 @@ export function RouteNavigator({
   const count = route.steps.length;
   const heading = useRef<HTMLHeadingElement>(null);
   const region = useRef<HTMLDivElement>(null);
-  const current = useRef<HTMLButtonElement>(null);
 
   // The cursor carries the focus while the reader is in here, and a hop read
   // from the drawing is scrolled to without taking the focus from it. Not on
@@ -103,10 +102,14 @@ export function RouteNavigator({
       opened.current = true;
       return;
     }
+    // Found by its mark rather than a ref handed from row to row: an object
+    // ref is attached to the new row and then cleared by the old one
+    // detaching, whichever comes later in the list, and the focus was lost.
+    const now = region.current?.querySelector<HTMLButtonElement>('[aria-current="step"]');
     if (region.current?.contains(document.activeElement)) {
-      current.current?.focus();
+      now?.focus();
     } else {
-      current.current?.scrollIntoView?.({ block: "nearest" });
+      now?.scrollIntoView?.({ block: "nearest" });
     }
   }, [hop]);
   useEffect(() => {
@@ -203,7 +206,7 @@ export function RouteNavigator({
           {route.entry.name} <span className="font-normal text-muted-foreground">→</span>{" "}
           {route.target.name}
         </h3>
-        <p className="line-clamp-2 text-meta leading-relaxed text-muted-foreground">
+        <p className="line-clamp-2 text-meta leading-relaxed text-muted-foreground [@media(max-height:760px)]:line-clamp-1">
           {routeSentence(route)}
         </p>
         <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
@@ -236,7 +239,7 @@ export function RouteNavigator({
             <span className="text-caption text-muted-foreground">{t.attackPaths.notARisk}</span>
           )}
           <span className="ml-auto text-caption">
-            <OpenInGraph entryId={route.entry.id} traceKey={route.key} />
+            <OpenInGraph entryId={route.entry.id} traceKey={route.key} compact />
           </span>
         </div>
         {pattern && (
@@ -257,7 +260,7 @@ export function RouteNavigator({
           moves one highlight, not the list (§260). */}
       <ol
         aria-label={t.attackPaths.hopsLabel}
-        className="flex min-h-36 flex-1 flex-col overflow-y-auto px-2 py-2"
+        className="flex min-h-20 flex-1 flex-col overflow-y-auto px-2 py-2"
       >
         {stations.map((id, index) => {
           const node = nodes.get(id);
@@ -283,7 +286,6 @@ export function RouteNavigator({
                   leverage={index === leverage}
                   planned={isPlanned(step)}
                   onRead={() => onHop(index)}
-                  buttonRef={index === hop ? current : undefined}
                 />
               )}
             </li>
@@ -447,7 +449,6 @@ function HopRow({
   leverage,
   planned,
   onRead,
-  buttonRef,
 }: {
   step: AttackPathStep;
   index: number;
@@ -458,7 +459,6 @@ function HopRow({
   leverage: boolean;
   planned: boolean;
   onRead: () => void;
-  buttonRef?: Ref<HTMLButtonElement>;
 }) {
   const t = useT();
   return (
@@ -473,7 +473,6 @@ function HopRow({
         />
       </div>
       <button
-        ref={buttonRef}
         type="button"
         onClick={onRead}
         aria-current={reading ? "step" : undefined}
@@ -548,7 +547,7 @@ function HopDock({
   const removable = step.relationship !== "contains";
 
   return (
-    <div className="flex max-h-[38%] min-h-0 shrink flex-col border-t border-border bg-foreground/[0.025]">
+    <div className="flex max-h-[38%] min-h-28 shrink flex-col border-t border-border bg-foreground/[0.025]">
       <div className="flex items-center gap-1 px-3 pt-2.5">
         <p className="text-caption font-medium text-muted-foreground tabular-nums">
           {t.attackPaths.hopLabel(index + 1, count)}

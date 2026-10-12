@@ -132,25 +132,34 @@ export function AttackPathsPage() {
   /** The box whose routes the list is narrowed to. */
   const picked = params.get("through");
   /** The subscription, and perhaps the group, the list is narrowed to. */
+  // Each value read from the URL is rebuilt only when its own parameters
+  // change: walking a route's hops rewrites the URL every step, and a new
+  // object here re-listed every route and redrew the map for nothing (§261).
+  const scopeParam = params.get("scope");
+  const groupParam = params.has("group") ? (params.get("group") ?? "") : null;
   const place = useMemo<Place | null>(() => {
-    const scope = params.get("scope");
-    if (!scope) return null;
+    if (!scopeParam) return null;
     // An empty group is what sits directly in the subscription; no group at
     // all is anywhere in it.
     return {
-      scope,
-      group: params.has("group") ? params.get("group") || null : undefined,
+      scope: scopeParam,
+      group: groupParam === null ? undefined : groupParam || null,
     };
-  }, [params]);
+  }, [scopeParam, groupParam]);
   const sortParam = params.get("sort");
   const sort: RouteSort = ROUTE_SORTS.includes(sortParam as RouteSort)
     ? (sortParam as RouteSort)
     : DEFAULT_SORT;
   const query = params.get("q") ?? "";
   /** The query bar's facets, in the URL (§253). */
-  const facets = useMemo(() => readFacets(params), [params]);
+  const facetKey = Object.values(FACET_PARAMS)
+    .map((param) => params.get(param) ?? "")
+    .join("|");
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the facets change only with their own parameters.
+  const facets = useMemo(() => readFacets(params), [facetKey]);
   /** The links somebody is trying out together, in the order they were added. */
-  const plan = useMemo(() => params.getAll("cut").flatMap(parseCut), [params]);
+  const cutKeys = params.getAll("cut").join("\n");
+  const plan = useMemo(() => (cutKeys ? cutKeys.split("\n").flatMap(parseCut) : []), [cutKeys]);
   const [tab, setTab] = useState<PanelTab>(() => (plan.length > 0 ? "simulate" : "routes"));
   /** The route under the pointer in the list, drawn faded-around until it leaves. */
   const [previewKey, setPreviewKey] = useState<string | null>(null);
@@ -752,7 +761,13 @@ function RouteMapFrame({
   const left = useCountUp(map.routes.length - (simulated?.closes.size ?? 0), DURATION.chart);
   // Each panel folds away for a wider look at the drawing; the routes panel
   // widens while a hop is read, which carries the most text (§253).
-  const [planOpen, setPlanOpen] = useStoredFlag("cloudguard:attack-paths:plan", true);
+  // Below a roomy screen the fix plan starts as its rail: with both panels
+  // open at 1440px, 460px of drawing was left, one column of it (§261). A
+  // fold somebody chose is kept either way.
+  const [planOpen, setPlanOpen] = useStoredFlag(
+    "cloudguard:attack-paths:plan",
+    typeof window.matchMedia === "function" && window.matchMedia(ROOMY).matches,
+  );
   const [panelOpen, setPanelOpen] = useStoredFlag("cloudguard:attack-paths:panel", true);
   // A route being read needs the width, so the fix plan yields to it until
   // somebody asks for the plan back while reading that route.
@@ -771,7 +786,7 @@ function RouteMapFrame({
       wide
         ? {
             top: PANEL_TOP + (simulated ? SIMULATING_HEIGHT : 0),
-            left: planShown ? EDGE + PLAN_WIDTH : 0,
+            left: EDGE + (planShown ? PLAN_WIDTH : RAIL_WIDTH),
             right: panelOpen ? EDGE + (traced ? READING_WIDTH : ROUTES_WIDTH) : 0,
             bottom: FOOT_HEIGHT,
           }
@@ -1005,7 +1020,7 @@ function RouteMapFrame({
           aria-label={t.attackPaths.panelLabel}
           className={cn(
             FLOATING,
-            "flex max-h-[30rem] min-h-0 flex-col border-t border-border lg:absolute lg:right-3 lg:max-h-none lg:border-0",
+            "flex max-h-[30rem] min-h-0 flex-col border-t border-border lg:absolute lg:right-3 lg:max-h-none lg:overflow-hidden lg:border-0",
             "lg:transition-[width] lg:duration-200",
             traced ? "lg:w-96" : "lg:w-80",
             !panelOpen && "lg:hidden",
@@ -1037,11 +1052,11 @@ function RouteMapFrame({
               </TabsList>
             </div>
 
-            <TabsContent value="routes" className="flex min-h-0 flex-col">
+            <TabsContent value="routes" className="flex min-h-0 flex-1 flex-col">
               {routesPanel}
             </TabsContent>
 
-            <TabsContent value="simulate" className="flex min-h-0 flex-col">
+            <TabsContent value="simulate" className="flex min-h-0 flex-1 flex-col">
               {simulationPanel}
             </TabsContent>
           </Tabs>
@@ -1091,6 +1106,8 @@ function CopyLink() {
 
 /** Where the panels float over the canvas rather than stack under it. */
 const WIDE = "(min-width: 1024px)";
+/** Wide enough for the fix plan, the routes and two columns of drawing at once. */
+const ROOMY = "(min-width: 1680px)";
 
 /**
  * A panel floating over the drawing, on a wide screen: frosted glass on the
@@ -1111,6 +1128,8 @@ const FOOT_HEIGHT = 56;
 const ZOOM_CLEARANCE = 88;
 const SIMULATING_HEIGHT = 44;
 const PLAN_WIDTH = 352;
+/** The fix plan folded to its rail still covers this much of the left edge. */
+const RAIL_WIDTH = 52;
 const ROUTES_WIDTH = 320;
 const READING_WIDTH = 384;
 
@@ -1322,7 +1341,7 @@ function RouteList({
             : emptyLine
         }
       />
-      <div className="flex flex-col gap-4 overflow-y-auto p-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-3">
         {listing.count === 0 && <p className="text-xs text-muted-foreground">{emptyLine}</p>}
         {listing.patterns.length > 0 && (
           <div className="flex flex-col gap-2">

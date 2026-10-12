@@ -802,11 +802,17 @@ describe("AttackPathsPage", () => {
     expect(within(navigator).getByText("Cutting it closes this route.")).toBeInTheDocument();
     expect(within(navigator).getByText("managed identity")).toBeInTheDocument();
 
+    // Walked from a hop, the focus follows the hop being read, so the next key
+    // steps on from there (it used to stay behind on the first).
+    within(hops).getByRole("button", { name: /^Hop 1 of 4/ }).focus();
     fireEvent.keyDown(navigator, { key: "ArrowDown" });
     expect(screen.getByTestId("where")).toHaveTextContent("hop=1");
     expect(within(hops).getByRole("button", { name: /^Hop 2 of 4/ })).toHaveAttribute(
       "aria-current",
       "step",
+    );
+    await waitFor(() =>
+      expect(within(hops).getByRole("button", { name: /^Hop 2 of 4/ })).toHaveFocus(),
     );
     // Every hop's row keeps its short line; the hop being read says the rest
     // in the dock under the list, so walking moves a highlight, not the list.
