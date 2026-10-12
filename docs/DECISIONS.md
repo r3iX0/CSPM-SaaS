@@ -13506,6 +13506,96 @@ The keyboard is unchanged: up and down walk the links, left and right the routes
   scroll inside it. The hop dock keeps a minimum height, the route's sentence is one line below 760px
   tall, and "Explore in graph" is a small link among the route's pills.
 
+## 262. Every finding and route says how sure Cleave is, apart from how bad it is
+
+A finding said what failed and how risky it was, and nothing about whether either still held. The
+risk score ranked a critical finding resting on a reading three weeks old exactly where it ranked
+the same finding read an hour ago, and it ranked an asset whose criticality nobody declared (scored
+cautiously at 3.5, `RISK_ENGINE.md` §1) or guessed from its name (`ContextSource.INFERRED`) beside
+one a customer had declared. Both orders are defensible, and neither told the reader that the
+position was provisional. The evidence behind a finding was spread across four places (the excerpt,
+"How we know", the remediation spec, the verification) and could not be handed to anybody whole.
+
+**Confidence is its own axis** (`Confidence`: HIGH, MEDIUM, LOW), never folded into severity or
+risk. Severity is the rule's judgement of a class of mistake; risk is where the finding ranks;
+confidence is how far either can be trusted today. Folding it into the score would let a stale
+critical sink below a fresh low, the order an attacker would choose. So confidence **filters and
+never sorts**, and it decides the next action rather than the position: look again, or declare the
+context.
+
+**It is judged from two things** (`app/risk/confidence.py`, pure):
+
+- **The evidence's age, against the connection's own schedule.** A finding is as current as its
+  oldest citation (`finding_evidence.collected_at`; its last detection where none is cited). It is
+  FRESH for one and a half scan intervals (a missed scan's grace), AGING after that, and STALE after
+  three intervals or a week, whichever is later. A connection scanned by hand is held to a day. The
+  week floor stops "stale" firing on an ordinary weekend for a connection scanned every few hours,
+  which would teach people to ignore it.
+- **The context its rank multiplies that a customer can declare.** Criticality or data sensitivity
+  that is UNKNOWN, or that Cleave inferred from a name, is a reason. A type floor is not: a database
+  holds data whatever it is called. Exposure is not judged here: it is read off configuration
+  rather than declared, so a reason about it would offer a remedy that does not exist (subscriptions
+  and service principals have none to read), and a rule that needs exposure and cannot read it says
+  so through its own evidence, as UNKNOWN.
+
+STALE is LOW. AGING, or any context reason, is MEDIUM. Context never takes a finding below MEDIUM,
+because a cautious default is a deliberate rank rather than a doubt that the misconfiguration exists.
+Each reason names the fields it concerns, and each has its remedy beside it on the finding: **Rescan
+to refresh** for evidence, **Declare its context** (the subscription's declaration, §207) for
+context. A tenant-wide finding has no asset, so only its evidence is judged.
+
+**One judgement, two implementations, held together.** The findings list filters and counts by
+confidence in SQL (`_confidence_sql`, built from the same constants) and explains each row in
+Python, because paging needs the filter in the database (§157) and the reasons need the Python. The
+detail page and the evidence package read the finding through the list's own statement (`row_of`),
+so the three cannot disagree, and `test_finding_confidence` checks the SQL and the Python against
+the same rows. `GET /findings?confidence=` narrows; `meta.confidence` counts the filtered set by
+level, ignoring the confidence filter itself, so each count is what choosing that level would show.
+
+**A route is as current as its least recently seen hop** (`ResourceRecord.last_seen_at` against its
+connection's interval), and provisional where its target's sensitivity was guessed from a name,
+since a route exists only because its target counts as sensitive. Its entry's exposure is read off
+configuration and needs no caveat. `/attack-paths/graph` dates every node (`observed_at`) and gives
+every route a `confidence`. The readings are fetched before the drawing goes off the loop, which never
+holds a session (§161).
+
+**What failed, said as the setting is written.** `GET /findings/{id}` carries `condition`: each
+expected state the rule declares (`RemediationSpec.expected`, the same declaration the fix is
+generated from), with the value the finding's excerpt recorded beside it. A field the excerpt does
+not carry is `observed_recorded: false` and drawn as "Not in the excerpt", never as null: an unset
+setting and an unrecorded one are different facts, and only the first is about the asset. Rules that
+declare no expected state keep their condition in prose, and the package says so.
+
+**The evidence package** (`GET /findings/{id}/evidence-package`, `format: "cleave.evidence-package"`,
+`version: 1`) is the finding as one document for a ticket or an auditor. It holds the asset under its
+cloud identifier, the condition, the excerpt, the rule and the version that raised it beside today's,
+the citations with their permissions, endpoints and read times, the confidence, the remediation, and
+how a fix is verified: a rescan observing the check pass, never a person. It also names its
+`limitations`: no citation recorded, a capture no longer stored, a reading that came back
+incomplete, a rule changed or retired since, an undeclared condition. Each is one sentence, because
+a list of codes is a list a customer has to look up. `build` names the deployed commit that
+assembled it (`RAILWAY_GIT_COMMIT_SHA`), so a verdict can be traced to the code that reached it.
+It is JSON in the envelope rather than a file, so it is typed in the contract like every other
+answer, and the page saves or copies it. A read: viewers and the demo may ask.
+
+**On the page.**
+
+- **Findings:** a confidence filter beside severity, with each level's count. A Confidence column
+  draws three rising bars (`ConfidenceMark`), quiet at High. It is not a pill and uses nothing from
+  the severity scale: a "Low" confidence drawn like a severity would read as a low-severity finding.
+  LOW fills its one bar in `unknown`, the colour of a gap in knowledge. When open findings rest on
+  stale evidence, a banner above the queue says how many, with **Show them** and **Scan now**.
+- **Finding detail:** **What failed** leads the main column, expected beside observed. The rail says
+  how sure, how long ago it was read and until when that is current, each reason in a sentence, and
+  the remedy beside it. **Evidence package** downloads or copies the document and sits in the header
+  for everyone, the demo included, while the decisions stay out of the demo.
+- **Attack paths:** a route short of High is marked in the list ("Stale", "Ageing", "Target
+  guessed"). The traced route is always dated ("seen 3 hours ago") among its pills.
+
+The mark's accessible name is the whole account (level and every reason), so a screen reader hears
+why, not just "Low". A resolved finding shows no confidence: a verified fix's evidence is meant to
+age.
+
 ## Open items carried forward
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,

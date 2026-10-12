@@ -19,6 +19,7 @@ from app.core.enums import (
 from app.graph.model import DeadEndReason
 from app.graph.patterns import PatternKind
 from app.schemas.common import RequestModel
+from app.schemas.confidence import ConfidenceOut
 
 #: Links one simulation may remove. Each is weighed against the rest by
 #: rebuilding the estate without it, so the cost grows with the plan -- and a
@@ -507,6 +508,8 @@ class RouteMapNodeOut(BaseModel):
     sensitive: bool
     routes: int
     findings: FindingTallyOut
+    #: When a scan last saw this asset; ``None`` where it was never recorded.
+    observed_at: datetime | None = None
 
 
 class RouteMapEdgeOut(BaseModel):
@@ -545,6 +548,10 @@ class MappedRouteOut(AttackPathOut):
     pattern: str | None
     #: The risk tracking it, or ``None`` for a route no risk tracks.
     risk: RouteRiskOut | None = None
+    #: How current the route is -- its least recently seen hop -- and whether its
+    #: target's sensitivity was guessed (DECISIONS.md §262). ``None`` where no hop
+    #: has a reading on record.
+    confidence: ConfidenceOut | None = None
 
 
 class PatternEndOut(BaseModel):

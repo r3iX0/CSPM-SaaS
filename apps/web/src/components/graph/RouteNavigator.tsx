@@ -20,7 +20,8 @@ import type {
   RoutePattern,
 } from "@/lib/types";
 import { useT } from "@/i18n";
-import { cn } from "@/lib/format";
+import { cn, formatRelative } from "@/lib/format";
+import { routeConfidenceWord } from "@/lib/confidence";
 import { HowToFix } from "@/components/graph/HowToFix";
 import { Named } from "@/components/graph/Named";
 import { routeSentence } from "@/components/graph/routeSentence";
@@ -28,6 +29,7 @@ import { FACTOR_ICONS } from "@/lib/icons";
 import { DURATION, EASE_OUT, layoutSpring } from "@/lib/motion";
 import { ResourceTypeLabel } from "@/components/security/IconLabel";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
+import { ConfidenceMark } from "@/components/security/ConfidenceMark";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 import { OpenInGraph } from "./OpenInGraph";
@@ -225,6 +227,28 @@ export function RouteNavigator({
             >
               <ScissorsIcon className="size-3" aria-hidden />
               {planVerdict === "closed" ? t.attackPaths.planCloses : t.attackPaths.planLeavesOpen}
+            </span>
+          )}
+          {/* How current the route is: always dated here, where one route is
+              read, and marked when short of High (§262). */}
+          {route.confidence && (
+            <span className="flex items-center gap-1 rounded-full bg-foreground/8 px-2 text-caption text-muted-foreground">
+              {route.confidence.level !== "HIGH" && (
+                <>
+                  <ConfidenceMark
+                    confidence={route.confidence}
+                    label={routeConfidenceWord(t, route.confidence)}
+                    route
+                  />
+                  <span aria-hidden>·</span>
+                </>
+              )}
+              <span>
+                {t.confidence.routeSeen.replace(
+                  "{age}",
+                  formatRelative(route.confidence.observed_at),
+                )}
+              </span>
             </span>
           )}
           {route.risk ? (

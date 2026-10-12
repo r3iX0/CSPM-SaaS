@@ -129,6 +129,46 @@ _CONTEXT_CONFIDENCE: dict[ContextSource, float] = {
 }
 
 
+class Confidence(StrEnum):
+    """How sure Cleave is that a finding or a route is current and ranked right.
+
+    Its own axis rather than a dent in severity or risk (DECISIONS.md §262).
+    Severity is what the rule says about a class of mistake and never moves for
+    one reading; risk is where the finding ranks. Confidence is how far either
+    can be trusted today, and it decides what to do next -- fix it, or look again
+    first -- rather than where the finding sorts. Folding it into the score would
+    let a critical finding on week-old evidence sink below a fresh low one, which
+    is the order an attacker would choose.
+    """
+
+    HIGH = "HIGH"
+    MEDIUM = "MEDIUM"
+    LOW = "LOW"
+
+
+class Freshness(StrEnum):
+    """How old a reading is against how often its connection is meant to be read."""
+
+    FRESH = "FRESH"
+    AGING = "AGING"
+    STALE = "STALE"
+
+
+class ConfidenceReason(StrEnum):
+    """Why a finding or a route is short of HIGH confidence. Each names its remedy."""
+
+    # Read longer ago than the connection's schedule allows: rescan.
+    EVIDENCE_AGING = "EVIDENCE_AGING"
+    # Read so long ago it may describe an estate that no longer exists: rescan
+    # before acting on it.
+    EVIDENCE_STALE = "EVIDENCE_STALE"
+    # Ranked on a cautious default because nothing said how critical or how
+    # sensitive the asset is: declare it.
+    CONTEXT_UNKNOWN = "CONTEXT_UNKNOWN"
+    # Ranked on Cleave's guess from the asset's name: confirm it.
+    CONTEXT_INFERRED = "CONTEXT_INFERRED"
+
+
 class RuleState(StrEnum):
     PASS = "PASS"
     FAIL = "FAIL"

@@ -7,6 +7,8 @@ import { useT } from "@/i18n";
 import { LEVEL_RANK } from "@/lib/changes";
 import { cn, label as levelLabel } from "@/lib/format";
 import { SeverityBadge } from "@/components/security/SeverityBadge";
+import { ConfidenceMark } from "@/components/security/ConfidenceMark";
+import { routeConfidenceWord } from "@/lib/confidence";
 
 /*
  * A route and a group of repeated routes, as rows to pick one from in the
@@ -196,6 +198,15 @@ export function RouteRow({
         <HopStrip route={route} />
         <SeverityBadge level={route.target.data_sensitivity} size="sm" />
         <span className="ml-auto flex items-center gap-1.5">
+          {/* Said only when short of High: the list is for reading routes, and
+              a mark on every row would be a mark nobody reads (§262). */}
+          {route.confidence && route.confidence.level !== "HIGH" && (
+            <ConfidenceMark
+              confidence={route.confidence}
+              label={routeConfidenceWord(t, route.confidence)}
+              route
+            />
+          )}
           <Marks routeKey={route.key} marks={marks} risk={route.risk} />
         </span>
       </span>

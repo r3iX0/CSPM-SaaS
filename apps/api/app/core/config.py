@@ -64,6 +64,10 @@ class Settings(BaseSettings):
     app_url: str = ""
     api_url: str = ""
     log_level: str = "INFO"
+    # The commit Railway deployed, which it sets on every deployment from git.
+    # Not a secret and not required: an evidence package names the build that
+    # assembled it (DECISIONS.md section 262), and says "not known" without it.
+    railway_git_commit_sha: str = ""
 
     # --- Supabase -----------------------------------------------------------
     supabase_url: str = ""

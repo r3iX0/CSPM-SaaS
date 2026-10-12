@@ -9437,7 +9437,7 @@
           "findings"
         ],
         "summary": "List Findings",
-        "description": "Findings, filtered and ordered by the database rather than by the client.\n\n``search`` and ``sort`` are here because the alternative is worse than a\nmissing feature. A page that filters and orders the rows it happens to hold\nsearches one page of an estate and reports \"nothing matches\" for the rest --\na false negative wearing an answer's clothes, in the one product where that\nis least acceptable.",
+        "description": "Findings, filtered and ordered by the database rather than by the client.\n\n``search`` and ``sort`` are here because the alternative is worse than a\nmissing feature. A page that filters and orders the rows it happens to hold\nsearches one page of an estate and reports \"nothing matches\" for the rest --\na false negative wearing an answer's clothes, in the one product where that\nis least acceptable.\n\n``confidence`` narrows to findings Cleave is that sure of, and never\nreorders them (DECISIONS.md \u00a7262); ``meta.confidence`` counts the whole set\nby level, so the page can say how much of the queue needs a fresh look.",
         "operationId": "findings_list_findings",
         "security": [
           {
@@ -9560,6 +9560,22 @@
             }
           },
           {
+            "name": "confidence",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Confidence"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Confidence"
+            }
+          },
+          {
             "name": "sort",
             "in": "query",
             "required": false,
@@ -9616,7 +9632,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Envelope_list_FindingOut__PageMeta_"
+                  "$ref": "#/components/schemas/Envelope_list_FindingOut__FindingsPageMeta_"
                 }
               }
             }
@@ -9901,6 +9917,101 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Envelope_FindingDetail_NoMeta_"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/api/v1/findings/{finding_id}/evidence-package": {
+      "get": {
+        "tags": [
+          "findings"
+        ],
+        "summary": "Finding Evidence Package",
+        "description": "Everything this finding rests on, as one versioned document (DECISIONS.md \u00a7262).\n\nThe affected asset under its cloud identifier, the condition that failed\nwith its expected and observed values, the rule and the version that raised\nit, where and when the evidence was read and under which permissions, what\nthe record cannot show, how sure Cleave is, the fix, and how the fix is\nverified. JSON in the envelope rather than a file, so it is typed in the\ncontract like every other answer; the page saves it as a file. A read: a\nviewer and the demo organization may ask.",
+        "operationId": "findings_finding_evidence_package",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "finding_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Finding Id"
+            }
+          },
+          {
+            "name": "x-organization-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_EvidencePackageOut_NoMeta_"
                 }
               }
             }
@@ -16422,6 +16533,139 @@
         "title": "CollectionTaskOut",
         "description": "One reading the scan took, and what came of it."
       },
+      "Comparison": {
+        "type": "string",
+        "enum": [
+          "equals",
+          "none_matching",
+          "not_empty"
+        ],
+        "title": "Comparison",
+        "description": "How an expected state is checked.\n\nThree, and no more, on purpose. Most of what the remaining rules expect is\nnot \"this setting equals that value\" but a statement about a *collection* --\nno inbound rule admits 3389 from anywhere, this resource sends its logs\nsomewhere, this administrator has a second factor. Saying those needs more\nthan an equality and much less than a query language, and the line between\nthe two is where this stops.\n\nAnything a rule checks that these cannot express stays undeclared rather\nthan half-declared. A remediation that describes most of a check is worse\nthan one that describes none of it: a customer satisfies what they were\nshown and the finding stays open."
+      },
+      "ConditionOut": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "describes": {
+            "type": "string",
+            "title": "Describes"
+          },
+          "comparison": {
+            "$ref": "#/components/schemas/Comparison"
+          },
+          "expected": {
+            "title": "Expected"
+          },
+          "also_accepts": {
+            "items": {},
+            "type": "array",
+            "title": "Also Accepts"
+          },
+          "observed": {
+            "title": "Observed"
+          },
+          "observed_recorded": {
+            "type": "boolean",
+            "title": "Observed Recorded"
+          }
+        },
+        "type": "object",
+        "required": [
+          "field",
+          "describes",
+          "comparison",
+          "observed_recorded"
+        ],
+        "title": "ConditionOut",
+        "description": "One thing that must be true for a finding to close, beside what was seen.\n\n``expected`` is the declared value for an EQUALS check and the witness for a\ncollection check -- the shape that must not be there (NONE_MATCHING) or one\nthat would satisfy it (NOT_EMPTY). ``observed`` is the finding's own excerpt\nof that field, and ``observed_recorded`` says whether the excerpt has it: a\nfield the excerpt does not carry is not a field whose value is null."
+      },
+      "Confidence": {
+        "type": "string",
+        "enum": [
+          "HIGH",
+          "MEDIUM",
+          "LOW"
+        ],
+        "title": "Confidence",
+        "description": "How sure Cleave is that a finding or a route is current and ranked right.\n\nIts own axis rather than a dent in severity or risk (DECISIONS.md \u00a7262).\nSeverity is what the rule says about a class of mistake and never moves for\none reading; risk is where the finding ranks. Confidence is how far either\ncan be trusted today, and it decides what to do next -- fix it, or look again\nfirst -- rather than where the finding sorts. Folding it into the score would\nlet a critical finding on week-old evidence sink below a fresh low one, which\nis the order an attacker would choose."
+      },
+      "ConfidenceOut": {
+        "properties": {
+          "level": {
+            "$ref": "#/components/schemas/Confidence"
+          },
+          "freshness": {
+            "$ref": "#/components/schemas/Freshness"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Observed At"
+          },
+          "fresh_until": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Fresh Until"
+          },
+          "stale_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Stale At"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/ConfidenceReasonOut"
+            },
+            "type": "array",
+            "title": "Reasons"
+          }
+        },
+        "type": "object",
+        "required": [
+          "level",
+          "freshness",
+          "observed_at",
+          "fresh_until",
+          "stale_at",
+          "reasons"
+        ],
+        "title": "ConfidenceOut",
+        "description": "How current a finding or route is, and how settled its rank.\n\nThe dates travel with the level so a client can say \"read 9 days ago,\ncurrent until Tuesday\" without holding the thresholds itself: the server\nalone decides what current means, against each connection's own schedule."
+      },
+      "ConfidenceReason": {
+        "type": "string",
+        "enum": [
+          "EVIDENCE_AGING",
+          "EVIDENCE_STALE",
+          "CONTEXT_UNKNOWN",
+          "CONTEXT_INFERRED"
+        ],
+        "title": "ConfidenceReason",
+        "description": "Why a finding or a route is short of HIGH confidence. Each names its remedy."
+      },
+      "ConfidenceReasonOut": {
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ConfidenceReason"
+          },
+          "fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Fields",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "ConfidenceReasonOut"
+      },
       "ConnectionDeletedOut": {
         "properties": {
           "deleted": {
@@ -18007,6 +18251,26 @@
         ],
         "title": "Envelope[EstateOut, EstateMeta]"
       },
+      "Envelope_EvidencePackageOut_NoMeta_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/EvidencePackageOut"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/NoMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "Envelope[EvidencePackageOut, NoMeta]"
+      },
       "Envelope_FindingDetail_NoMeta_": {
         "properties": {
           "data": {
@@ -19517,7 +19781,7 @@
         ],
         "title": "Envelope[list[FindingAttackPathOut], FindingAttackPathsMeta]"
       },
-      "Envelope_list_FindingOut__PageMeta_": {
+      "Envelope_list_FindingOut__FindingsPageMeta_": {
         "properties": {
           "data": {
             "items": {
@@ -19531,7 +19795,7 @@
             "title": "Error"
           },
           "meta": {
-            "$ref": "#/components/schemas/PageMeta"
+            "$ref": "#/components/schemas/FindingsPageMeta"
           }
         },
         "type": "object",
@@ -19539,7 +19803,7 @@
           "data",
           "meta"
         ],
-        "title": "Envelope[list[FindingOut], PageMeta]"
+        "title": "Envelope[list[FindingOut], FindingsPageMeta]"
       },
       "Envelope_list_FixPullRequestOut__NoMeta_": {
         "properties": {
@@ -20313,6 +20577,112 @@
         "title": "EvidenceOut",
         "description": "What the package's controls rest on, and what is still held of it."
       },
+      "EvidencePackageOut": {
+        "properties": {
+          "format": {
+            "type": "string",
+            "const": "cleave.evidence-package",
+            "title": "Format",
+            "default": "cleave.evidence-package"
+          },
+          "version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Version",
+            "default": 1
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          },
+          "build": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Build"
+          },
+          "finding": {
+            "$ref": "#/components/schemas/PackageFindingOut"
+          },
+          "resource": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PackageResourceOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rule": {
+            "$ref": "#/components/schemas/PackageRuleOut"
+          },
+          "condition": {
+            "items": {
+              "$ref": "#/components/schemas/ConditionOut"
+            },
+            "type": "array",
+            "title": "Condition"
+          },
+          "observed": {
+            "type": "object",
+            "title": "Observed"
+          },
+          "citations": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/EvidenceCitationOut"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Citations"
+          },
+          "confidence": {
+            "$ref": "#/components/schemas/ConfidenceOut"
+          },
+          "limitations": {
+            "items": {
+              "$ref": "#/components/schemas/LimitationOut"
+            },
+            "type": "array",
+            "title": "Limitations"
+          },
+          "remediation": {
+            "$ref": "#/components/schemas/PackageRemediationOut"
+          },
+          "verification": {
+            "$ref": "#/components/schemas/PackageVerificationOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "generated_at",
+          "build",
+          "finding",
+          "resource",
+          "rule",
+          "condition",
+          "observed",
+          "citations",
+          "confidence",
+          "limitations",
+          "remediation",
+          "verification"
+        ],
+        "title": "EvidencePackageOut",
+        "description": "Everything a finding rests on, in one document a ticket or an auditor can keep.\n\nVersioned, because it is taken away and read later by programs that were not\nwritten against this API's current shape."
+      },
       "ExceptionStatus": {
         "type": "string",
         "enum": [
@@ -20492,6 +20862,16 @@
               }
             ]
           },
+          "confidence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConfidenceOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "risk": {
             "anyOf": [
               {
@@ -20590,6 +20970,13 @@
                 "type": "null"
               }
             ]
+          },
+          "condition": {
+            "items": {
+              "$ref": "#/components/schemas/ConditionOut"
+            },
+            "type": "array",
+            "title": "Condition"
           },
           "compliance_mappings": {
             "additionalProperties": {
@@ -20799,6 +21186,16 @@
                 "type": "null"
               }
             ]
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConfidenceOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -20902,6 +21299,41 @@
         ],
         "title": "FindingTallyOut",
         "description": "Open findings on an asset or a box, and the worst of them."
+      },
+      "FindingsPageMeta": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "confidence": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/Confidence"
+            },
+            "type": "object",
+            "title": "Confidence"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "limit",
+          "offset",
+          "confidence"
+        ],
+        "title": "FindingsPageMeta",
+        "description": "A page of findings, and how the whole filtered set divides by confidence.\n\nCounted over every filter except confidence itself, so each count is what\nchoosing that level would show."
       },
       "FixPlanCutOut": {
         "properties": {
@@ -21749,6 +22181,16 @@
         ],
         "title": "FrameworkSummaryOut",
         "description": "One card on the compliance page."
+      },
+      "Freshness": {
+        "type": "string",
+        "enum": [
+          "FRESH",
+          "AGING",
+          "STALE"
+        ],
+        "title": "Freshness",
+        "description": "How old a reading is against how often its connection is meant to be read."
       },
       "FreshnessOut": {
         "properties": {
@@ -22812,6 +23254,32 @@
         "title": "Level",
         "description": "Scale shared by criticality, data sensitivity and internet exposure.\n\nUNKNOWN is a first-class value, not a missing one: the risk engine scores it\ncautiously rather than optimistically (RISK_ENGINE.md section 1)."
       },
+      "LimitationOut": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "NOT_CITED",
+              "PAYLOAD_PRUNED",
+              "READING_INCOMPLETE",
+              "RULE_CHANGED",
+              "RULE_RETIRED",
+              "CONDITION_UNDECLARED"
+            ],
+            "title": "Code"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "detail"
+        ],
+        "title": "LimitationOut"
+      },
       "LinkEndOut": {
         "properties": {
           "id": {
@@ -22904,6 +23372,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/RouteRiskOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConfidenceOut"
               },
               {
                 "type": "null"
@@ -23805,6 +24283,75 @@
         "title": "OwnershipScope",
         "description": "Where an ownership rule applies, most specific last (DECISIONS.md \u00a7236).\n\nA task nobody was assigned to is owned by the most specific rule its asset\nmatches: a tag, then its resource group, then its subscription, then the\norganization's default."
       },
+      "PackageFindingOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "status": {
+            "$ref": "#/components/schemas/FindingStatus"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/Severity"
+          },
+          "risk_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk Score"
+          },
+          "first_detected_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "First Detected At"
+          },
+          "last_detected_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Detected At"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "description",
+          "status",
+          "severity",
+          "risk_score",
+          "first_detected_at",
+          "last_detected_at",
+          "resolved_at"
+        ],
+        "title": "PackageFindingOut"
+      },
       "PackageFrameworkOut": {
         "properties": {
           "id": {
@@ -23854,6 +24401,163 @@
         ],
         "title": "PackageFrameworkOut",
         "description": "A framework as the catalogue described it when the package was sealed."
+      },
+      "PackageRemediationOut": {
+        "properties": {
+          "guidance": {
+            "type": "string",
+            "title": "Guidance"
+          },
+          "spec": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RemediationSpecOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "guidance",
+          "spec"
+        ],
+        "title": "PackageRemediationOut"
+      },
+      "PackageResourceOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "provider_resource_id": {
+            "type": "string",
+            "title": "Provider Resource Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "resource_type": {
+            "type": "string",
+            "title": "Resource Type"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
+          },
+          "cloud_account_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cloud Account Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "provider",
+          "provider_resource_id",
+          "name",
+          "resource_type",
+          "region",
+          "cloud_account_id"
+        ],
+        "title": "PackageResourceOut",
+        "description": "The affected asset under the identifier its own cloud gives it."
+      },
+      "PackageRuleOut": {
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "current_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Version"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rule_id",
+          "version",
+          "current_version",
+          "name"
+        ],
+        "title": "PackageRuleOut"
+      },
+      "PackageVerificationOut": {
+        "properties": {
+          "method": {
+            "type": "string",
+            "const": "RESCAN",
+            "title": "Method"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "latest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/app__schemas__finding__VerificationOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "method",
+          "detail",
+          "latest"
+        ],
+        "title": "PackageVerificationOut",
+        "description": "How a fix is proven: a scan observing the check pass, never a person saying so."
       },
       "PageMeta": {
         "properties": {
@@ -24958,6 +25662,18 @@
           },
           "public_exposure": {
             "$ref": "#/components/schemas/Level"
+          },
+          "cloud_account_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cloud Account Id"
           }
         },
         "type": "object",
@@ -26131,6 +26847,18 @@
           },
           "findings": {
             "$ref": "#/components/schemas/FindingTallyOut"
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
           }
         },
         "type": "object",

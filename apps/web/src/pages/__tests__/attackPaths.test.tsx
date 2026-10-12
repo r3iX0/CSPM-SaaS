@@ -804,7 +804,9 @@ describe("AttackPathsPage", () => {
 
     // Walked from a hop, the focus follows the hop being read, so the next key
     // steps on from there (it used to stay behind on the first).
-    within(hops).getByRole("button", { name: /^Hop 1 of 4/ }).focus();
+    within(hops)
+      .getByRole("button", { name: /^Hop 1 of 4/ })
+      .focus();
     fireEvent.keyDown(navigator, { key: "ArrowDown" });
     expect(screen.getByTestId("where")).toHaveTextContent("hop=1");
     expect(within(hops).getByRole("button", { name: /^Hop 2 of 4/ })).toHaveAttribute(
@@ -1251,5 +1253,50 @@ describe("AttackPathsPage", () => {
       expect(screen.getByText("Nothing has been classified as sensitive")).toBeInTheDocument(),
     );
     expect(screen.queryByText("The changes that close the most")).not.toBeInTheDocument();
+  });
+  // How current a route is (§262): marked in the list only when short of
+  // High, and always dated where one route is read.
+  it("marks a stale route in the list and dates it where it is read", async () => {
+    const stale: MappedRoute = {
+      ...ROUTE,
+      confidence: {
+        level: "LOW",
+        freshness: "STALE",
+        observed_at: "2026-01-01T00:00:00Z",
+        fresh_until: "2026-01-02T12:00:00Z",
+        stale_at: "2026-01-08T00:00:00Z",
+        reasons: [{ code: "EVIDENCE_STALE", fields: [] }],
+      },
+    };
+    mount({ ...oneRoute(), routes: [stale] }, { total: 1 });
+
+    const panel = await routesPanel();
+    expect(
+      await within(panel).findByRole("img", { name: /^Confidence: Low\. Read / }),
+    ).toBeInTheDocument();
+    expect(within(panel).getByText("Stale")).toBeInTheDocument();
+
+    fireEvent.click(within(panel).getByRole("button", { name: /jump-01.*customerdata/i }));
+    const navigator = await screen.findByRole("group", { name: /attack path from/i });
+    expect(within(navigator).getByText(/^seen /)).toBeInTheDocument();
+  });
+
+  it("leaves a current route unmarked in the list", async () => {
+    const current: MappedRoute = {
+      ...ROUTE,
+      confidence: {
+        level: "HIGH",
+        freshness: "FRESH",
+        observed_at: new Date().toISOString(),
+        fresh_until: new Date(Date.now() + 86_400_000).toISOString(),
+        stale_at: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+        reasons: [],
+      },
+    };
+    mount({ ...oneRoute(), routes: [current] }, { total: 1 });
+
+    const panel = await routesPanel();
+    await within(panel).findByRole("button", { name: /jump-01.*customerdata/i });
+    expect(within(panel).queryByRole("img", { name: /^Confidence:/ })).not.toBeInTheDocument();
   });
 });

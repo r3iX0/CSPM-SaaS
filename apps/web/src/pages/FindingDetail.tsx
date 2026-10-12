@@ -1,14 +1,24 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowRightIcon, CircleCheckIcon, RotateCcwIcon, type LucideIcon } from "lucide-react";
+import {
+  ArrowRightIcon,
+  CircleCheckIcon,
+  CopyIcon,
+  DownloadIcon,
+  RotateCcwIcon,
+  type LucideIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/lib/api";
 import type {
   ComplianceFramework,
+  ConfidenceInfo,
   EvidenceCitation,
+  EvidencePackage,
   FindingAttackPath,
+  FindingCondition,
   FindingDetail,
   FindingProvenance,
 } from "@/lib/types";
@@ -27,6 +37,10 @@ import {
 import { CodeBlock } from "@/components/common/CodeBlock";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
+import { ConfidenceMark } from "@/components/security/ConfidenceMark";
+import { confidenceReasons, confidenceWindow, needsContext, needsRescan } from "@/lib/confidence";
+import { saveBlob } from "@/lib/download";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
@@ -189,42 +203,48 @@ export function FindingDetailPage() {
           </p>
         </div>
 
-        {/* Not in the demo: its findings are a recording, and every action
-            here is one the API would refuse there. */}
-        {!isDemo && (
-          <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
-            <div className="flex flex-wrap gap-2">
-              {/* Decided on the risk, the one place triage happens, so a
+        {/* The decisions are not in the demo: its findings are a recording,
+            and the API would refuse them there. The evidence package is a
+            read, so it is offered to everyone. */}
+        <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+          <div className="flex flex-wrap gap-2">
+            <EvidencePackageActions findingId={data.id} ruleId={data.rule_id} />
+            {!isDemo && (
+              <>
+                {/* Decided on the risk, the one place triage happens, so a
                 grouped finding cannot be accepted out from under its group. */}
-              {data.risk && data.status !== "RESOLVED" && (
-                <Link
-                  to={`/risks/${data.risk.id}`}
-                  className={buttonVariants({ variant: "outline" })}
-                >
-                  {t.findings.decideOnRisk}
-                  <ArrowRightIcon data-icon="inline-end" aria-hidden />
-                </Link>
-              )}
-              {/* Only where the fix has no "Verify it now" of its own -- a
+                {data.risk && data.status !== "RESOLVED" && (
+                  <Link
+                    to={`/risks/${data.risk.id}`}
+                    className={buttonVariants({ variant: "outline" })}
+                  >
+                    {t.findings.decideOnRisk}
+                    <ArrowRightIcon data-icon="inline-end" aria-hidden />
+                  </Link>
+                )}
+                {/* Only where the fix has no "Verify it now" of its own -- a
                 finding on no asset, or one already resolved. The same action
                 in two places left a reader choosing between two buttons that
                 did one thing (DECISIONS.md §187, §202). */}
-              {!verifyInFix && (
-                <Button onClick={() => rescan.mutate()} disabled={rescan.isPending}>
-                  {rescan.isPending ? (
-                    <Spinner data-icon="inline-start" />
-                  ) : (
-                    <RotateCcwIcon data-icon="inline-start" aria-hidden />
-                  )}
-                  {rescan.isPending ? t.common.loading : t.findings.rescan}
-                </Button>
-              )}
-            </div>
+                {!verifyInFix && (
+                  <Button onClick={() => rescan.mutate()} disabled={rescan.isPending}>
+                    {rescan.isPending ? (
+                      <Spinner data-icon="inline-start" />
+                    ) : (
+                      <RotateCcwIcon data-icon="inline-start" aria-hidden />
+                    )}
+                    {rescan.isPending ? t.common.loading : t.findings.rescan}
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+          {!isDemo && (
             <p className="max-w-xs text-xs text-muted-foreground sm:text-right">
               {t.findings.cannotResolveManually}
             </p>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {verifyScanId && (
@@ -256,6 +276,11 @@ export function FindingDetailPage() {
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="flex min-w-0 flex-col gap-4">
+          {/* WHAT, exactly: the condition, expected beside observed (§262). */}
+          {data.condition && data.condition.length > 0 && (
+            <ConditionCard conditions={data.condition} />
+          )}
+
           {/* WHY */}
           {data.rationale && (
             <Card>
@@ -352,6 +377,19 @@ export function FindingDetailPage() {
                     ))}
                   </ul>
                 </section>
+              )}
+
+              {/* HOW SURE: never where it ranks, only whether to trust that
+                  rank today and what would settle it (§262). A verified fix's
+                  evidence is meant to age, so a resolved finding says nothing. */}
+              {data.confidence && data.status !== "RESOLVED" && (
+                <ConfidenceSection
+                  confidence={data.confidence}
+                  declareTo={declareLink(data)}
+                  canAct={!isDemo}
+                  rescanning={rescan.isPending}
+                  onRescan={() => rescan.mutate()}
+                />
               )}
 
               {/* ON WHAT */}
@@ -833,4 +871,233 @@ function mappedFrameworks(
       name: framework.short_name,
       controls: mappings[framework.id],
     }));
+}
+
+/** Where the context of a finding's asset is declared: its subscription, else the asset. */
+function declareLink(finding: FindingDetail): string | null {
+  if (!finding.resource) return null;
+  return finding.resource.cloud_account_id
+    ? `/settings/context?account=${encodeURIComponent(finding.resource.cloud_account_id)}`
+    : `/assets/${finding.resource.id}`;
+}
+
+/**
+ * How sure Cleave is, and the one thing that would make it surer (DECISIONS.md §262).
+ *
+ * Each reason carries its remedy beside it rather than in a list of actions
+ * somewhere else: evidence that has aged is answered by looking again, context
+ * that was guessed by declaring it. At High it says so in a line and offers
+ * nothing, because there is nothing to do.
+ */
+function ConfidenceSection({
+  confidence,
+  declareTo,
+  canAct,
+  rescanning,
+  onRescan,
+}: {
+  confidence: ConfidenceInfo;
+  declareTo: string | null;
+  canAct: boolean;
+  rescanning: boolean;
+  onRescan: () => void;
+}) {
+  const t = useT();
+  const reasons = confidenceReasons(t, confidence);
+  return (
+    <section aria-labelledby="finding-confidence">
+      <div className="flex items-center gap-1">
+        <RailHeading id="finding-confidence">{t.findings.confidence}</RailHeading>
+        <InfoTip label={t.confidence.explainLabel}>{t.confidence.railExplain}</InfoTip>
+      </div>
+      <ConfidenceMark confidence={confidence} className="mt-2 text-meta" />
+      <p className="mt-1.5 text-caption text-muted-foreground tabular-nums">
+        {confidenceWindow(t, confidence)}
+      </p>
+      {reasons.length > 0 ? (
+        <ul className="mt-2 flex flex-col gap-1.5">
+          {reasons.map((reason) => (
+            <li key={reason} className="text-xs leading-relaxed text-foreground">
+              {reason}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-xs leading-relaxed text-foreground">{t.confidence.settled}</p>
+      )}
+      {canAct && (needsRescan(confidence) || (needsContext(confidence) && declareTo)) && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {needsRescan(confidence) && (
+            <Button variant="outline" size="sm" onClick={onRescan} disabled={rescanning}>
+              {rescanning ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <RotateCcwIcon data-icon="inline-start" aria-hidden />
+              )}
+              {t.confidence.rescan}
+            </Button>
+          )}
+          {needsContext(confidence) && declareTo && (
+            <Link to={declareTo} className={buttonVariants({ variant: "outline", size: "sm" })}>
+              {t.confidence.declare}
+            </Link>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** A value as it would be written in the provider's own configuration. */
+function formatConditionValue(value: unknown): string {
+  if (value === null || value === undefined) return "null";
+  if (typeof value === "string") return value;
+  return JSON.stringify(value);
+}
+
+/**
+ * The condition the rule checks, expected beside observed.
+ *
+ * The prose above says what is wrong; this says it the way the setting is
+ * written, which is what a reader opens the portal or the Terraform to compare
+ * against. A field the excerpt does not carry is said to be absent from the
+ * excerpt rather than drawn as null -- an unset setting and an unrecorded one
+ * are different facts, and only the first is about the asset.
+ */
+function ConditionCard({ conditions }: { conditions: FindingCondition[] }) {
+  const t = useT();
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t.findings.whatFailed}</CardTitle>
+        <CardDescription>{t.findings.whatFailedHelp}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ul className="flex flex-col divide-y divide-border">
+          {conditions.map((condition) => (
+            <li
+              key={`${condition.field}-${condition.comparison}`}
+              className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0"
+            >
+              <div className="min-w-0">
+                <p className="text-sm text-foreground">{condition.describes}</p>
+                <code className="mt-0.5 block truncate font-mono text-caption text-muted-foreground">
+                  {condition.field}
+                </code>
+              </div>
+              <dl className="grid gap-2 text-xs sm:grid-cols-2">
+                <div className="min-w-0 rounded-lg border border-ok-border bg-ok-bg/40 px-3 py-2">
+                  <dt className="text-caption font-medium text-ok">
+                    {condition.comparison === "equals"
+                      ? t.findings.expected
+                      : condition.comparison === "none_matching"
+                        ? t.findings.noneLike
+                        : t.findings.atLeastOneLike}
+                  </dt>
+                  <dd className="mt-1 break-all font-mono text-foreground">
+                    {formatConditionValue(condition.expected)}
+                  </dd>
+                  {condition.also_accepts.length > 0 && (
+                    <dd className="mt-1 text-caption text-muted-foreground">
+                      {t.findings.alsoAccepts}:{" "}
+                      <span className="font-mono">
+                        {condition.also_accepts.map(formatConditionValue).join(", ")}
+                      </span>
+                    </dd>
+                  )}
+                </div>
+                <div className="min-w-0 rounded-lg border border-border bg-muted/40 px-3 py-2">
+                  <dt className="text-caption font-medium text-muted-foreground">
+                    {t.findings.observed}
+                  </dt>
+                  <dd
+                    className={cn(
+                      "mt-1 break-all",
+                      condition.observed_recorded
+                        ? "font-mono text-foreground"
+                        : "text-muted-foreground italic",
+                    )}
+                  >
+                    {condition.observed_recorded
+                      ? formatConditionValue(condition.observed)
+                      : t.findings.notInExcerpt}
+                  </dd>
+                </div>
+              </dl>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * The finding as one document to take away (DECISIONS.md §262): downloaded as a
+ * file, or copied whole into a ticket. Fetched when asked for rather than with
+ * the page, because it is assembled from everything the page reads and most
+ * readers never want it.
+ */
+function EvidencePackageActions({ findingId, ruleId }: { findingId: string; ruleId: string }) {
+  const t = useT();
+  const fetchPackage = () =>
+    api
+      .get<EvidencePackage>(`/api/v1/findings/${findingId}/evidence-package`)
+      .then((r) => JSON.stringify(r.data, null, 2));
+  const failed = (err: unknown) =>
+    toast.error(t.findings.packageFailed, {
+      description: err instanceof ApiError ? err.message : undefined,
+    });
+
+  const download = useMutation({
+    mutationFn: fetchPackage,
+    onSuccess: (json) => {
+      saveBlob(
+        new Blob([json], { type: "application/json" }),
+        `cleave-evidence-${ruleId}-${findingId.slice(0, 8)}.json`,
+      );
+      toast.success(t.findings.packageDownloaded);
+    },
+    onError: failed,
+  });
+  const copy = useMutation({
+    mutationFn: async () => {
+      const json = await fetchPackage();
+      await navigator.clipboard.writeText(json);
+    },
+    onSuccess: () => toast.success(t.findings.packageCopied),
+    onError: failed,
+  });
+
+  return (
+    <span className="flex items-center gap-0.5">
+      <ButtonGroup>
+        <Button
+          variant="outline"
+          onClick={() => download.mutate()}
+          disabled={download.isPending}
+          aria-label={t.findings.packageLabel}
+        >
+          {download.isPending ? (
+            <Spinner data-icon="inline-start" />
+          ) : (
+            <DownloadIcon data-icon="inline-start" aria-hidden />
+          )}
+          {t.findings.packageDownload}
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => copy.mutate()}
+          disabled={copy.isPending}
+          aria-label={t.findings.packageCopy}
+        >
+          {copy.isPending ? <Spinner /> : <CopyIcon aria-hidden />}
+        </Button>
+      </ButtonGroup>
+      <InfoTip label={t.findings.packageExplainLabel} align="end">
+        {t.findings.packageExplain}
+      </InfoTip>
+    </span>
+  );
 }

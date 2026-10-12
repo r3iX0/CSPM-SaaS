@@ -188,3 +188,21 @@ exposure + low effort surfaces first:
 | MFA gap | Critical | 30 min | Critical |
 | Logging | Medium | 120 min | Medium |
 | Architecture redesign | High | 2 days | Medium |
+
+## 5. Confidence
+
+How sure Cleave is that a finding or a route is current and ranked right, kept apart from both
+severity and risk (DECISIONS.md §262). It filters and never sorts: a stale critical stays at the top
+of the queue, marked to look again before anyone acts on it.
+
+| Level | When |
+|---|---|
+| HIGH | Evidence fresh, and the asset's criticality and data sensitivity were declared or read |
+| MEDIUM | Evidence ageing, or criticality or data sensitivity unknown or guessed from a name |
+| LOW | Evidence stale |
+
+Evidence age is judged against the connection's `scan_interval_hours` (a day for one scanned by
+hand): fresh for 1.5 intervals, stale after 3 intervals or 7 days, whichever is later. A finding is
+as old as its oldest citation; a route is as old as its least recently seen hop, and is MEDIUM where
+its target's sensitivity was guessed. The constants live in `app/risk/confidence.py`, and the
+findings list's SQL is built from them.

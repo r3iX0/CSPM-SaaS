@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from functools import partial
 from typing import Any, Literal
 from uuid import UUID
@@ -7,7 +8,7 @@ from fastapi import APIRouter, Query, Request, Response, UploadFile, status
 
 from app.api.links import accepted
 from app.core.deps import Costly, DbSession, Tenant
-from app.core.enums import FindingStatus, ScanStatus, Severity
+from app.core.enums import Confidence, FindingStatus, ScanStatus, Severity
 from app.core.errors import QueueUnavailable
 from app.graph import Path
 from app.remediation.iac.terraform import MAX_BYTES as IAC_MAX_BYTES
@@ -16,12 +17,13 @@ from app.schemas.common import (
     ERROR_RESPONSES,
     Envelope,
     NoMeta,
-    PageMeta,
     error_responses,
 )
+from app.schemas.confidence import ConfidenceOut
 from app.schemas.finding import (
     AcceptRiskRequest,
     EvidenceCitationOut,
+    EvidencePackageOut,
     FindingAttackPathOut,
     FindingAttackPathsMeta,
     FindingDetail,
@@ -29,6 +31,7 @@ from app.schemas.finding import (
     FindingOut,
     FindingProvenanceMeta,
     FindingProvenanceOut,
+    FindingsPageMeta,
     IacDiffOut,
     IacLocationOut,
     PendingAcceptanceOut,
@@ -60,10 +63,11 @@ async def list_findings(
     evidence_id: UUID | None = None,
     environment: str | None = None,
     search: str | None = None,
+    confidence: Confidence | None = None,
     sort: str = Query(default="risk", pattern="^(risk|severity|recent)$"),
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
-) -> Envelope[list[FindingOut], PageMeta]:
+) -> Envelope[list[FindingOut], FindingsPageMeta]:
     """Findings, filtered and ordered by the database rather than by the client.
 
     ``search`` and ``sort`` are here because the alternative is worse than a
@@ -71,10 +75,13 @@ async def list_findings(
     searches one page of an estate and reports "nothing matches" for the rest --
     a false negative wearing an answer's clothes, in the one product where that
     is least acceptable.
+
+    ``confidence`` narrows to findings Cleave is that sure of, and never
+    reorders them (DECISIONS.md §262); ``meta.confidence`` counts the whole set
+    by level, so the page can say how much of the queue needs a fresh look.
     """
-    rows, total = await service.list_findings(
-        session,
-        tenant,
+    now = datetime.now(UTC)
+    filters = service.FindingFilters(
         severity=severity,
         status=finding_status,
         rule_id=rule_id,
@@ -82,18 +89,30 @@ async def list_findings(
         evidence_id=evidence_id,
         environment=environment,
         search=search,
+    )
+    rows, total = await service.list_findings(
+        session,
+        tenant,
+        filters,
+        confidence_level=confidence,
         sort=sort,
         limit=limit,
         offset=offset,
+        now=now,
     )
+    counts = await service.confidence_counts(session, tenant, filters, now)
 
     payload = []
-    for finding, resource in rows:
-        item = FindingOut.model_validate(finding)
-        item.resource = ResourceSummary.model_validate(resource) if resource else None
+    for row in rows:
+        item = FindingOut.model_validate(row.finding)
+        item.resource = ResourceSummary.model_validate(row.resource) if row.resource else None
+        item.confidence = ConfidenceOut.of(service.confidence_of(row, now))
         payload.append(item)
 
-    return Envelope(data=payload, meta=PageMeta(total=total, limit=limit, offset=offset))
+    return Envelope(
+        data=payload,
+        meta=FindingsPageMeta(total=total, limit=limit, offset=offset, confidence=counts),
+    )
 
 
 @router.get("/{finding_id}/attack-paths")
@@ -206,6 +225,8 @@ async def get_finding(
         "risk": RiskOut.model_validate(detail["risk"]) if detail["risk"] else None,
         "priority": detail["priority"],
         "estimated_effort_minutes": detail["estimated_effort_minutes"],
+        "confidence": detail["confidence"],
+        "condition": detail["condition"],
         "timeline": [FindingEventOut.model_validate(event) for event in detail["timeline"]],
         "verification": (
             VerificationOut.model_validate(detail["verification"])
@@ -234,6 +255,25 @@ async def get_finding(
     # own where the rule is still registered.
     payload.update(service.rule_metadata(finding.rule_id))
     return Envelope(data=FindingDetail.model_validate(payload), meta=NoMeta())
+
+
+@router.get("/{finding_id}/evidence-package")
+async def finding_evidence_package(
+    finding_id: UUID, session: DbSession, tenant: Tenant
+) -> Envelope[EvidencePackageOut, NoMeta]:
+    """Everything this finding rests on, as one versioned document (DECISIONS.md §262).
+
+    The affected asset under its cloud identifier, the condition that failed
+    with its expected and observed values, the rule and the version that raised
+    it, where and when the evidence was read and under which permissions, what
+    the record cannot show, how sure Cleave is, the fix, and how the fix is
+    verified. JSON in the envelope rather than a file, so it is typed in the
+    contract like every other answer; the page saves it as a file. A read: a
+    viewer and the demo organization may ask.
+    """
+    finding = await service.get_finding(session, tenant, finding_id)
+    package = await service.evidence_package(session, tenant, finding, datetime.now(UTC))
+    return Envelope(data=package, meta=NoMeta())
 
 
 @router.post("/{finding_id}/accept-risk", responses=error_responses(403))

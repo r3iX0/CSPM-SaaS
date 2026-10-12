@@ -75,6 +75,8 @@ export interface ResourceSummary {
   criticality: Level;
   data_sensitivity: Level;
   public_exposure: Level;
+  /** The subscription it sits in, where its context is declared; null in the directory. */
+  cloud_account_id?: string | null;
 }
 
 export interface Asset extends ResourceSummary {
@@ -205,6 +207,81 @@ export interface Finding {
   resolved_at: string | null;
   resolved_by_scan_id: string | null;
   resource: ResourceSummary | null;
+  /** How current it is and how settled its rank (DECISIONS.md §262). */
+  confidence?: ConfidenceInfo | null;
+}
+
+export type ConfidenceLevel = "HIGH" | "MEDIUM" | "LOW";
+export type Freshness = "FRESH" | "AGING" | "STALE";
+export type ConfidenceReasonCode =
+  "EVIDENCE_AGING" | "EVIDENCE_STALE" | "CONTEXT_UNKNOWN" | "CONTEXT_INFERRED";
+/** A context field a finding's rank multiplies that a customer can declare. */
+export type ContextField = "criticality" | "data_sensitivity";
+
+/**
+ * How sure Cleave is of a finding or a route (DECISIONS.md §262): how current
+ * its evidence is against its connection's schedule, and whether the context it
+ * was ranked on was established. The server alone decides what current means;
+ * the dates are here so the page can say it without holding the thresholds.
+ */
+export interface ConfidenceInfo {
+  level: ConfidenceLevel;
+  freshness: Freshness;
+  observed_at: string;
+  fresh_until: string;
+  stale_at: string;
+  /** Empty at HIGH. Evidence first, then context. */
+  reasons: { code: ConfidenceReasonCode; fields: ContextField[] }[];
+}
+
+/** One thing that must be true for a finding to close, beside what was seen. */
+export interface FindingCondition {
+  field: string;
+  describes: string;
+  comparison: "equals" | "none_matching" | "not_empty";
+  /** The value for `equals`; the witness for a collection check. */
+  expected: unknown;
+  also_accepts: unknown[];
+  observed: unknown;
+  /** False where the excerpt does not carry the field — not the same as null. */
+  observed_recorded: boolean;
+}
+
+/** What `GET /findings` says about the whole filtered set. */
+export interface FindingsMeta {
+  total: number;
+  limit: number;
+  offset: number;
+  /** The set by level, counted without the confidence filter itself. */
+  confidence: Record<ConfidenceLevel, number>;
+}
+
+export type LimitationCode =
+  | "NOT_CITED"
+  | "PAYLOAD_PRUNED"
+  | "READING_INCOMPLETE"
+  | "RULE_CHANGED"
+  | "RULE_RETIRED"
+  | "CONDITION_UNDECLARED";
+
+/** A finding as one versioned document for a ticket or an auditor (DECISIONS.md §262). */
+export interface EvidencePackage {
+  format: "cleave.evidence-package";
+  version: 1;
+  generated_at: string;
+  build: string | null;
+  finding: {
+    id: string;
+    title: string;
+    status: FindingStatus;
+    severity: Severity;
+    risk_score: number | null;
+  };
+  resource: { provider: string; provider_resource_id: string; name: string } | null;
+  rule: { rule_id: string; version: string; current_version: string | null };
+  condition: FindingCondition[];
+  confidence: ConfidenceInfo;
+  limitations: { code: LimitationCode; detail: string }[];
 }
 
 /** One transition in a finding's life, and who or what caused it. */
@@ -352,6 +429,8 @@ export interface FindingDetail extends Finding {
   remediation_spec?: RemediationSpec | null;
   verification?: Verification | null;
   timeline?: FindingEvent[];
+  /** The failed condition, expected beside observed. Empty where the rule declares none. */
+  condition?: FindingCondition[];
 }
 
 export interface Scan {
@@ -983,6 +1062,8 @@ export interface RouteMapNode {
   /** How many routes run through it. */
   routes: number;
   findings: { open: number; worst: Level | null };
+  /** When a scan last saw it; null where never recorded. */
+  observed_at?: string | null;
 }
 
 export interface RouteMapEdge {
@@ -1023,6 +1104,8 @@ export interface MappedRoute extends AttackPath {
   key: string;
   pattern: string | null;
   risk: RouteRisk | null;
+  /** As current as its least recently seen hop (DECISIONS.md §262); null with no reading. */
+  confidence?: ConfidenceInfo | null;
 }
 
 /**

@@ -86,6 +86,7 @@ PATCH  /ownership-rules/{id}               DELETE /ownership-rules/{id}
 POST   /findings/{id}/accept-risk          POST   /findings/{id}/status
 POST   /findings/{id}/rescan               POST   /findings/{id}/iac-diff  (multipart)
 GET    /findings/{id}/attack-paths         GET    /findings/{id}/provenance
+GET    /findings/{id}/evidence-package
 
 GET    /integrations/github                POST   /integrations/github/connect
 POST   /integrations/github/installations  DELETE /integrations/github/installations/{id}
@@ -510,6 +511,33 @@ CRITICAL first rather than alphabetically, and an unrecognised `sort` is
 rejected with 422 rather than quietly falling back to a different order than the
 one asked for. `search` matches a finding's title, its rule id, or the name of
 the resource it was found on; for a risk, its title or description.
+
+`/findings` takes `confidence` (`HIGH`, `MEDIUM` or `LOW`) and every row carries a
+`confidence` object: how current the finding is and how settled its rank
+(DECISIONS.md §262). `level` is LOW when the evidence is stale, MEDIUM when it is
+ageing or when the asset's criticality or data sensitivity is unknown or was
+guessed from its name, and HIGH otherwise; `reasons` names each shortfall and the
+context fields it concerns, and `observed_at`, `fresh_until` and `stale_at` date
+it against the connection's own scan interval (a day where it is scanned by
+hand). The filter narrows and never reorders. `meta.confidence` counts the whole
+filtered set by level, ignoring the `confidence` filter itself, so each count is
+what choosing that level would show. `GET /findings/{id}` carries the same
+`confidence` and `condition`: each expected state the rule declares, with the
+value the finding's excerpt recorded beside it (`observed_recorded` is false where
+the excerpt does not carry the field, which is not the same as null).
+
+`GET /findings/{id}/evidence-package` is the finding as one versioned document
+(`format: "cleave.evidence-package"`, `version: 1`) for a ticket or an auditor:
+the asset under its cloud identifier, the failed condition, the rule and the
+version that raised it beside today's, the excerpt, the citations with their
+permissions and read times, the confidence, `limitations` (no citation recorded,
+a capture no longer stored, an incomplete reading, a changed or retired rule, an
+undeclared condition), the remediation, how a fix is verified, and `build`, the
+deployed commit that assembled it. A read: viewers and the demo may ask.
+
+`/attack-paths/graph` dates every drawn node (`observed_at`, when a scan last saw
+the asset) and gives every route a `confidence`: as current as its least recently
+seen hop, and MEDIUM where its target's sensitivity was guessed from a name.
 
 Every list that pages takes `limit` between 1 and its ceiling and `offset` from
 0; anything outside is a 422, never clamped. Every order a page is cut from ends

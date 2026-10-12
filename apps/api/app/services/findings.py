@@ -1,36 +1,58 @@
 """Finding queries and the workflow actions on a finding."""
 
+from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, NamedTuple
 from uuid import UUID
 
-from sqlalchemy import case, func, or_, select, update
+from sqlalchemy import DateTime, Select, case, func, literal, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.sql.elements import UnaryExpression
+from sqlalchemy.sql.elements import ColumnElement, UnaryExpression
 
 from app.compliance.crosswalk import compliance_mappings_for
+from app.core.config import get_settings
 from app.core.db import commit_unless_externally_managed
 from app.core.deps import TenantContext
 from app.core.enums import (
+    Confidence,
+    ContextSource,
     ExceptionStatus,
     FindingEvent,
     FindingStatus,
+    Level,
     RiskKind,
     Severity,
+    TaskOutcome,
 )
 from app.core.errors import FindingNotFound, ValidationFailed
+from app.models.cloud_connection import CloudConnection
 from app.models.finding import Finding, FindingEvidence
 from app.models.history import FindingEventRecord
 from app.models.remediation import RiskException
 from app.models.resource import ResourceRecord
 from app.models.risk import Risk, RiskFinding
 from app.models.rule import Rule
-from app.models.scan import Evidence, EvidenceBlob
+from app.models.scan import Evidence, EvidenceBlob, Scan
 from app.models.verification import RemediationVerification
 from app.remediation import Comparison, ExpectedState, azure_policy, terraform_hints
+from app.risk import confidence
+from app.risk.confidence import Assessment, AssetContext
 from app.risk.scorer import default_scorer
 from app.risk.triage import acceptance_expiry, finding_risk_status
 from app.rules.registry import get_rule
+from app.schemas.confidence import ConfidenceOut
+from app.schemas.finding import (
+    ConditionOut,
+    EvidenceCitationOut,
+    EvidencePackageOut,
+    LimitationOut,
+    PackageFindingOut,
+    PackageRemediationOut,
+    PackageResourceOut,
+    PackageRuleOut,
+    PackageVerificationOut,
+    VerificationOut,
+)
 from app.schemas.rule import (
     CollectionStateOut,
     EqualsStateOut,
@@ -71,31 +93,156 @@ SORTS: dict[str, tuple[UnaryExpression[Any], ...]] = {
 }
 
 
+@dataclass(frozen=True)
+class FindingFilters:
+    """What narrows the findings list, short of confidence (which is filtered and counted)."""
+
+    severity: Severity | None = None
+    status: FindingStatus | None = None
+    rule_id: str | None = None
+    resource_id: UUID | None = None
+    evidence_id: UUID | None = None
+    environment: str | None = None
+    search: str | None = None
+
+
+class FindingRow(NamedTuple):
+    """A listed finding, its asset, and the two facts its confidence is judged from."""
+
+    finding: Finding
+    resource: ResourceRecord | None
+    #: The oldest reading it cites, or when it was last detected where none is cited.
+    observed_at: datetime
+    #: Its connection's ``scan_interval_hours``; ``None`` where scanned by hand.
+    interval_hours: int | None
+
+
+def _observed_at_sql() -> ColumnElement[datetime]:
+    """When the provider was read for a finding: its oldest citation.
+
+    The oldest rather than the newest, because a finding is only as current as
+    the stalest reading it rests on. A finding with no citation -- raised before
+    citations were recorded, or by a rule that reads nothing -- is as old as its
+    last detection, which is the last time anything looked.
+    """
+    oldest = (
+        select(func.min(FindingEvidence.collected_at))
+        .where(FindingEvidence.finding_id == Finding.id)
+        .correlate(Finding)
+        .scalar_subquery()
+    )
+    return func.coalesce(oldest, Finding.last_detected_at)
+
+
+def _confidence_sql(
+    observed_at: ColumnElement[datetime],
+    interval_hours: ColumnElement[int | None],
+    now: datetime,
+) -> ColumnElement[str]:
+    """``confidence.assess_finding`` in SQL, so the list can filter and count by it.
+
+    Built from the same constants rather than restated, and held to the Python
+    by an integration test over the same rows (``test_finding_confidence``).
+    """
+    interval = func.make_interval(
+        0, 0, 0, 0, func.coalesce(interval_hours, confidence.MANUAL_INTERVAL_HOURS)
+    )
+    fresh_until = observed_at + interval * confidence.FRESH_INTERVALS
+    stale_at = observed_at + func.greatest(
+        interval * confidence.STALE_INTERVALS,
+        func.make_interval(0, 0, 0, confidence.STALE_FLOOR.days),
+    )
+    # NULL for a tenant-wide finding, whose asset columns are all NULL, which a
+    # CASE reads as false: a finding with no asset has no context to doubt.
+    context_doubt = or_(
+        ResourceRecord.criticality == Level.UNKNOWN,
+        ResourceRecord.data_sensitivity == Level.UNKNOWN,
+        ResourceRecord.criticality_source == ContextSource.INFERRED,
+        ResourceRecord.data_sensitivity_source == ContextSource.INFERRED,
+    )
+    now_sql = literal(now, DateTime(timezone=True))
+    return case(
+        (now_sql >= stale_at, literal(Confidence.LOW.value)),
+        (or_(now_sql >= fresh_until, context_doubt), literal(Confidence.MEDIUM.value)),
+        else_=literal(Confidence.HIGH.value),
+    )
+
+
+def _filtered_findings(tenant: TenantContext, filters: FindingFilters, now: datetime) -> Select:
+    """Findings matching ``filters``, joined to what their confidence is judged from.
+
+    The connection is the asset's, or the scan's for a tenant-wide finding.
+    Columns: the finding, its asset, ``observed_at``, ``interval_hours`` and
+    ``confidence``.
+    """
+    observed_at = _observed_at_sql()
+    interval_hours: ColumnElement[int | None] = CloudConnection.scan_interval_hours.expression
+    stmt = (
+        select(
+            Finding,
+            ResourceRecord,
+            observed_at.label("observed_at"),
+            interval_hours.label("interval_hours"),
+            _confidence_sql(observed_at, interval_hours, now).label("confidence"),
+        )
+        .outerjoin(ResourceRecord, ResourceRecord.id == Finding.resource_id)
+        .outerjoin(Scan, Scan.id == Finding.scan_id)
+        .outerjoin(
+            CloudConnection,
+            CloudConnection.id == func.coalesce(ResourceRecord.connection_id, Scan.connection_id),
+        )
+        .where(Finding.organization_id == tenant.organization_id)
+    )
+    return _narrowed(stmt, tenant, filters)
+
+
 async def list_findings(
     session: AsyncSession,
     tenant: TenantContext,
+    filters: FindingFilters,
     *,
-    severity: Severity | None,
-    status: FindingStatus | None,
-    rule_id: str | None,
-    resource_id: UUID | None,
-    evidence_id: UUID | None,
-    environment: str | None,
-    search: str | None,
+    confidence_level: Confidence | None,
     sort: str,
     limit: int,
     offset: int,
-) -> tuple[list[tuple[Finding, ResourceRecord | None]], int]:
+    now: datetime,
+) -> tuple[list[FindingRow], int]:
     """One page of findings, each with its asset, and how many match in all.
 
     Filtered, ordered and cut in the database: a page that filtered only the rows it held would
-    search one page of an estate and report "nothing matches" for the rest.
+    search one page of an estate and report "nothing matches" for the rest. Confidence filters
+    and never sorts (DECISIONS.md §262): the order is the risk's.
     """
-    stmt = (
-        select(Finding, ResourceRecord)
-        .outerjoin(ResourceRecord, ResourceRecord.id == Finding.resource_id)
-        .where(Finding.organization_id == tenant.organization_id)
+    stmt = _filtered_findings(tenant, filters, now)
+    if confidence_level is not None:
+        level = stmt.selected_columns.confidence
+        stmt = stmt.where(level == confidence_level.value)
+
+    total = (await session.execute(select(func.count()).select_from(stmt.subquery()))).scalar_one()
+    rows = (await session.execute(stmt.order_by(*SORTS[sort]).limit(limit).offset(offset))).all()
+    return [
+        FindingRow(finding, resource, observed_at, interval)
+        for finding, resource, observed_at, interval, _level in rows
+    ], total
+
+
+async def confidence_counts(
+    session: AsyncSession, tenant: TenantContext, filters: FindingFilters, now: datetime
+) -> dict[Confidence, int]:
+    """How the filtered findings divide by confidence, every level present."""
+    inner = _filtered_findings(tenant, filters, now).subquery()
+    rows = await session.execute(
+        select(inner.c.confidence, func.count()).group_by(inner.c.confidence)
     )
+    counted: dict[str, int] = {str(level): int(count) for level, count in rows.tuples().all()}
+    return {level: int(counted.get(level.value, 0)) for level in Confidence}
+
+
+def _narrowed(stmt: Select, tenant: TenantContext, filters: FindingFilters) -> Select:
+    """The findings list's filters, applied to a statement already joined to the asset."""
+    severity, status, rule_id = filters.severity, filters.status, filters.rule_id
+    resource_id, evidence_id = filters.resource_id, filters.evidence_id
+    environment, search = filters.environment, filters.search
 
     if severity:
         stmt = stmt.where(Finding.severity == severity)
@@ -135,10 +282,7 @@ async def list_findings(
                 ResourceRecord.name.ilike(needle),
             )
         )
-
-    total = (await session.execute(select(func.count()).select_from(stmt.subquery()))).scalar_one()
-    rows = (await session.execute(stmt.order_by(*SORTS[sort]).limit(limit).offset(offset))).all()
-    return [(finding, resource) for finding, resource in rows], total
+    return stmt
 
 
 async def resource_of(session: AsyncSession, finding: Finding) -> ResourceRecord | None:
@@ -176,8 +320,15 @@ async def load_detail(session: AsyncSession, tenant: TenantContext, finding: Fin
 
     effort = rule_row.estimated_effort_minutes if rule_row else 30
     score = float(finding.risk_score) if finding.risk_score is not None else 0.0
+    now = datetime.now(UTC)
 
     return {
+        # How current it is and how settled its rank, judged exactly as the
+        # list judged it (DECISIONS.md §262).
+        "confidence": ConfidenceOut.of(
+            confidence_of(await row_of(session, tenant, finding, now), now)
+        ),
+        "condition": condition_of(finding),
         "finding": finding,
         "resource": resource,
         "rule": rule_row,
@@ -675,3 +826,193 @@ async def load_provenance(
             }
         )
     return out
+
+
+# -- Confidence and the evidence package (DECISIONS.md §262) --------------------
+
+
+def asset_context(resource: ResourceRecord | None) -> AssetContext | None:
+    """The context a finding's rank multiplies, as its asset records it."""
+    if resource is None:
+        return None
+    return AssetContext(
+        criticality=resource.criticality,
+        criticality_source=resource.criticality_source,
+        data_sensitivity=resource.data_sensitivity,
+        data_sensitivity_source=resource.data_sensitivity_source,
+    )
+
+
+def confidence_of(row: FindingRow, now: datetime) -> Assessment:
+    """A listed finding's confidence, from the same inputs the list filtered it on."""
+    return confidence.assess_finding(
+        row.observed_at, row.interval_hours, asset_context(row.resource), now
+    )
+
+
+async def row_of(
+    session: AsyncSession, tenant: TenantContext, finding: Finding, now: datetime
+) -> FindingRow:
+    """One finding as the list would carry it.
+
+    Read through the list's own statement rather than assembled beside it, so a
+    finding's page and its row in the list cannot disagree about its confidence.
+    """
+    stmt = _filtered_findings(tenant, FindingFilters(), now).where(Finding.id == finding.id)
+    row, resource, observed_at, interval_hours, _level = (await session.execute(stmt)).one()
+    return FindingRow(row, resource, observed_at, interval_hours)
+
+
+def condition_of(finding: Finding) -> list[ConditionOut]:
+    """What must be true for the finding to close, beside what its excerpt recorded.
+
+    The expected half is the rule's declaration as checked today -- the same one
+    the fix is generated from -- and the observed half is this finding's own
+    excerpt. A field the excerpt does not carry is said to be unrecorded rather
+    than shown as null: an absent key and a setting that is null are different
+    facts, and only one of them is about the asset.
+    """
+    rule = get_rule(finding.rule_id)
+    if rule is None or rule.remediation_spec is None:
+        return []
+    observed = finding.evidence or {}
+    out: list[ConditionOut] = []
+    for state in rule.remediation_spec.expected:
+        scalar = state.comparison is Comparison.EQUALS
+        out.append(
+            ConditionOut(
+                field=state.field,
+                describes=state.describes,
+                comparison=state.comparison,
+                expected=state.equals if scalar else state.example,
+                also_accepts=list(state.also_accepts) if scalar else [],
+                observed=observed.get(state.field),
+                observed_recorded=state.field in observed,
+            )
+        )
+    return out
+
+
+def limitations_of(
+    finding: Finding,
+    citations: list[dict] | None,
+    condition: list[ConditionOut],
+) -> list[LimitationOut]:
+    """Where the record behind a finding is thinner than a reader might assume.
+
+    Facts about the record, never about the estate, and each says what it means
+    in a sentence: a list of codes would be a list a customer has to look up.
+    """
+    out: list[LimitationOut] = []
+    rule = get_rule(finding.rule_id)
+    if citations is None:
+        out.append(
+            LimitationOut(
+                code="NOT_CITED",
+                detail=(
+                    "Cleave did not record where this finding's evidence came from; the next "
+                    "scan that detects it will."
+                ),
+            )
+        )
+    else:
+        pruned = sorted(c["evidence_key"] for c in citations if not c["payload_available"])
+        if pruned:
+            out.append(
+                LimitationOut(
+                    code="PAYLOAD_PRUNED",
+                    detail=(
+                        f"The capture behind {', '.join(pruned)} is no longer stored; its hash "
+                        "still identifies exactly what was read."
+                    ),
+                )
+            )
+        out.extend(
+            LimitationOut(
+                code="READING_INCOMPLETE",
+                detail=(
+                    f"The {c['evidence_key']} reading came back {str(c['outcome']).lower()}: what "
+                    "it listed is real, and what it missed is not known."
+                ),
+            )
+            for c in citations
+            if c["outcome"] is not None and c["outcome"] != TaskOutcome.COMPLETE
+        )
+    if rule is None:
+        out.append(
+            LimitationOut(
+                code="RULE_RETIRED",
+                detail=f"{finding.rule_id} has left Cleave's rules; nothing checks this today.",
+            )
+        )
+    elif rule.version != finding.rule_version:
+        out.append(
+            LimitationOut(
+                code="RULE_CHANGED",
+                detail=(
+                    f"Raised by version {finding.rule_version}; Cleave checks version "
+                    f"{rule.version} today, which the next scan applies."
+                ),
+            )
+        )
+    if rule is not None and not condition:
+        out.append(
+            LimitationOut(
+                code="CONDITION_UNDECLARED",
+                detail=(
+                    "This rule declares no machine-readable expected state; its condition is "
+                    "the rule's description."
+                ),
+            )
+        )
+    return out
+
+
+async def evidence_package(
+    session: AsyncSession, tenant: TenantContext, finding: Finding, now: datetime
+) -> EvidencePackageOut:
+    """Everything a finding rests on, as one document to attach to a ticket or an audit.
+
+    Assembled from what the detail page shows, never from a second account of
+    it: the same confidence the list filtered on, the same citations "How we
+    know" lists, the same condition the fix is generated from.
+    """
+    row = await row_of(session, tenant, finding, now)
+    citations = await load_provenance(session, tenant, finding)
+    rule = get_rule(finding.rule_id)
+    condition = condition_of(finding)
+    verification = await latest_verification(session, finding)
+    keys = sorted({str(c["evidence_key"]) for c in citations or []})
+    reads = f" ({', '.join(keys)})" if keys else ""
+    return EvidencePackageOut(
+        generated_at=now,
+        build=get_settings().railway_git_commit_sha or None,
+        finding=PackageFindingOut.model_validate(finding),
+        resource=PackageResourceOut.model_validate(row.resource) if row.resource else None,
+        rule=PackageRuleOut(
+            rule_id=finding.rule_id,
+            version=finding.rule_version,
+            current_version=rule.version if rule else None,
+            name=rule.name if rule else None,
+        ),
+        condition=condition,
+        observed=dict(finding.evidence or {}),
+        citations=(
+            [EvidenceCitationOut.model_validate(c) for c in citations]
+            if citations is not None
+            else None
+        ),
+        confidence=ConfidenceOut.of(confidence_of(row, now)),
+        limitations=limitations_of(finding, citations, condition),
+        remediation=PackageRemediationOut(
+            guidance=finding.remediation, spec=remediation_detail(finding.rule_id)
+        ),
+        verification=PackageVerificationOut(
+            method="RESCAN",
+            detail=(
+                f"A scan reads the same evidence again{reads} and closes this finding when the "
+                "check passes. Nobody can close it by hand."
+            ),
+            latest=VerificationOut.model_validate(verification) if verification else None,
+        ),
+    )

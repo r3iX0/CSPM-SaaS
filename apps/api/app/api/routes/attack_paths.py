@@ -9,6 +9,7 @@ severs it.
 """
 
 from collections import Counter
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Query, Request, Response, status
 
@@ -177,6 +178,12 @@ async def route_graph(
     # Which routes a risk tracks, joined here rather than in the browser
     # (DECISIONS.md section 244).
     risks = await graph_service.tracked_routes(session, tenant.organization_id, drawn)
+    # When each drawn asset was last seen, so every route says how current it
+    # is (DECISIONS.md section 262).
+    readings = await graph_service.node_readings(
+        session, tenant.organization_id, list(ids.values())
+    )
+    now = datetime.now(UTC)
 
     # Off the loop: drawing the map reads what every link holds up, which is
     # the one analysis on this page that is not memoized until it is first asked.
@@ -189,6 +196,8 @@ async def route_graph(
             total_routes=len(paths),
             placements=placements,
             risks=risks,
+            readings=readings,
+            now=now,
         )
     )
     return Envelope(
