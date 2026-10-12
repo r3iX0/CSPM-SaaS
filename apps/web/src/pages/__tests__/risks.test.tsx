@@ -117,7 +117,9 @@ function mount(
             ? { data: [], meta: { total: untriaged } }
             : url.includes("/organizations")
               ? { data: [{ id: "org-1", name: "Contoso", is_demo: demo }], meta: {} }
-              : { data: risks, meta: {} },
+              : url.includes("/acceptances")
+                ? { data: [], meta: {} }
+                : { data: risks, meta: {} },
     ),
   );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -475,13 +477,17 @@ describe("the risk ranking", () => {
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
         const url = String(input);
-        requested.push(url);
+        // Nothing waits for a second approver here; a risk row is not an acceptance.
+        const acceptances = url.includes("/acceptances");
+        if (!acceptances) requested.push(url);
         const params = new URL(url, "https://example.test").searchParams;
         const limit = Number(params.get("limit") ?? 100);
         const offset = Number(params.get("offset") ?? 0);
-        const page = Array.from({ length: Math.min(limit, TOTAL - offset) }, (_, i) =>
-          pagedRisk(offset + i),
-        );
+        const page = acceptances
+          ? []
+          : Array.from({ length: Math.min(limit, TOTAL - offset) }, (_, i) =>
+              pagedRisk(offset + i),
+            );
         return {
           ok: true,
           status: 200,
