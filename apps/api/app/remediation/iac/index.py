@@ -23,8 +23,10 @@ from typing import Any
 MAX_ENTRIES = 4_000
 
 # The Action keeps only ids under a subscription: a key vault secret's id is a
-# URL naming the secret, and nothing else is an asset Cleave reads.
-_ARM_ID = re.compile(r"^/subscriptions/[0-9a-fA-F-]{36}/[!-~]{1,1000}$")
+# URL naming the secret, and nothing else is an asset Cleave reads. Any case:
+# Azure resource ids are case-insensitive, and Terraform writes them in the
+# case they were created with rather than the case ARM lists them in (§229).
+_ARM_ID = re.compile(r"^/subscriptions/[0-9a-fA-F-]{36}/[!-~]{1,1000}$", re.IGNORECASE)
 _NAME = r"[A-Za-z_][A-Za-z0-9_-]*"
 # ``[0]`` or ``["eu"]``: a count index or a for_each key.
 _KEY = r'\[(?:\d+|"(?:[^"\\]|\\.)*")\]'

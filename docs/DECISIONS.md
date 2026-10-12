@@ -12400,6 +12400,11 @@ the CLI tab "Emergency fix", because the next `terraform apply` undoes a change 
 `https://token.actions.githubusercontent.com`, mapping `repository_id` to an organization through
 the installation, and accepting only the default branch.
 
+**An id is checked in any case.** An upload's `id` must be an Azure Resource Manager id under a
+subscription, and the check ignores case: Azure ids are case-insensitive, and Terraform writes an
+id in the case the resource was created with, not the case ARM lists it in. Checked in lower case
+only, an index naming `/SUBSCRIPTIONS/…` was refused whole even though it matched its asset.
+
 ## 230. A Terraform hint names its argument per azurerm release
 
 §228 left one argument allowed by name: `AZ-COS-002`'s `local_authentication_disabled`, still in

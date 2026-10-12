@@ -1,14 +1,15 @@
 # Attack paths: plan
 
-Status: **being built, from 2026-10-11.** Built so far: Phase 0, the route ledger
-(`DECISIONS.md` §244); item 1, the fix plan (§245); item 2, how to make a cut (§246); item 3, the route sentence (§247);
-item 4, a readable drawing (§248); item 5, progress (§249); item 6, worst first (§250); item 7, say what matters (§251); item 8, hand it over (§252); E, the query bar (§253); I and F, the asset card and inspector (§254); G, faster what-if (§255); J, motion (§256); H, a cut as a pull request (§257, §258). Worked out on 2026-10-10 from
-a browser walk of `/attack-paths` on the local stack (the demo organization, 17 routes)
-and a read of how Microsoft Defender for Cloud, Orca, Wiz and XM Cyber present attack
-paths. Each item needs its own `DECISIONS.md` entry before it is built. The route
-ledger (see "Foundations") is built first, as Phase 0. Items 1 to 4 are the first cut,
-planned as phases A to D. Items E to J, an investigate depth for engineers, come after
-it.
+Status: **being built, from 2026-10-11.** Built so far: Phase 0, the route ledger (`DECISIONS.md`
+§244); item 1, the fix plan (§245); item 2, how to make a cut (§246); item 3, the route sentence
+(§247); item 4, a readable drawing (§248); item 5, progress (§249); item 6, worst first (§250); item
+7, say what matters (§251); item 8, hand it over (§252); E, the query bar (§253); I and F, the asset
+card and inspector (§254); G, faster what-if (§255); J, motion (§256); H, a cut as a pull request
+(§257, §258). Worked out on 2026-10-10 from a browser walk of `/attack-paths` on the local stack
+(the demo organization, 17 routes) and a read of how Microsoft Defender for Cloud, Orca, Wiz and XM
+Cyber present attack paths. Each item needs its own `DECISIONS.md` entry before it is built. The
+route ledger (see "Foundations") is built first, as Phase 0. Items 1 to 4 are the first cut, planned
+as phases A to D. Items E to J, an investigate depth for engineers, come after it.
 
 ## Who it is for
 
