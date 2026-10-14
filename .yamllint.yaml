@@ -1,0 +1,42 @@
+# What yamllint checks in every .yml and .yaml file (DECISIONS.md §191).
+#
+# Syntax and structure only: a duplicate key, bad indentation, a stray tab, a
+# line past the column limit. What a workflow or a dependabot file means is
+# actionlint's and zizmor's, in .pre-commit-config.yaml. Prettier owns the
+# formatting of the web app's files and does not read YAML, so this is the one
+# check that does.
+extends: default
+
+ignore: |
+  node_modules/
+  graphify-out/
+  apps/web/dist/
+
+rules:
+  # A workflow or a pre-commit config does not open with `---`.
+  document-start: disable
+
+  # `on:` is a key in a workflow, and yamllint reads it as a YAML 1.1 boolean.
+  # Values must still be `true` or `false`, never `yes` or `on`.
+  truthy:
+    allowed-values: ["true", "false"]
+    check-keys: false
+
+  # The column limit every other language here holds (.editorconfig, Ruff,
+  # markdownlint). A URL or a pinned action line cannot be broken, so it is let
+  # through rather than forced onto a second line.
+  line-length:
+    max: 100
+    allow-non-breakable-words: true
+    allow-non-breakable-inline-mappings: true
+
+  # One space before a trailing comment, as `uses: x # v1.2.3` and the
+  # `# frozen:` pins are written everywhere.
+  comments:
+    min-spaces-from-content: 1
+
+  # `- item` sits under its key, indented, as in every file here.
+  indentation:
+    spaces: 2
+    indent-sequences: true
+    check-multi-line-strings: false

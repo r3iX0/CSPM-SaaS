@@ -9,6 +9,11 @@
 # Security updates are separated from the weekly batch because they should not
 # wait for it, and grouping keeps the routine ones to one pull request per
 # ecosystem rather than one per package.
+#
+# Every ecosystem waits seven days after a release before a version is offered.
+# A compromised release is usually pulled within days, and a pin that moves the
+# morning something ships is the one that takes it. Security updates ignore the
+# cooldown, so a fix for a known advisory is not held back.
 version: 2
 
 updates:
@@ -16,6 +21,8 @@ updates:
     directory: /apps/api
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     groups:
       python-dependencies:
@@ -26,6 +33,8 @@ updates:
     directory: /apps/web
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     groups:
       npm-dependencies:
@@ -36,11 +45,15 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: docker
     directory: /infrastructure/docker
     schedule:
       interval: monthly
+    cooldown:
+      default-days: 7
     # Patch releases of the base image only. Moving to a newer Python is done by hand,
     # with CI's python-version, after every pinned wheel exists for it (DECISIONS.md §197).
     ignore:

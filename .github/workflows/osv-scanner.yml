@@ -1,0 +1,62 @@
+name: OSV-Scanner
+
+# Checks the lockfiles against the OSV database, which CI's `audit` job does not
+# do for the two Node apps beside `web` (apps/site, .railway). Python is not
+# read here: pyproject.toml is not a lockfile OSV-Scanner parses, so pip-audit in
+# CI stays the check for it. A pull request fails only on what it introduces;
+# main and the schedule report everything to the Security tab.
+
+on:
+  pull_request:
+    branches: [main]
+  merge_group:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    # Weekly, because an advisory published tomorrow applies to a lockfile
+    # nobody has touched.
+    - cron: "29 18 * * 4"
+
+# The token reads the repository and nothing else; the jobs below widen it to
+# what the reusable workflows upload with (DECISIONS.md §191).
+permissions:
+  contents: read
+
+# A newer push to the same pull request makes the older run's result moot.
+concurrency:
+  group: osv-scanner-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# The reusable workflows are pinned to a commit with the tag beside it, as every
+# action here is: a tag can be moved to different code after review.
+jobs:
+  scan-scheduled:
+    if: ${{ github.event_name == 'push' || github.event_name == 'schedule' }}
+    name: OSV-Scanner — full scan
+    # A caller cannot grant a called job more than it holds, so these are what
+    # the reusable workflow's own job asks for.
+    permissions:
+      actions: read # the SARIF upload reads the run it belongs to
+      contents: read
+      security-events: write # uploads the SARIF results to the Security tab
+    # yamllint disable-line rule:line-length
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@b1d267aea5211fa648d9d442fa64b90dbdcbdd36 # v2.7.0
+    with:
+      scan-args: |-
+        -r
+        ./
+
+  scan-pr:
+    if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
+    name: OSV-Scanner — new vulnerabilities
+    permissions:
+      actions: read # the SARIF upload reads the run it belongs to
+      contents: read
+      security-events: write # uploads the SARIF results to the Security tab
+    # yamllint disable-line rule:line-length
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@b1d267aea5211fa648d9d442fa64b90dbdcbdd36 # v2.7.0
+    with:
+      scan-args: |-
+        -r
+        ./

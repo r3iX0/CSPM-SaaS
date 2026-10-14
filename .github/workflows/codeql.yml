@@ -1,0 +1,60 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly, because a new query pack can find what the last one could not in
+    # code nobody has touched.
+    - cron: "23 22 * * 5"
+
+# The token reads the repository and nothing else; the one job that uploads
+# results asks for security-events on its own (DECISIONS.md §191).
+permissions:
+  contents: read
+
+# A newer push to the same pull request makes the older run's result moot.
+# Pushes to main and the schedule are never cancelled, so every commit on main
+# keeps its own analysis.
+concurrency:
+  group: codeql-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  analyze:
+    name: CodeQL — ${{ matrix.language }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write # uploads the SARIF results to the Security tab
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # Every language here is interpreted, so none needs a build. `actions`
+        # reads the workflows themselves: injection through an untrusted
+        # expression, a token with more scope than the job uses.
+        language: [actions, javascript-typescript, python]
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+          # The default suite keeps only high-precision queries. This product
+          # holds customers' cloud credentials, so it takes the wider security
+          # suite and accepts a few more alerts to triage.
+          queries: security-extended
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        with:
+          category: "/language:${{ matrix.language }}"

@@ -24,6 +24,8 @@ jobs:
     # standards hold for every change that reaches main (DECISIONS.md §191).
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
@@ -89,7 +91,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
+      # The ::error messages in the steps below are one line each on purpose: the
+      # runner prints it as the annotation on the file, and a wrapped message
+      # would be cut where the line breaks.
+      # yamllint disable rule:line-length
       - name: Refuse a real credential in the Supabase role template
         # That file is meant to be edited in Supabase's SQL Editor, not saved
         # with a live password. Committing one here would publish a database
@@ -99,6 +107,7 @@ jobs:
             echo "::error file=infrastructure/supabase/roles.sql::Placeholder password was replaced. Restore it and keep the real password only in Railway's DATABASE_URL."
             exit 1
           }
+      # yamllint enable rule:line-length
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
@@ -129,6 +138,7 @@ jobs:
         working-directory: apps/api
         run: alembic upgrade head
 
+      # yamllint disable rule:line-length
       - name: Refuse a drifted Graph permission manifest
         # The deployed app registration is generated from
         # REQUIRED_GRAPH_PERMISSIONS, and the file under infrastructure/ is what
@@ -157,6 +167,7 @@ jobs:
             echo "::error file=docs/RULE_CATALOG.md::Rule Catalog is out of date. Run python apps/api/scripts/generate_rule_catalog.py to update."
             exit 1
           }
+      # yamllint enable rule:line-length
 
       - name: Lint
         working-directory: apps/api
@@ -175,6 +186,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
@@ -224,6 +237,8 @@ jobs:
     # failing for a reason the tests had nothing to do with.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
