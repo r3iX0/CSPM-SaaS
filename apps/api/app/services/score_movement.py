@@ -20,10 +20,10 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.enums import AssetChange, FindingEvent, FindingStatus, Level, RiskKind
+from app.core.enums import AssetChange, FindingEvent, FindingStatus, Level
 from app.models.finding import Finding
 from app.models.history import AssetChangeEvent, FindingEventRecord
 from app.models.resource import ResourceRecord
@@ -31,41 +31,10 @@ from app.models.risk import Risk, RiskFinding, RiskHistory
 from app.risk.movement import Cause, charge_changes, split, total_deduction
 from app.risk.scorer import default_scorer
 from app.rules.registry import enabled_rules
+from app.services.posture_reading import OPEN, charged_score, open_charges
 
-OPEN = (FindingStatus.OPEN, FindingStatus.IN_PROGRESS)
 #: Findings named per cause; the rest are counted.
 MAX_EXAMPLES = 5
-
-
-async def open_charges(
-    session: AsyncSession, organization_id: UUID
-) -> dict[UUID, tuple[Level, Level]]:
-    """Every open finding risk, to its ranked band and the band the score charges.
-
-    Finding risks only, and each once: a scenario groups findings already
-    charged here, and a risk grouping forty findings is one problem stated once.
-    ``known_risk_level`` is what the score charges, coalesced so risks written
-    before it existed charge as they did (RISK_ENGINE.md section 3).
-    """
-    rows = await session.execute(
-        select(Risk.id, Risk.risk_level, func.coalesce(Risk.known_risk_level, Risk.risk_level))
-        .join(RiskFinding, RiskFinding.risk_id == Risk.id)
-        .join(Finding, Finding.id == RiskFinding.finding_id)
-        .where(
-            Risk.organization_id == organization_id,
-            Risk.kind == RiskKind.FINDING,
-            Finding.status.in_(OPEN),
-        )
-        .distinct()
-    )
-    return {
-        risk_id: (Level(ranked), Level(known or ranked)) for risk_id, ranked, known in rows.tuples()
-    }
-
-
-def ledger(charges: Mapping[UUID, tuple[Level, Level]]) -> dict[str, str]:
-    """The charges as a reading stores them: each risk to the band it was charged at."""
-    return {str(risk_id): known.value for risk_id, (_ranked, known) in charges.items()}
 
 
 def rule_versions() -> dict[str, str]:
@@ -116,7 +85,7 @@ async def explain(session: AsyncSession, organization_id: UUID) -> dict:
     before = {UUID(key): Level(value) for key, value in previous.charges.items()}
     charges = await open_charges(session, organization_id)
     after = {risk_id: known for risk_id, (_ranked, known) in charges.items()}
-    current = default_scorer.security_score(list(after.values()))
+    current = charged_score(charges)
     target = current - previous.security_score
 
     rises = charge_changes(before, after, config)

@@ -23,7 +23,7 @@ from app.models.cloud_account import CloudAccount
 from app.models.cloud_connection import CloudConnection
 from app.models.finding import Finding, FindingEvidence
 from app.models.scan import Evidence, Scan, ScanEvaluationGap, ScanRuleResult, ScanStep
-from app.services import audit, cloud_connections
+from app.services import audit, cloud_connections, scan_lifecycle
 from app.services import cloud_accounts as accounts_service
 from app.services import risks as risks_service
 
@@ -167,18 +167,20 @@ async def enqueue_or_fail(
     except Exception as exc:
         log.warning("scan.enqueue_failed", scan_id=str(scan.id), kind=noun, error=str(exc))
 
-    message = ENQUEUE_FAILED_MESSAGE.format(noun=noun)
+    ending = scan_lifecycle.terminal_fields(
+        ScanStatus.FAILED, ENQUEUE_FAILED_MESSAGE.format(noun=noun)
+    )
     async with rls_session(user_id) as session:
         await session.execute(
             update(Scan)
             .where(Scan.id == scan.id, Scan.organization_id == scan.organization_id)
-            .values(status=ScanStatus.FAILED, error_message=message)
+            .values(**ending)
         )
     # The caller answers from this object. Set as committed values, because
     # that is what they now are, and because a change marked dirty on the
     # caller's session is one it would have no transaction to flush.
-    set_committed_value(scan, "status", ScanStatus.FAILED)
-    set_committed_value(scan, "error_message", message)
+    for name, value in ending.items():
+        set_committed_value(scan, name, value)
 
 
 async def scanned_since(
@@ -293,10 +295,7 @@ async def reap_abandoned_scans(session: AsyncSession) -> list[tuple[UUID, str]]:
     closed: list[tuple[UUID, str]] = []
     for scan in stale:
         message = NEVER_CLAIMED_MESSAGE if scan.lease_until is None else ABANDONED_MESSAGE
-        scan.status = ScanStatus.FAILED
-        scan.error_message = message
-        scan.completed_at = now
-        scan.lease_until = None
+        scan_lifecycle.close(scan, ScanStatus.FAILED, message=message, now=now)
         closed.append((scan.id, message))
 
     if closed:
@@ -433,9 +432,7 @@ async def cancel_scan(session: AsyncSession, tenant: TenantContext, scan_id: UUI
     if scan.status.is_terminal:
         raise ConflictError(f"This scan has already finished ({scan.status.value}).")
 
-    scan.status = ScanStatus.CANCELLED
-    scan.completed_at = datetime.now(UTC)
-    scan.error_message = "Cancelled."
+    scan_lifecycle.close(scan, ScanStatus.CANCELLED, message="Cancelled.")
     await audit.record(session, tenant, "scan.cancelled", "scan", scan.id)
     return scan
 

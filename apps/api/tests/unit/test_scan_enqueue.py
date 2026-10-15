@@ -8,6 +8,7 @@ left the scan queued for ever: the one outcome the path existed to prevent.
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -82,5 +83,10 @@ async def test_a_refused_scan_is_failed_in_a_session_of_its_own(opened: _Opened)
 
     assert scan.status == ScanStatus.FAILED
     assert scan.error_message == service.ENQUEUE_FAILED_MESSAGE.format(noun="replay")
+    # An ending like any other: dated, and with no lease for the reaper to carry.
+    assert scan.completed_at is not None
+    assert scan.lease_until is None
+    assert isinstance(compiled.params["completed_at"], datetime)
+    assert compiled.params["lease_until"] is None
     # The broker's own words are for the log, not the scans page.
     assert "secret" not in scan.error_message

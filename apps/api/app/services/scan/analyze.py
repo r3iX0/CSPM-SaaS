@@ -21,6 +21,7 @@ from app.models.cloud_connection import CloudConnection
 from app.models.scan import Scan
 from app.rules.base import RuleContext
 from app.rules.engine import RuleEngine
+from app.services import scan_lifecycle
 from app.services.scan.assets import existing_resource_ids, group_edges, persist_resources
 from app.services.scan.context import AnalyzeContext
 from app.services.scan.correlation import correlate_paths
@@ -156,9 +157,7 @@ async def evaluate(
         # passes False and the orchestrator derives the same fields from the
         # steps -- two writers for one fact is how a scan ends up COMPLETED
         # with a step still running.
-        scan.completed_at = datetime.now(UTC)
-        scan.status = ScanStatus.PARTIAL if degraded else ScanStatus.COMPLETED
-        scan.lease_until = None
+        scan_lifecycle.close(scan, ScanStatus.PARTIAL if degraded else ScanStatus.COMPLETED)
     await writer.commit()
 
     log.info(

@@ -1,16 +1,11 @@
 """The posture as it stood after this scan, kept so movement is measurable."""
 
-from uuid import UUID
+from sqlalchemy import select
 
-from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.core.enums import FindingStatus, Level, RiskKind, RiskStatus
-from app.models.finding import Finding
-from app.models.risk import Risk, RiskHistory
-from app.risk.scorer import default_scorer
+from app.models.risk import RiskHistory
+from app.services.posture_reading import read_posture
 from app.services.scan.context import AnalyzeContext
-from app.services.score_movement import ledger, open_charges, rule_versions
+from app.services.score_movement import rule_versions
 
 
 async def record_posture(ctx: AnalyzeContext) -> None:
@@ -28,9 +23,14 @@ async def record_posture(ctx: AnalyzeContext) -> None:
     One entry per scan, corrected rather than duplicated if ANALYZE runs
     twice: a retried step is the same reading, and a second row would show
     as real movement in posture.
+
+    The numbers are the posture reading the dashboard reads, stored rather than
+    recomputed later for the reason a time series exists at all: a finding
+    reclassified next month must not silently rewrite what last month's posture
+    was.
     """
     session, org_id, scan = ctx.session, ctx.org_id, ctx.scan
-    counts = await _posture_counts(session, org_id)
+    reading = await read_posture(session, org_id)
     entry = (
         await session.execute(select(RiskHistory).where(RiskHistory.scan_id == scan.id))
     ).scalar_one_or_none()
@@ -40,66 +40,11 @@ async def record_posture(ctx: AnalyzeContext) -> None:
         session.add(entry)
 
     entry.observed_at = ctx.observed_at
-    entry.security_score = counts["security_score"]
-    entry.open_finding_count = counts["open_finding_count"]
-    entry.findings_by_severity = counts["findings_by_severity"]
-    entry.risk_bands = counts["risk_bands"]
-    entry.attack_path_count = counts["attack_path_count"]
-    entry.charges = counts["charges"]
+    entry.security_score = reading.security_score
+    entry.open_finding_count = reading.open_finding_count
+    entry.findings_by_severity = reading.findings_by_severity
+    entry.risk_bands = reading.risk_bands
+    entry.attack_path_count = reading.attack_path_count
+    entry.charges = reading.ledger
     entry.rule_versions = rule_versions()
     await ctx.writer.commit()
-
-
-async def _posture_counts(session: AsyncSession, org_id: UUID) -> dict:
-    """The numbers as they stand right now, for one organization.
-
-    Computed the same way the dashboard computes them, and stored rather
-    than recomputed later for the reason a time series exists at all: a
-    finding reclassified next month must not silently rewrite what last
-    month's posture was.
-    """
-    open_statuses = [FindingStatus.OPEN, FindingStatus.IN_PROGRESS]
-
-    severity_rows = (
-        await session.execute(
-            select(Finding.severity, func.count())
-            .where(
-                Finding.organization_id == org_id,
-                Finding.status.in_(open_statuses),
-            )
-            .group_by(Finding.severity)
-        )
-    ).all()
-
-    # Finding risks only, each once, exactly as the security score counts
-    # them (``open_charges``). Kept risk by risk as well as in total, so the
-    # next reading can say which risks moved the score (§235).
-    charges = await open_charges(session, org_id)
-
-    paths = (
-        await session.execute(
-            select(func.count())
-            .select_from(Risk)
-            .where(
-                Risk.organization_id == org_id,
-                Risk.kind == RiskKind.ATTACK_PATH,
-                Risk.status != RiskStatus.RESOLVED,
-            )
-        )
-    ).scalar_one()
-
-    bands: dict[Level, int] = {}
-    for ranked, _known in charges.values():
-        bands[ranked] = bands.get(ranked, 0) + 1
-
-    return {
-        "security_score": default_scorer.security_score([known for _, known in charges.values()]),
-        # Findings, from the findings. It used to be the width of the band
-        # query, which was the same number only while every risk had
-        # exactly one member.
-        "open_finding_count": sum(int(count) for _, count in severity_rows),
-        "findings_by_severity": {str(severity): int(count) for severity, count in severity_rows},
-        "risk_bands": {level.value: count for level, count in bands.items()},
-        "attack_path_count": int(paths),
-        "charges": ledger(charges),
-    }

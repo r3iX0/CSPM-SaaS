@@ -42,6 +42,7 @@ from app.core.logging import get_logger
 from app.models.cloud_account import CloudAccount
 from app.models.cloud_connection import CloudConnection
 from app.models.scan import Scan, ScanStep
+from app.services import scan_lifecycle
 
 log = get_logger(__name__)
 
@@ -590,12 +591,14 @@ async def sync_scan_state(session: AsyncSession, scan: Scan) -> list[ScanStep]:
     # Two independent sources of degradation, and the scan is PARTIAL for
     # either. A step that failed lost a whole scope; ``collection_errors`` is a
     # scope that was read with a listing missing from it.
-    scan.status = status_for(steps, degraded=bool(scan.collection_errors))
+    status = status_for(steps, degraded=bool(scan.collection_errors))
     if finished:
-        scan.completed_at = scan.completed_at or datetime.now(UTC)
-        scan.lease_until = None
-        if problems and not scan.error_message:
-            scan.error_message = "; ".join(problems)[:2000]
+        # The first message wins: a settle after the scan ended must not
+        # replace what it already said.
+        message = "; ".join(problems) if problems and not scan.error_message else None
+        scan_lifecycle.close(scan, status, message=message)
+    else:
+        scan.status = status
     await session.commit()
     return steps
 

@@ -47,7 +47,7 @@ from app.core.vocabulary import words
 from app.models.cloud_account import CloudAccount
 from app.models.scan import Scan, ScanStep
 from app.rules.engine import RuleEngine
-from app.services import orchestrator
+from app.services import orchestrator, scan_lifecycle
 from app.services.scan.analyze import evaluate
 from app.services.scan.capture import (
     directory_gap,
@@ -545,10 +545,5 @@ class ScanPipeline:
                 await self._fail(session, scan, str(exc))
 
     async def _fail(self, session: AsyncSession, scan: Scan, message: str) -> None:
-        scan.status = ScanStatus.FAILED
-        scan.error_message = message[:2000]
-        scan.completed_at = datetime.now(UTC)
-        # Terminal, so nothing should reclaim it. Released rather than left to
-        # expire, so the reaper's index does not carry finished work.
-        scan.lease_until = None
+        scan_lifecycle.close(scan, ScanStatus.FAILED, message=message)
         await session.commit()

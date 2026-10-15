@@ -27,61 +27,18 @@ from app.models.history import FindingEventRecord
 from app.models.resource import ResourceRecord
 from app.models.risk import Risk, RiskFinding, RiskHistory
 from app.models.scan import Evidence, Scan, ScanRuleResult
-from app.risk.scorer import default_scorer
 from app.services.placement import REGION
-from app.services.score_movement import open_charges
+from app.services.posture_reading import read_posture
 
 
 async def build_dashboard(session: AsyncSession, organization_id: UUID) -> dict:
     open_statuses = [FindingStatus.OPEN, FindingStatus.IN_PROGRESS]
 
-    # Risk bands of open findings drive the score.
-    #
-    # Finding risks only. A scenario risk groups findings that are already
-    # counted here, and this query joins through the junction -- so a scenario
-    # with four members would deduct four times, and even once would charge the
-    # customer twice for one problem. A scenario re-ranks and explains; it does
-    # not add a fault to the tally.
-    #
-    # Distinct for the same reason one layer down: the join fans a risk out
-    # across its findings, and a rule that groups its findings has one risk with
-    # forty. Counting join rows would take the score to zero over the single
-    # unwritten policy that grouping exists to state once.
-    #
-    # Two bands per risk, and they are not the same question. ``risk_level``
-    # ranks, cautiously: an unclassified production database must not sort below
-    # a dev box somebody tagged, so an UNKNOWN input scores just under High.
-    # ``known_risk_level`` is what CloudGuard can demonstrate, with unknowns at
-    # the bottom of the scale, and it is what the score charges for -- section 3
-    # of RISK_ENGINE.md says coverage is reported beside the score and not
-    # folded into it, and the cautious band was folding it in through the back
-    # door. An estate nobody has labelled was being told its posture was worse,
-    # when the honest sentence is that CloudGuard cannot yet tell.
-    #
-    # Coalesced, so risks written before the column existed keep scoring exactly
-    # as they did rather than being silently re-banded by a migration.
-    charges = await open_charges(session, organization_id)
-
-    # The distribution shown to a reader is the ranked one, because it is the
-    # one the risks list is sorted by. Only the deduction uses the other.
-    band_counts: dict[Level, int] = {}
-    open_levels: list[Level] = []
-    for ranked, known in charges.values():
-        band_counts[ranked] = band_counts.get(ranked, 0) + 1
-        open_levels.append(known)
-    security_score = default_scorer.security_score(open_levels)
-
-    severity_rows = (
-        await session.execute(
-            select(Finding.severity, func.count())
-            .where(
-                Finding.organization_id == organization_id,
-                Finding.status.in_(open_statuses),
-            )
-            .group_by(Finding.severity)
-        )
-    ).all()
-    severity_counts = {str(sev): int(count) for sev, count in severity_rows}
+    # The score, the severity split and the risk bands are one reading, taken
+    # by the same code that stores it for the history -- so the delta below
+    # compares like with like (``posture_reading``; section 3 of RISK_ENGINE.md
+    # for why the score and the bands use different bands).
+    reading = await read_posture(session, organization_id)
 
     status_rows = (
         await session.execute(
@@ -162,18 +119,18 @@ async def build_dashboard(session: AsyncSession, organization_id: UUID) -> dict:
     ).scalar_one()
 
     return {
-        "security_score": security_score,
-        "score_delta": await _score_delta(session, organization_id, security_score),
+        "security_score": reading.security_score,
+        "score_delta": await _score_delta(session, organization_id, reading.security_score),
         # The line behind the number. A delta says something moved; the series
         # says whether that is a trend or a wobble, which is the difference
         # between a customer acting on it and ignoring it.
         "history": await posture_history(session, organization_id),
-        "findings_by_severity": severity_counts,
+        "findings_by_severity": reading.findings_by_severity,
         "findings_by_status": status_counts,
-        "risk_bands": {level.value: count for level, count in band_counts.items()},
+        "risk_bands": reading.risk_bands,
         # Findings, from the findings. The band query counts risks, and those
         # stopped being the same number the moment a risk could group several.
-        "open_finding_count": sum(severity_counts.values()),
+        "open_finding_count": reading.open_finding_count,
         "asset_count": int(asset_count),
         "verified_resolved_last_30_days": int(resolved_recently),
         "remediation_rate": _remediation_rate(status_counts),
