@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CloudGuard Architecture Deepening Review — 2026-10-16</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            serif: ['Instrument Serif', 'Georgia', 'serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            stone: {
+              50: '#fafaf9',
+              100: '#f5f5f4',
+              200: '#e7e5e4',
+              300: '#d6d3d1',
+              400: '#a8a29e',
+              500: '#78716c',
+              600: '#57534e',
+              700: '#44403c',
+              800: '#292524',
+              900: '#1c1917',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #fafaf9;
+      color: #1c1917;
+      font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    }
+    .mermaid svg {
+      max-width: 100%;
+      height: auto;
+    }
+    /* Custom scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f5f5f4;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #d6d3d1;
+      border-radius: 3px;
+    }
+  </style>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'base',
+      flowchart: { curve: 'basis', padding: 16 },
+      themeVariables: {
+        fontFamily: 'Inter, system-ui, sans-serif',
+        fontSize: '12px',
+        primaryColor: '#fff1f2',
+        primaryTextColor: '#881337',
+        primaryBorderColor: '#fda4af',
+        lineColor: '#78716c',
+        secondaryColor: '#ecfdf5',
+        tertiaryColor: '#f5f5f4',
+      }
+    });
+  </script>
+</head>
+<body class="antialiased selection:bg-stone-900 selection:text-stone-50">
+
+  <!-- Top Header -->
+  <header class="border-b border-stone-200 bg-white/90 backdrop-blur sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-stone-900 text-stone-50 font-mono text-xs font-semibold">CG</span>
+        <div>
+          <div class="flex items-center gap-2.5">
+            <h1 class="text-base font-semibold tracking-tight text-stone-900">CloudGuard (`CSPM-SaaS`) — Architectural Deepening Review</h1>
+            <span class="px-2 py-0.5 text-[11px] font-mono font-medium rounded-full bg-stone-100 text-stone-700 border border-stone-200">refactor/provider-adapter @ afecea8</span>
+          </div>
+          <p class="text-xs text-stone-500 mt-0.5">Full-stack analysis across backend, database &amp; RLS, security &amp; privacy, frontend state, UX, and query performance</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 text-xs font-mono">
+        <span class="px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200">3 Prior Deepenings Shipped</span>
+        <span class="px-2.5 py-1 rounded-md bg-rose-50 text-rose-800 border border-rose-200">8 High-Leverage Candidates</span>
+        <span class="px-2.5 py-1 rounded-md bg-amber-50 text-amber-800 border border-amber-200">6 Live Bugs / Waterfalls Surfaced</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="max-w-7xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+    <!-- Left Sticky Navigation -->
+    <aside class="lg:col-span-3">
+      <nav class="sticky top-24 space-y-6">
+        <div>
+          <p class="text-[11px] font-mono uppercase tracking-wider text-stone-400 mb-2">Overview</p>
+          <ul class="space-y-1 text-xs">
+            <li><a href="#progress" class="block px-2.5 py-1.5 rounded-md text-stone-700 hover:bg-stone-200/60 font-medium">Prior Review Progress</a></li>
+            <li><a href="#topology" class="block px-2.5 py-1.5 rounded-md text-stone-700 hover:bg-stone-200/60 font-medium">System Topology &amp; Seams</a></li>
+            <li><a href="#depth-map" class="block px-2.5 py-1.5 rounded-md text-stone-700 hover:bg-stone-200/60 font-medium">Depth Map &amp; Matrix</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <p class="text-[11px] font-mono uppercase tracking-wider text-stone-400 mb-2">Deepening Candidates</p>
+          <ul class="space-y-1 text-xs">
+            <li>
+              <a href="#candidate-1" class="flex items-center justify-between px-2.5 py-1.5 rounded-md text-stone-700 hover:bg-stone-200/60">
+                <span class="truncate"><span class="font-mono text-stone-400 mr-1.5">01</span>Fix-as-Code PR Lifecycle</span>
+                <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-rose-100 text-rose-800">High</span>
+              </a>
+            </li>
+            <li>
+              <a href="#candidate-2" class="flex items-center justify-between px-2.5 py-1.5 rounded-md text-stone-700 hover:bg-stone-200/60">
+                <span class="truncate"><span class="font-mono text-stone-400 mr-1.5">02</span>Connection Setup &amp; Capabilities</span>
+                <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-rose-100 text-rose-800">High</span>
+              </a>
+            </li>
+            <li>
+              <a href="#candidate-3" class="flex items-center justify-between px-2.5 py-1.5 rounded-md text-stone-700 hover:bg-stone-200/60">
+                <span class="truncate"><span class="font-mono text-stone-400 mr-1.5">03</span>Remediation N+1 &amp; Finding Read</span>
+                <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-rose-100 text-rose-800">High</span>
+              </a>
+            </li>
+            <li>
+              <a href="#candidate-4" class="flex items-center justify-between px-2.5 py-1.5 rounded-md text-stone-700 hover:bg-stone-200/60">
+                <span class="truncate"><span class="font-mono text-stone-400 mr-1.5">04</span>RLS Transaction Ownership</span>
+                <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-rose-100 text-rose-800">High</span>
+              </a>
+            </li>
+            <li>
+              <a href="#candidate-5" class="flex items-center justify-between px-2.5 py-1.5 rounded-md text-stone-700 hover:bg-stone-200/60">
+                <span class="truncate"><span class="font-mono text-stone-400 mr-1.5">05</span>Query Invalidation &amp; Tenant Cache</span>
+                <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-rose-100 text-rose-800">High</span>
+              </a>
+            </li>
+            <li>
+              <a href="#candidate-6" class="flex items-center justify-between px-2.5 py-1.5 rounded-md text-stone-700 hover:bg-stone-200/60">
+                <span class="truncate"><span class="font-mono text-stone-400 mr-1.5">06</span>Attack-Path Graph Read Module</span>
+                <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">Med</span>
+              </a>
+            </li>
+            <li>
+              <a href="#candidate-7" class="flex items-center justify-between px-2.5 py-1.5 rounded-md text-stone-700 hover:bg-stone-200/60">
+                <span class="truncate"><span class="font-mono text-stone-400 mr-1.5">07</span>OpenAPI → TS Contract Seam</span>
+                <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">Med</span>
+              </a>
+            </li>
+            <li>
+              <a href="#candidate-8" class="flex items-center justify-between px-2.5 py-1.5 rounded-md text-stone-700 hover:bg-stone-200/60">
+                <span class="truncate"><span class="font-mono text-stone-400 mr-1.5">08</span>AttackPaths URL State Module</span>
+                <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">Med</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <div class="p-3.5 rounded-xl bg-stone-100 border border-stone-200 text-xs space-y-2">
+          <div class="font-semibold text-stone-800">Design Lens</div>
+          <p class="text-stone-600 leading-relaxed">
+            A <strong>deep module</strong> hides substantial implementation weight behind a small, stable <strong>interface</strong>. Every candidate below passes the <strong>deletion test</strong>: consolidating removes real duplication, fixes live bugs or N+1 waterfalls, and concentrates complexity so tests can exercise the seam directly.
+          </p>
+        </div>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="lg:col-span-9 space-y-12">
+
+      <!-- Section: Prior Progress -->
+      <section id="progress" class="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
+        <div class="flex items-center justify-between flex-wrap gap-2 mb-4">
+          <h2 class="font-serif text-2xl text-stone-900">Baseline: What Has Already Been Deepened</h2>
+          <span class="text-xs font-mono text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-md">Commits d19d3f8 &amp; afecea8</span>
+        </div>
+        <p class="text-sm text-stone-600 leading-relaxed mb-4">
+          Three foundational deepenings from the earlier architectural pass are now live on <code class="font-mono text-xs bg-stone-100 px-1.5 py-0.5 rounded">refactor/provider-adapter</code>:
+        </p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+          <div class="p-3.5 rounded-xl bg-emerald-50/60 border border-emerald-200">
+            <div class="font-mono font-semibold text-emerald-900">✓ posture_reading.py</div>
+            <p class="text-emerald-800 mt-1">Single posture-reading module shared by <code class="font-mono">dashboard.py</code>, <code class="font-mono">reports.py</code>, and <code class="font-mono">digest.py</code> (<code class="font-mono">d19d3f8</code>).</p>
+          </div>
+          <div class="p-3.5 rounded-xl bg-emerald-50/60 border border-emerald-200">
+            <div class="font-mono font-semibold text-emerald-900">✓ scan_lifecycle.py</div>
+            <p class="text-emerald-800 mt-1">Unified scan state transitions (<code class="font-mono">mark_running</code>, <code class="font-mono">complete_scan</code>, <code class="font-mono">fail_scan</code>, <code class="font-mono">reap_stalled_scans</code>) (<code class="font-mono">d19d3f8</code>).</p>
+          </div>
+          <div class="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200">
+            <div class="font-mono font-semibold text-amber-900">◐ ProviderAdapter (§263)</div>
+            <p class="text-amber-800 mt-1">Milestones 1–2 shipped in <code class="font-mono">afecea8</code> (<code class="font-mono">app/connectors/provider.py</code> + <code class="font-mono">capabilities</code> on <code class="font-mono">/providers</code>). <strong>Milestones 3–4 (frontend seam) remain open → see Candidate 02.</strong></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: System Topology -->
+      <section id="topology" class="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm space-y-4">
+        <div>
+          <h2 class="font-serif text-2xl text-stone-900">System Topology &amp; Shallow Seams</h2>
+          <p class="text-sm text-stone-600 mt-1">
+            Where complexity currently leaks across HTTP routes, domain modules, database transactions, and browser state. Rose nodes mark shallow seams with high leverage.
+          </p>
+        </div>
+
+        <div class="p-4 rounded-xl bg-stone-50 border border-stone-200 overflow-x-auto">
+          <pre class="mermaid">
+flowchart LR
+  subgraph Web["React SPA (apps/web/src)"]
+    W_Query["22 Files Scattering invalidateQueries\n+ Un-cleared Tenant Cache (C05)"]
+    W_Setup["connectionStage.ts + StepScope.tsx\nHardcoded Provider Branches (C02)"]
+    W_Rem["Remediation.tsx\n1 + N Finding Waterfall (C03)"]
+    W_How["HowToFix.tsx vs FixPullRequests.tsx\nMissing PR Poll + Duplicated UI (C01)"]
+    W_URL["AttackPaths.tsx (1,540 lines)\n12+ Inline URL Params (C08)"]
+    W_Types["lib/types.ts (1,474 lines)\nHand-Synced Wire Types (C07)"]
+  end
+
+  subgraph Routes["FastAPI HTTP Routes (apps/api/app/api/routes)"]
+    R_Conn["routes/cloud_connections.py\n_serialize() Missing Subscriptions Bug (C02)"]
+    R_Find["routes/findings.py + remediation.py\n10-Query Detail Assembly (C03)"]
+    R_Graph["routes/attack_paths.py (574 lines)\n5-Step Graph Orchestration in Routes (C06)"]
+    R_RLS["11 Route Modules Calling\nawait session.commit() Early (C04)"]
+  end
+
+  subgraph Domain["Backend Domain Modules (apps/api/app/services)"]
+    D_PR["pull_requests.py (481L) +\ncut_pull_requests.py (386L) Clone (C01)"]
+    D_Graph["services/graph.py (1,192L)\n25 Exported Low-Level Helpers (C06)"]
+    D_DB["core/db.py rls_session\nSET LOCAL ROLE + JWT Claims (C04)"]
+  end
+
+  W_How --> D_PR
+  W_Setup --> R_Conn
+  W_Rem --> R_Find
+  W_URL --> R_Graph
+  W_Query -.-> W_Types
+  R_RLS --> D_DB
+  R_Graph --> D_Graph
+
+  style W_Query fill:#fff1f2,stroke:#f43f5e,color:#881337
+  style W_Setup fill:#fff1f2,stroke:#f43f5e,color:#881337
+  style W_Rem fill:#fff1f2,stroke:#f43f5e,color:#881337
+  style W_How fill:#fff1f2,stroke:#f43f5e,color:#881337
+  style R_Conn fill:#fff1f2,stroke:#f43f5e,color:#881337
+  style R_Find fill:#fff1f2,stroke:#f43f5e,color:#881337
+  style R_RLS fill:#fff1f2,stroke:#f43f5e,color:#881337
+  style D_PR fill:#fff1f2,stroke:#f43f5e,color:#881337
+  style R_Graph fill:#fef3c7,stroke:#d97706,color:#78350f
+  style W_URL fill:#fef3c7,stroke:#d97706,color:#78350f
+  style W_Types fill:#fef3c7,stroke:#d97706,color:#78350f
+          </pre>
+        </div>
+      </section>
+
+      <!-- Section: Depth Map & Comparison Table -->
+      <section id="depth-map" class="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm space-y-6">
+        <div>
+          <h2 class="font-serif text-2xl text-stone-900">Candidate Matrix Ranked by Leverage</h2>
+          <p class="text-sm text-stone-600 mt-1">
+            Each candidate is scored by how much cross-file friction, duplication, and live bug surface disappears when deepened behind a single interface.
+          </p>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="border-b border-stone-200 text-stone-500 font-mono uppercase text-[11px]">
+                <th class="py-2.5 pr-3">#</th>
+                <th class="py-2.5 px-3">Candidate Seam</th>
+                <th class="py-2.5 px-3">Dimensions</th>
+                <th class="py-2.5 px-3">Current Shallow Friction / Bug</th>
+                <th class="py-2.5 pl-3">Leverage</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-stone-200/80 text-stone-700">
+              <tr>
+                <td class="py-3 pr-3 font-mono font-semibold text-stone-400">01</td>
+                <td class="py-3 px-3 font-medium text-stone-900"><a href="#candidate-1" class="hover:underline">Fix-as-Code PR Lifecycle &amp; Polling</a></td>
+                <td class="py-3 px-3"><span class="px-2 py-0.5 rounded bg-stone-100 font-mono text-[11px]">Backend · UX</span></td>
+                <td class="py-3 px-3"><code class="font-mono">pull_requests.py</code> &amp; <code class="font-mono">cut_pull_requests.py</code> clone 867 lines; <code class="font-mono">HowToFix.tsx</code> never polls <code class="font-mono">QUEUED/OPENING</code> PRs (stuck spinner bug).</td>
+                <td class="py-3 pl-3"><span class="px-2 py-0.5 rounded bg-rose-100 text-rose-800 font-mono font-semibold">High</span></td>
+              </tr>
+              <tr>
+                <td class="py-3 pr-3 font-mono font-semibold text-stone-400">02</td>
+                <td class="py-3 px-3 font-medium text-stone-900"><a href="#candidate-2" class="hover:underline">Connection Setup Projection &amp; Provider Capabilities</a></td>
+                <td class="py-3 px-3"><span class="px-2 py-0.5 rounded bg-stone-100 font-mono text-[11px]">Backend · Frontend · UX</span></td>
+                <td class="py-3 px-3"><code class="font-mono">set_schedule</code>/<code class="font-mono">resume_setup</code> call <code class="font-mono">_serialize(conn)</code> without subscriptions → returns <code class="font-mono">is_ready_to_scan: false</code>; web still branches on <code class="font-mono">provider === "aws"</code>.</td>
+                <td class="py-3 pl-3"><span class="px-2 py-0.5 rounded bg-rose-100 text-rose-800 font-mono font-semibold">High</span></td>
+              </tr>
+              <tr>
+                <td class="py-3 pr-3 font-mono font-semibold text-stone-400">03</td>
+                <td class="py-3 px-3 font-medium text-stone-900"><a href="#candidate-3" class="hover:underline">Remediation Queue N+1 &amp; Finding Detail Read Module</a></td>
+                <td class="py-3 px-3"><span class="px-2 py-0.5 rounded bg-stone-100 font-mono text-[11px]">DB · Speed · Backend</span></td>
+                <td class="py-3 px-3"><code class="font-mono">/remediation</code> fires 1+N HTTP requests × 10 SQL queries (~201 SQL queries for 20 tasks) because <code class="font-mono">queue()</code> drops joined finding fields.</td>
+                <td class="py-3 pl-3"><span class="px-2 py-0.5 rounded bg-rose-100 text-rose-800 font-mono font-semibold">High</span></td>
+              </tr>
+              <tr>
+                <td class="py-3 pr-3 font-mono font-semibold text-stone-400">04</td>
+                <td class="py-3 px-3 font-medium text-stone-900"><a href="#candidate-4" class="hover:underline">Request-Scoped RLS Transaction Ownership</a></td>
+                <td class="py-3 px-3"><span class="px-2 py-0.5 rounded bg-stone-100 font-mono text-[11px]">Security · DB · RLS</span></td>
+                <td class="py-3 px-3">19 <code class="font-mono">await session.commit()</code> calls across 11 route files end the <code class="font-mono">rls_session</code> transaction early and wipe <code class="font-mono">SET LOCAL</code> RLS GUCs.</td>
+                <td class="py-3 pl-3"><span class="px-2 py-0.5 rounded bg-rose-100 text-rose-800 font-mono font-semibold">High</span></td>
+              </tr>
+              <tr>
+                <td class="py-3 pr-3 font-mono font-semibold text-stone-400">05</td>
+                <td class="py-3 px-3 font-medium text-stone-900"><a href="#candidate-5" class="hover:underline">Domain Cache Invalidation &amp; Tenant Session Isolation</a></td>
+                <td class="py-3 px-3"><span class="px-2 py-0.5 rounded bg-stone-100 font-mono text-[11px]">Privacy · UX · Frontend</span></td>
+                <td class="py-3 px-3">22 files hand-roll partial <code class="font-mono">invalidateQueries</code> lists (4 stale-UI bugs); <code class="font-mono">auth.signOut()</code> &amp; org switch never clear <code class="font-mono">queryClient</code> cache.</td>
+                <td class="py-3 pl-3"><span class="px-2 py-0.5 rounded bg-rose-100 text-rose-800 font-mono font-semibold">High</span></td>
+              </tr>
+              <tr>
+                <td class="py-3 pr-3 font-mono font-semibold text-stone-400">06</td>
+                <td class="py-3 px-3 font-medium text-stone-900"><a href="#candidate-6" class="hover:underline">Attack-Path Graph Read Module</a></td>
+                <td class="py-3 px-3"><span class="px-2 py-0.5 rounded bg-stone-100 font-mono text-[11px]">Backend · Speed · Tests</span></td>
+                <td class="py-3 px-3"><code class="font-mono">routes/attack_paths.py</code> (574L) repeats 5-step <code class="font-mono">load_graph → off_loop → SQL joins → off_loop</code> across 8 handlers.</td>
+                <td class="py-3 pl-3"><span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-mono font-semibold">Medium</span></td>
+              </tr>
+              <tr>
+                <td class="py-3 pr-3 font-mono font-semibold text-stone-400">07</td>
+                <td class="py-3 px-3 font-medium text-stone-900"><a href="#candidate-7" class="hover:underline">OpenAPI → TypeScript Schema Contract Seam</a></td>
+                <td class="py-3 px-3"><span class="px-2 py-0.5 rounded bg-stone-100 font-mono text-[11px]">Robustness · Frontend</span></td>
+                <td class="py-3 px-3"><code class="font-mono">docs/api/openapi.json</code> is CI-enforced on the backend, but <code class="font-mono">apps/web/src/lib/types.ts</code> (1,474L) is hand-copied and drifts.</td>
+                <td class="py-3 pl-3"><span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-mono font-semibold">Medium</span></td>
+              </tr>
+              <tr>
+                <td class="py-3 pr-3 font-mono font-semibold text-stone-400">08</td>
+                <td class="py-3 px-3 font-medium text-stone-900"><a href="#candidate-8" class="hover:underline">AttackPaths URL State &amp; Selection Module</a></td>
+                <td class="py-3 px-3"><span class="px-2 py-0.5 rounded bg-stone-100 font-mono text-[11px]">Frontend · UX · Tests</span></td>
+                <td class="py-3 px-3"><code class="font-mono">AttackPaths.tsx</code> (1,540L, ~49 hooks) embeds a 12-param URL codec that cannot be tested without mounting React Flow.</td>
+                <td class="py-3 pl-3"><span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-mono font-semibold">Medium</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- CANDIDATE 01 -->
+      <!-- ============================================================== -->
+      <section id="candidate-1" class="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm space-y-6 scroll-mt-24">
+        <div class="flex items-start justify-between gap-4 border-b border-stone-100 pb-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-stone-900 text-stone-50">CANDIDATE 01</span>
+              <span class="font-mono text-xs px-2 py-0.5 rounded bg-rose-100 text-rose-800 font-medium">High Leverage</span>
+              <span class="font-mono text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-medium">Fixes Live UX Bug</span>
+            </div>
+            <h3 class="font-serif text-2xl text-stone-900 mt-2">Fix-as-Code Pull Request Lifecycle &amp; Status Polling Module</h3>
+          </div>
+          <div class="text-right font-mono text-xs text-stone-500">
+            <div>~867 lines → 1 deep module</div>
+            <div>Backend + React SPA</div>
+          </div>
+        </div>
+
+        <!-- 1. Where -->
+        <div>
+          <h4 class="text-xs font-mono uppercase tracking-wider text-stone-400 mb-2">1. Where</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs font-mono bg-stone-50 p-3.5 rounded-xl border border-stone-200">
+            <div><span class="text-stone-900 font-semibold">apps/api/app/services/pull_requests.py:69-420</span> — Rule PR lifecycle (<code class="font-mono">kind="RULE"</code>, 481 lines)</div>
+            <div><span class="text-stone-900 font-semibold">apps/api/app/services/cut_pull_requests.py:65-385</span> — Attack-path cut PR lifecycle (<code class="font-mono">kind="CUT"</code>, 386 lines)</div>
+            <div><span class="text-stone-900 font-semibold">apps/api/app/remediation/iac/pull_request.py:119-203</span> &amp; <span class="text-stone-900 font-semibold">cut.py:42-104</span> — HCL edit planners</div>
+            <div><span class="text-stone-900 font-semibold">apps/web/src/components/security/FixPullRequests.tsx:33-118</span> vs <span class="text-stone-900 font-semibold">components/graph/HowToFix.tsx:41-55, 145-217</span></div>
+          </div>
+        </div>
+
+        <!-- 2. The Shallow Seam -->
+        <div class="space-y-4">
+          <h4 class="text-xs font-mono uppercase tracking-wider text-stone-400">2. The Shallow Seam &amp; Live Bug</h4>
+          <p class="text-sm text-stone-700 leading-relaxed">
+            CloudGuard opens Terraform pull requests in two places: for a security rule across an estate (<code class="font-mono text-xs">kind="RULE"</code>) and for a choke-point cut on an attack path (<code class="font-mono text-xs">kind="CUT"</code>). Both store rows in the exact same <code class="font-mono text-xs">FixPullRequest</code> table (<code class="font-mono text-xs">models/pull_request.py</code>). Even <code class="font-mono text-xs">cut_pull_requests.py:209</code> delegates <code class="font-mono text-xs">claim_due</code> to <code class="font-mono text-xs">pull_requests.claim_due(session, kind=KIND_CUT)</code>.
+          </p>
+          <p class="text-sm text-stone-700 leading-relaxed">
+            Yet everything around that queue is cloned across two ~400-line backend modules and two frontend UI modules:
+          </p>
+          <ul class="list-disc pl-5 text-sm text-stone-700 space-y-1.5">
+            <li><strong>Backend clone:</strong> <code class="font-mono text-xs">request()</code> (grouping <code class="font-mono text-xs">IacStateEntry</code> rows by repo and upserting <code class="font-mono text-xs">FixPullRequest</code>), <code class="font-mono text-xs">_read_job()</code> (loading <code class="font-mono text-xs">IacIndexEntry</code> + GitHub installation), <code class="font-mono text-xs">open_on_github()</code> (checking suspended installations, minting installation tokens, fetching HCL files over HTTP, calling <code class="font-mono text-xs">open_pull_request</code>), and <code class="font-mono text-xs">_settle()</code> (handling <code class="font-mono text-xs">OPEN</code>, <code class="font-mono text-xs">DECLINED</code>, retry backoff, and <code class="font-mono text-xs">FAILED</code>) are written twice.</li>
+            <li><strong>Live UX bug in Attack Paths (<code class="font-mono text-xs">HowToFix.tsx:41-55</code>):</strong> <code class="font-mono text-xs">FixPullRequests.tsx:44-45</code> sets <code class="font-mono text-xs">refetchInterval: 5_000</code> whenever any PR is in <code class="font-mono text-xs">QUEUED</code> or <code class="font-mono text-xs">OPENING</code> so the row transitions from <em>"Opening…"</em> to <em>"#42 opened"</em> automatically. <code class="font-mono text-xs">HowToFix.tsx</code> omits <code class="font-mono text-xs">refetchInterval</code> on <code class="font-mono text-xs">cutFixQuery(link)</code> and re-implements <code class="font-mono text-xs">prState()</code> at <code class="font-mono text-xs">L201-217</code> — leaving users who click <em>"Open pull request"</em> on an attack path stuck on an infinite <em>"Opening…"</em> spinner until they manually refresh the browser.</li>
+          </ul>
+
+          <!-- Side-by-side Coupling Comparison -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+            <div class="p-4 rounded-xl bg-rose-50/50 border border-rose-200">
+              <div class="text-xs font-mono font-semibold text-rose-900 mb-2">TODAY — Split Parallel Pipelines</div>
+              <pre class="mermaid">
+flowchart TD
+  subgraph RulePath["Rule Fix Path"]
+    FUI["FixPullRequests.tsx\n(polls every 5s)"] --> PR1["services/pull_requests.py\n_read_job + open_on_github + _settle"]
+  end
+  subgraph CutPath["Attack-Path Cut Path"]
+    HUI["HowToFix.tsx\n(NO polling — stuck spinner)"] --> PR2["services/cut_pull_requests.py\n_read_job + open_on_github + _settle"]
+  end
+  PR1 --> GH["GitHub App Token + HCL Fetch + PR Create"]
+  PR2 --> GH
+              </pre>
+            </div>
+            <div class="p-4 rounded-xl bg-emerald-50/50 border border-emerald-200">
+              <div class="text-xs font-mono font-semibold text-emerald-900 mb-2">DEEPENED — Single PR Lifecycle Seam</div>
+              <pre class="mermaid">
+flowchart TD
+  FUI2["FixPullRequests.tsx"] --> Hook["Shared PR Status + Polling Seam\n(5s poll while QUEUED/OPENING)"]
+  HUI2["HowToFix.tsx"] --> Hook
+  Hook --> Engine["Fix Pull Request Lifecycle Module\n(PlanStrategy: Rule vs Cut)"]
+  Engine --> GH2["Single GitHub Token / HCL Fetch / _settle Pipeline"]
+              </pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. What Deepening Looks Like -->
+        <div class="p-4 rounded-xl bg-stone-50 border border-stone-200 space-y-2">
+          <h4 class="text-xs font-mono uppercase tracking-wider text-stone-500">3. What Deepening Looks Like</h4>
+          <p class="text-sm text-stone-700 leading-relaxed">
+            Consolidate <code class="font-mono text-xs">pull_requests.py</code> and <code class="font-mono text-xs">cut_pull_requests.py</code> into a single deep Fix-as-Code PR lifecycle module. The only difference between <code class="font-mono text-xs">RULE</code> and <code class="font-mono text-xs">CUT</code> is a small <strong>planning adapter</strong>: how target <code class="font-mono text-xs">IacStateEntry</code> rows are matched and which HCL planner (<code class="font-mono text-xs">plan_rule_pull_request</code> vs <code class="font-mono text-xs">plan_cut_pull_request</code>) transforms the fetched files. Queueing, claiming, GitHub token minting, HCL file fetching, branch/PR creation, and retry/backoff settlement live in one implementation. On the frontend, share the PR list/row status polling seam so both Rule and Attack-Path PRs poll while <code class="font-mono text-xs">QUEUED | OPENING</code>.
+          </p>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- CANDIDATE 02 -->
+      <!-- ============================================================== -->
+      <section id="candidate-2" class="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm space-y-6 scroll-mt-24">
+        <div class="flex items-start justify-between gap-4 border-b border-stone-100 pb-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-stone-900 text-stone-50">CANDIDATE 02</span>
+              <span class="font-mono text-xs px-2 py-0.5 rounded bg-rose-100 text-rose-800 font-medium">High Leverage</span>
+              <span class="font-mono text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-medium">Fixes Live Serialization Bug + Finishes §263</span>
+            </div>
+            <h3 class="font-serif text-2xl text-stone-900 mt-2">Cloud Connection Setup Projection &amp; Provider Capability Seam</h3>
+          </div>
+          <div class="text-right font-mono text-xs text-stone-500">
+            <div>Completes PRD Milestones 3–4</div>
+            <div>Backend + React SPA</div>
+          </div>
+        </div>
+
+        <!-- 1. Where -->
+        <div>
+          <h4 class="text-xs font-mono uppercase tracking-wider text-stone-400 mb-2">1. Where</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs font-mono bg-stone-50 p-3.5 rounded-xl border border-stone-200">
+            <div><span class="text-stone-900 font-semibold">apps/api/app/api/routes/cloud_connections.py:59-119</span> — <code class="font-mono">_serialize()</code> + callers at L418, L462, L472</div>
+            <div><span class="text-stone-900 font-semibold">apps/web/src/lib/connectionStage.ts:40-138</span> — <code class="font-mono">hasConsentStep</code>, <code class="font-mono">scopesFor</code>, <code class="font-mono">needsScopeId</code>, <code class="font-mono">stageOf</code></div>
+            <div><span class="text-stone-900 font-semibold">apps/web/src/components/connections/setup/StepScope.tsx:58, 88, 92, 116-182</span> — Provider-switched scope picker</div>
+            <div><span class="text-stone-900 font-semibold">apps/web/src/components/connections/AccessPanel.tsx:69, 84</span> — Consent &amp; role lines</div>
+          </div>
+        </div>
+
+        <!-- 2. The Shallow Seam -->
+        <div class="space-y-4">
+          <h4 class="text-xs font-mono uppercase tracking-wider text-stone-400">2. The Shallow Seam &amp; Live Bug</h4>
+          <ul class="list-disc pl-5 text-sm text-stone-700 space-y-2">
+            <li>
+              <strong>Live bug in <code class="font-mono text-xs">routes/cloud_connections.py</code> (<code class="font-mono text-xs">L418, L462, L472</code>):</strong>
+              The HTTP route helper <code class="font-mono text-xs">_serialize(connection, subscriptions)</code> computes <code class="font-mono text-xs">subscription_count</code>, <code class="font-mono text-xs">subscriptions</code>, and <code class="font-mono text-xs">is_ready_to_scan = connection.is_verified and any(a.is_scannable for a in (subscriptions or []))</code>. While <code class="font-mono text-xs">get_connection</code> and <code class="font-mono text-xs">verify_connection</code> pass <code class="font-mono text-xs">subscriptions</code>, the mutation handlers <code class="font-mono text-xs">set_schedule</code> (<code class="font-mono text-xs">L418</code>), <code class="font-mono text-xs">cancel_setup</code> (<code class="font-mono text-xs">L462</code>), and <code class="font-mono text-xs">resume_setup</code> (<code class="font-mono text-xs">L472</code>) call <code class="font-mono text-xs">_serialize(connection)</code> with <code class="font-mono text-xs">subscriptions=None</code>. Calling <code class="font-mono text-xs">PATCH /api/v1/cloud-connections/{id}/schedule</code> on a verified, active connection returns <code class="font-mono text-xs">subscription_count: 0</code>, <code class="font-mono text-xs">subscriptions: []</code>, and <code class="font-mono text-xs">is_ready_to_scan: false</code>!
+            </li>
+            <li>
+              <strong>Unfinished Milestone 3–4 of <code class="font-mono text-xs">ProviderAdapter</code> (§263):</strong>
+              Commit <code class="font-mono text-xs">afecea8</code> added <code class="font-mono text-xs">ProviderCapabilities</code> (<code class="font-mono text-xs">separate_consent</code>, <code class="font-mono text-xs">scopes[].needs_scope_id</code>) to <code class="font-mono text-xs">GET /api/v1/cloud-connections/providers</code>. However, <code class="font-mono text-xs">connectionStage.ts:40-58</code> still hardcodes <code class="font-mono text-xs">hasConsentStep(provider)</code> (<code class="font-mono text-xs">provider === "azure"</code>), <code class="font-mono text-xs">scopesFor(provider)</code>, and <code class="font-mono text-xs">needsScopeId(provider, scope)</code>, and <code class="font-mono text-xs">StepScope.tsx</code> &amp; <code class="font-mono text-xs">AccessPanel.tsx</code> call those hardcoded helpers instead of reading the server-published capabilities.
+            </li>
+            <li>
+              <strong>Split setup state derivation:</strong>
+              Readiness (<code class="font-mono text-xs">is_verified</code>, <code class="font-mono text-xs">deploy_stalled</code>, <code class="font-mono text-xs">role_upgrade_available</code>, <code class="font-mono text-xs">degraded_categories</code>) is computed inside the FastAPI route file (<code class="font-mono text-xs">_serialize</code>), while the 6-step setup stage (<code class="font-mono text-xs">scope → consent → deploy → discover → review → done / paused</code>) is re-derived on the client in <code class="font-mono text-xs">connectionStage.ts:stageOf</code> and <code class="font-mono text-xs">connectionSummary.ts:connectionAction</code>.
+            </li>
+          </ul>
+
+          <!-- Depth Cross-Section -->
+          <div class="p-4 rounded-xl bg-stone-50 border border-stone-200 space-y-3">
+            <div class="text-xs font-mono font-semibold text-stone-700">DEPTH CROSS-SECTION — Connection Read &amp; Setup State</div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              <div class="p-3 rounded-lg bg-white border border-rose-200 space-y-2">
+                <div class="font-mono text-rose-800 font-semibold">Today: Shallow &amp; Split Across 4 Files</div>
+                <div class="w-full bg-rose-200 text-rose-950 font-mono px-2.5 py-1.5 rounded text-[11px]">
+                  Interface: 9 route call sites + 3 TS helpers + provider string checks
+                </div>
+                <div class="w-3/5 bg-stone-200 text-stone-700 font-mono px-2.5 py-1.5 rounded text-[11px]">
+                  Hidden: partial _serialize() in route file
+                </div>
+              </div>
+              <div class="p-3 rounded-lg bg-white border border-emerald-200 space-y-2">
+                <div class="font-mono text-emerald-800 font-semibold">Target: Deep Connection Projection + Capability Seam</div>
+                <div class="w-2/5 bg-emerald-600 text-white font-mono px-2.5 py-1.5 rounded text-[11px]">
+                  Interface: present_connection() + ProviderCapabilities
+                </div>
+                <div class="w-full bg-emerald-100 text-emerald-950 font-mono px-2.5 py-2.5 rounded text-[11px]">
+                  Hidden: subscription join, readiness, role drift, VISIBLE_PROVIDER_REF filter, setup stage &amp; capability lookup
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. What Deepening Looks Like -->
+        <div class="p-4 rounded-xl bg-stone-50 border border-stone-200 space-y-2">
+          <h4 class="text-xs font-mono uppercase tracking-wider text-stone-500">3. What Deepening Looks Like</h4>
+          <p class="text-sm text-stone-700 leading-relaxed">
+            Move <code class="font-mono text-xs">_serialize</code> out of <code class="font-mono text-xs">routes/cloud_connections.py</code> into <code class="font-mono text-xs">services/cloud_connections.py</code> as the single connection read projection module that always loads or accepts the connection's accounts (fixing <code class="font-mono text-xs">set_schedule</code>, <code class="font-mono text-xs">cancel_setup</code>, and <code class="font-mono text-xs">resume_setup</code>). On the frontend, complete Milestones 3 and 4 of <code class="font-mono text-xs">.claude/prds/provider-adapter-per-cloud.prd.md</code>: drive <code class="font-mono text-xs">connectionStage.ts</code>, <code class="font-mono text-xs">StepScope.tsx</code>, and <code class="font-mono text-xs">AccessPanel.tsx</code> from <code class="font-mono text-xs">ProviderOption.capabilities</code> and add the 3rd-provider proof test.
+          </p>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- CANDIDATE 03 -->
+      <!-- ============================================================== -->
+      <section id="candidate-3" class="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm space-y-6 scroll-mt-24">
+        <div class="flex items-start justify-between gap-4 border-b border-stone-100 pb-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-stone-900 text-stone-50">CANDIDATE 03</span>
+              <span class="font-mono text-xs px-2 py-0.5 rounded bg-rose-100 text-rose-800 font-medium">High Leverage</span>
+              <span class="font-mono text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-medium">201 SQL Queries → 4 SQL Queries</span>
+            </div>
+            <h3 class="font-serif text-2xl text-stone-900 mt-2">Remediation Queue N+1 Waterfall &amp; Finding Detail Read Module</h3>
+          </div>
+          <div class="text-right font-mono text-xs text-stone-500">
+            <div>Database · FastAPI · React SPA</div>
+            <div>Latency &amp; Locality</div>
+          </div>
+        </div>
+
+        <!-- 1. Where -->
+        <div>
+          <h4 class="text-xs font-mono uppercase tracking-wider text-stone-400 mb-2">1. Where</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs font-mono bg-stone-50 p-3.5 rounded-xl border border-stone-200">
+            <div><span class="text-stone-900 font-semibold">apps/api/app/services/remediation.py:194-250</span> — <code class="font-mono">queue()</code> joins <code class="font-mono">Finding</code> + <code class="font-mono">ResourceRecord</code> then discards their columns</div>
+            <div><span class="text-stone-900 font-semibold">apps/web/src/pages/Remediation.tsx:120-154</span> — <code class="font-mono">useQueries</code> fan-out fetching <code class="font-mono">/findings/{id}</code> per task</div>
+            <div><span class="text-stone-900 font-semibold">apps/api/app/api/routes/findings.py:213-258</span> — <code class="font-mono">get_finding</code> 15-key dict assembly in route</div>
+            <div><span class="text-stone-900 font-semibold">apps/api/app/services/findings.py:309-349</span> — <code class="font-mono">load_detail</code> + redundant <code class="font-mono">row_of</code> re-query</div>
+          </div>
+        </div>
+
+        <!-- 2. The Shallow Seam -->
+        <div class="space-y-4">
+          <h4 class="text-xs font-mono uppercase tracking-wider text-stone-400">2. The Shallow Seam &amp; Query Waterfall</h4>
+          <p class="text-sm text-stone-700 leading-relaxed">
+            Opening the <code class="font-mono text-xs">/remediation</code> page for a tenant with 20 tracked tasks currently triggers <strong>21 HTTP requests and ~201 sequential PostgreSQL queries</strong> before the UI can even group tasks by rule:
+          </p>
+          <ol class="list-decimal pl-5 text-sm text-stone-700 space-y-1.5">
+            <li><code class="font-mono text-xs">services/remediation.py:queue()</code> (<code class="font-mono text-xs">L212-227</code>) <em>already joins</em> <code class="font-mono text-xs">Finding</code> and <code class="font-mono text-xs">ResourceRecord</code> in SQL to compute SLA deadlines and owners, but strips <code class="font-mono text-xs">Finding.rule_id</code>, <code class="font-mono text-xs">title</code>, <code class="font-mono text-xs">severity</code>, <code class="font-mono text-xs">status</code>, <code class="font-mono text-xs">verification_state</code>, and <code class="font-mono text-xs">ResourceRecord.name</code> from <code class="font-mono text-xs">RemediationTaskRead</code>.</li>
+            <li>Because the task payload lacks those fields, <code class="font-mono text-xs">Remediation.tsx:131-146</code> runs <code class="font-mono text-xs">useQueries</code> to fire <strong>N separate <code class="font-mono">GET /api/v1/findings/{task.finding_id}</code> requests</strong> and blocks rendering rule groups until <code class="font-mono text-xs">findings.every((q) =&gt; !q.isLoading)</code> (<code class="font-mono text-xs">L145</code>).</li>
+            <li>Each <code class="font-mono text-xs">GET /api/v1/findings/{id}</code> in <code class="font-mono text-xs">routes/findings.py:213-258</code> executes <strong>10 sequential SQL queries</strong>: <code class="font-mono text-xs">get_finding</code> loads <code class="font-mono text-xs">Finding</code>, <code class="font-mono text-xs">load_detail</code> loads <code class="font-mono text-xs">ResourceRecord</code>, <code class="font-mono text-xs">Rule</code>, <code class="font-mono text-xs">own_risk</code>, then calls <code class="font-mono text-xs">row_of</code> (which <strong>re-queries <code class="font-mono">Finding</code> and <code class="font-mono">ResourceRecord</code> a second time</strong> alongside <code class="font-mono text-xs">Scan</code>, <code class="font-mono text-xs">CloudConnection</code>, and <code class="font-mono text-xs">FindingEvidence</code>), then <code class="font-mono text-xs">timeline</code>, <code class="font-mono text-xs">latest_verification</code>, <code class="font-mono text-xs">accepted_until</code>, <code class="font-mono text-xs">approvals.pending_for_finding</code>, and <code class="font-mono text-xs">iac_index.managed_in_code</code>.</li>
+          </ol>
+
+          <div class="p-4 rounded-xl bg-stone-50 border border-stone-200 overflow-x-auto">
+            <pre class="mermaid">
+flowchart LR
+  subgraph Today["Today: 20 Tasks = 21 HTTP Calls & ~201 SQL Queries"]
+    RPage["Remediation.tsx"] -->|"1. GET /remediation"| Q1["remediation.queue()\n(joins Finding + Resource, discards columns)"]
+    RPage -->|"2..21. 20x GET /findings/{id}"| GFind["routes/findings.py:get_finding()\n10 sequential SQL queries each\n(fetches Finding & Resource twice!)"]
+  end
+  subgraph Deepened["Deepened: 20 Tasks = 1 HTTP Call & 4 SQL Queries"]
+    RPage2["Remediation.tsx"] -->|"1. GET /remediation"| Q2["remediation.queue()\n(includes FindingSummary from existing join)"]
+    Detail["FindingDetail.tsx"] -->|"GET /findings/{id}"| GFind2["findings.read_detail()\nSingle typed assembly, zero duplicate fetches"]
+  end
+  style Q1 fill:#fff1f2,stroke:#f43f5e,color:#881337
+  style GFind fill:#fff1f2,stroke:#f43f5e,color:#881337
+  style Q2 fill:#ecfdf5,stroke:#10b981,color:#065f46
+  style GFind2 fill:#ecfdf5,stroke:#10b981,color:#065f46
+            </pre>
+          </div>
+        </div>
+
+        <!-- 3. What Deepening Looks Like -->
+        <div class="p-4 rounded-xl bg-stone-50 border border-stone-200 space-y-2">
+          <h4 class="text-xs font-mono uppercase tracking-wider text-stone-500">3. What Deepening Looks Like</h4>
+          <p class="text-sm text-stone-700 leading-relaxed">
+            First, project the finding summary fields (<code class="font-mono text-xs">rule_id</code>, <code class="font-mono text-xs">title</code>, <code class="font-mono text-xs">severity</code>, <code class="font-mono text-xs">status</code>, <code class="font-mono text-xs">verification_state</code>, <code class="font-mono text-xs">resource_name</code>, <code class="font-mono text-xs">resource_type</code>, <code class="font-mono text-xs">cloud_provider</code>) that <code class="font-mono text-xs">services/remediation.py:queue()</code> already has in its SQL join directly onto <code class="font-mono text-xs">RemediationTaskRead</code>, deleting the <code class="font-mono text-xs">useQueries</code> N+1 waterfall in <code class="font-mono text-xs">Remediation.tsx</code>. Second, deepen <code class="font-mono text-xs">services/findings.py:load_detail</code> so it starts from <code class="font-mono text-xs">row_of</code> (eliminating the duplicate <code class="font-mono text-xs">Finding</code> and <code class="font-mono text-xs">ResourceRecord</code> round-trips), includes <code class="font-mono text-xs">approvals</code> and <code class="font-mono text-xs">managed_in_code</code> inside the module, and returns a typed <code class="font-mono text-xs">FindingDetail</code> directly to a 3-line route handler.
+          </p>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- CANDIDATE 04 -->
+      <!-- ============================================================== -->
+      <section id="candidate-4" class="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm space-y-6 scroll-mt-24">
+        <div class="flex items-start justify-between gap-4 border-b border-stone-100 pb-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-stone-900 text-stone-50">CANDIDATE 04</span>
+              <span class="font-mono text-xs px-2 py-0.5 rounded bg-rose-100 text-rose-800 font-medium">High Leverage</span>
+              <span class="font-mono text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-800 font-medium">Security &amp; RLS Invariant (§54)</span>
+            </div>
+            <h3 class="font-serif text-2xl text-stone-900 mt-2">Request-Scoped RLS Transaction Ownership Seam</h3>
+          </div>
+          <div class="text-right font-mono text-xs text-stone-500">
+            <div>19 route-level commits across 11 files</div>
+            <div>Database · Security</div>
+          </div>
+        </div>
+
+        <!-- 1. Where -->
+        <div>
+          <h4 class="text-xs font-mono uppercase tracking-wider text-stone-400 mb-2">1. Where</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs font-mono bg-stone-50 p-3.5 rounded-xl border border-stone-200">
+            <div><span class="text-stone-900 font-semibold">apps/api/app/core/db.py:126-186</span> — <code class="font-mono">rls_session</code> (<code class="font-mono">SET LOCAL ROLE authenticated</code> + <code class="font-mono">request.jwt.claims</code>)</div>
+            <div><span class="text-stone-900 font-semibold">apps/api/tests/unit/test_request_transaction.py:26, 97-121</span> — AST guard (currently checks <code class="font-mono">app/services/</code> only)</div>
+            <div><span class="text-stone-900 font-semibold">apps/api/app/api/routes/remediation.py:47, 137, 179</span>, <span class="text-stone-900 font-semibold">ownership.py:48, 59, 69</span>, <span class="text-stone-900 font-semibold">assets.py:272, 283</span></div>
+            <div><span class="text-stone-900 font-semibold">apps/api/app/api/routes/notifications.py:58, 81, 96</span>, <span class="text-stone-900 font-semibold">integrations.py:80, 90</span>, <span class="text-stone-900 font-semibold">scans.py:53, 89, 111</span></div>
+          </div>
+        </div>
+
+        <!-- 2. The Shallow Seam -->
+        <div class="space-y-4">
+          <h4 class="text-xs font-mono uppercase tracking-wider text-stone-400">2. The Shallow Seam &amp; RLS Hazard</h4>
+          <p class="text-sm text-stone-700 leading-relaxed">
+            Per <code class="font-mono text-xs">DECISIONS.md</code> §54, <code class="font-mono text-xs">rls_session</code> in <code class="font-mono text-xs">core/db.py:126-163</code> wraps every HTTP request in a single PostgreSQL transaction (<code class="font-mono text-xs">async with session.begin():</code>) and applies <code class="font-mono text-xs">SET LOCAL ROLE authenticated</code> and <code class="font-mono text-xs">SET LOCAL request.jwt.claims</code>. <code class="font-mono text-xs">test_request_transaction.py</code> enforces via AST inspection that no module under <code class="font-mono text-xs">app/services/</code> calls <code class="font-mono text-xs">session.commit()</code>.
+          </p>
+          <p class="text-sm text-stone-700 leading-relaxed">
+            However, <strong>11 route files under <code class="font-mono text-xs">app/api/</code> still call <code class="font-mono text-xs">await session.commit()</code> directly (19 call sites)</strong>. In PostgreSQL + SQLAlchemy 2.0, calling <code class="font-mono text-xs">await session.commit()</code> inside <code class="font-mono text-xs">rls_session</code> terminates the transaction early and <strong>resets all <code class="font-mono text-xs">SET LOCAL</code> GUCs (<code class="font-mono text-xs">ROLE</code> and <code class="font-mono text-xs">request.jwt.claims</code>) for the rest of the route handler</strong>. Any query or lazy read after that commit runs outside the tenant's RLS context!
+          </p>
+
+          <!-- Amber Warning Box for DECISIONS.md nuance -->
+          <div class="p-4 rounded-xl bg-amber-50 border border-amber-300 text-xs text-amber-950 space-y-1.5">
+            <div class="font-mono font-semibold uppercase tracking-wider text-amber-900">⚠️ Architectural Constraint Note (DECISIONS.md §54 + Celery Visibility)</div>
+            <p class="leading-relaxed">
+              16 of the 19 <code class="font-mono">await session.commit()</code> calls in <code class="font-mono">app/api/</code> are pure historical leftovers at the end of route handlers (and can be deleted outright so <code class="font-mono">rls_session</code> commits on exit). However, <strong>3 call sites</strong> (<code class="font-mono">routes/scans.py:53</code> <code class="font-mono">create_scan</code>, <code class="font-mono">routes/scans.py:89</code> <code class="font-mono">replay_scan</code>, and <code class="font-mono">routes/findings.py:322</code> <code class="font-mono">rescan_finding</code>) commit mid-handler specifically so an out-of-process Celery worker (<code class="font-mono">enqueue_or_fail</code>) can see the newly created <code class="font-mono">Scan</code> row immediately. Deepening this seam must preserve out-of-process visibility before Celery dispatch (either via a dedicated <code class="font-mono">commit_and_rebind_rls(session)</code> helper in <code class="font-mono">core/db.py</code> or post-commit dispatch).
+            </p>
+          </div>
+        </div>
+
+        <!-- 3. What Deepening Looks Like -->
+        <div class="p-4 rounded-xl bg-stone-50 border border-stone-200 space-y-2">
+          <h4 class="text-xs font-mono uppercase tracking-wider text-stone-500">3. What Deepening Looks Like</h4>
+          <p class="text-sm text-stone-700 leading-relaxed">
+            Delete the 16 redundant <code class="font-mono text-xs">await session.commit()</code> calls from route handlers so <code class="font-mono text-xs">rls_session</code> owns transaction commit uniformly across all routes. Encapsulate the pre-enqueue commit + RLS re-binding for the 3 Celery scan dispatch points inside <code class="font-mono text-xs">services/scans.py</code> / <code class="font-mono text-xs">core/db.py</code>, and extend <code class="font-mono text-xs">tests/unit/test_request_transaction.py</code> to scan <code class="font-mono text-xs">app/api/</code> as well as <code class="font-mono text-xs">app/services/</code>.
+          </p>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- CANDIDATE 05 -->
+      <!-- ============================================================== -->
+      <section id="candidate-5" class="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm space-y-6 scroll-mt-24">
+        <div class="flex items-start justify-between gap-4 border-b border-stone-100 pb-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-stone-900 text-stone-50">CANDIDATE 05</span>
+              <span class="font-mono text-xs px-2 py-0.5 rounded bg-rose-100 text-rose-800 font-medium">High Leverage</span>
+              <span class="font-mono text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-800 font-medium">Fixes 4 Stale-UI Bugs + Cross-Tenant Cache Bleed</span>
+            </div>
+            <h3 class="font-serif text-2xl text-stone-900 mt-2">Domain Cache Invalidation &amp; Tenant Session Isolation Module</h3>
+          </div>
+          <div class="text-right font-mono text-xs text-stone-500">
+            <div>22 files + auth session seam</div>
+            <div>Privacy · UX · React SPA</div>
+          </div>
+        </div>
+
+        <!-- 1. Where -->
+        <div>
+          <h4 class="text-xs font-mono uppercase tracking-wider text-stone-400 mb-2">1. Where</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs font-mono bg-stone-50 p-3.5 rounded-xl border border-stone-200">
+            <div><span class="text-stone-900 font-semibold">apps/web/src/lib/api.ts:57-81, 202, 222-243</span> — <code class="font-mono">auth.signOut()</code>, <code class="font-mono">auth.organizationId</code>, <code class="font-mono">fetchDocument</code></div>
+            <div><span class="text-stone-900 font-semibold">apps/web/src/components/scans/useLiveScan.ts:46-52</span> &amp; <span class="text-stone-900 font-semibold">ScanCard.tsx:60-65</span></div>
+            <div><span class="text-stone-900 font-semibold">apps/web/src/lib/remediation.ts:129, 161, 221, 362, 396</span> — 5 remediation mutation hooks</div>
+            <div><span class="text-stone-900 font-semibold">apps/web/src/pages/FindingDetail.tsx:129-131</span>, <span class="text-stone-900 font-semibold">FixSheet.tsx:127-130</span>, <span class="text-stone-900 font-semibold">RiskTriage.tsx:116-118</span></div>
+          </div>
+        </div>
+
+        <!-- 2. The Shallow Seam -->
+        <div class="space-y-4">
+          <h4 class="text-xs font-mono uppercase tracking-wider text-stone-400">2. The Shallow Seam, Stale Views &amp; Privacy Leak</h4>
+          <p class="text-sm text-stone-700 leading-relaxed">
+            Cache coherence in the React SPA is currently every caller's personal responsibility, creating both <strong>privacy/tenant bleed</strong> and <strong>4 concrete stale-screen bugs</strong>:
+          </p>
+          <ul class="list-disc pl-5 text-sm text-stone-700 space-y-1.5">
+            <li><strong>Cross-tenant &amp; post-logout cache bleed (<code class="font-mono text-xs">lib/api.ts:57-81</code>):</strong> Query keys like <code class="font-mono text-xs">["findings"]</code>, <code class="font-mono text-xs">["remediation"]</code>, <code class="font-mono text-xs">["dashboard"]</code>, and <code class="font-mono text-xs">["members", "assignees"]</code> are not scoped by <code class="font-mono text-xs">organizationId</code>, and neither <code class="font-mono text-xs">auth.signOut()</code> nor <code class="font-mono text-xs">auth.organizationId = ...</code> clears <code class="font-mono text-xs">queryClient</code>. Switching organizations or signing out and signing in as another user in the same tab serves cached data from the previous tenant during the 30s–5min <code class="font-mono text-xs">staleTime</code> window! Also, <code class="font-mono text-xs">fetchDocument</code> (<code class="font-mono text-xs">L222-243</code>) omits the <code class="font-mono text-xs">MFA_REQUIRED</code> redirect check that <code class="font-mono text-xs">request()</code> (<code class="font-mono text-xs">L202</code>) performs.</li>
+            <li><strong>Stale screens after live scan finishes (<code class="font-mono text-xs">useLiveScan.ts:46-52</code>):</strong> Invalidates only <code class="font-mono text-xs">["scans", "findings", "risks", "dashboard"]</code> — leaving <code class="font-mono text-xs">["attack-paths"]</code>, <code class="font-mono text-xs">["assets"]</code>, <code class="font-mono text-xs">["compliance"]</code>, <code class="font-mono text-xs">["remediation"]</code>, and <code class="font-mono text-xs">["changes"]</code> stale.</li>
+            <li><strong>Stale screens after scan delete (<code class="font-mono text-xs">ScanCard.tsx:60-65</code>):</strong> Invalidates only <code class="font-mono text-xs">["scans", "findings", "dashboard"]</code> — forgetting <code class="font-mono text-xs">["risks"]</code>, <code class="font-mono text-xs">["attack-paths"]</code>, <code class="font-mono text-xs">["assets"]</code>, and <code class="font-mono text-xs">["compliance"]</code>.</li>
+            <li><strong>Disagreeing remediation &amp; finding hooks:</strong> <code class="font-mono text-xs">useTrack</code> invalidates <code class="font-mono text-xs">["remediation", "findings"]</code>; <code class="font-mono text-xs">useMarkDone</code> invalidates <code class="font-mono text-xs">["remediation", "finding"]</code> (forgetting the findings list); neither invalidates <code class="font-mono text-xs">["attack-paths", "fix"]</code> even though <code class="font-mono text-xs">HowToFix.tsx:98</code> renders <code class="font-mono text-xs">finding.tracked</code> from that query.</li>
+          </ul>
+
+          <!-- Call-site Mass Diagram -->
+          <div class="p-4 rounded-xl bg-stone-50 border border-stone-200">
+            <div class="text-xs font-mono font-semibold text-stone-700 mb-3">CALL-SITE MASS — 22 Scattered Invalidation Callers vs 1 Domain Cache Module</div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] font-mono">
+              <div class="p-2 rounded bg-rose-50 border border-rose-200 text-rose-900">useLiveScan.ts (misses 5 keys)</div>
+              <div class="p-2 rounded bg-rose-50 border border-rose-200 text-rose-900">ScanCard.tsx (misses 4 keys)</div>
+              <div class="p-2 rounded bg-rose-50 border border-rose-200 text-rose-900">remediation.ts ×5 (misses fix/list)</div>
+              <div class="p-2 rounded bg-rose-50 border border-rose-200 text-rose-900">FindingDetail.tsx (misses tasks)</div>
+              <div class="p-2 rounded bg-rose-50 border border-rose-200 text-rose-900">FixSheet.tsx (misses acceptances)</div>
+              <div class="p-2 rounded bg-rose-50 border border-rose-200 text-rose-900">RiskTriage.tsx (misses paths)</div>
+              <div class="p-2 rounded bg-rose-50 border border-rose-200 text-rose-900">DeclareSensitive.tsx (misses estate)</div>
+              <div class="p-2 rounded bg-rose-50 border border-rose-200 text-rose-900">api.ts auth (misses cache.clear())</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. What Deepening Looks Like -->
+        <div class="p-4 rounded-xl bg-stone-50 border border-stone-200 space-y-2">
+          <h4 class="text-xs font-mono uppercase tracking-wider text-stone-500">3. What Deepening Looks Like</h4>
+          <p class="text-sm text-stone-700 leading-relaxed">
+            Introduce a single domain cache module (<code class="font-mono text-xs">apps/web/src/lib/queryCache.ts</code>) that owns the shared <code class="font-mono text-xs">QueryClient</code>, automatically clears all cached queries whenever <code class="font-mono text-xs">auth.signOut()</code> or <code class="font-mono text-xs">auth.organizationId</code> changes, and exposes semantic domain invalidation methods: <code class="font-mono text-xs">afterScanChange()</code>, <code class="font-mono text-xs">afterFindingChange(id?)</code>, <code class="font-mono text-xs">afterRemediationChange(findingIds?)</code>, <code class="font-mono text-xs">afterRiskChange(id?)</code>, and <code class="font-mono text-xs">afterConnectionChange(id?)</code>.
+          </p>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- CANDIDATE 06 -->
+      <!-- ============================================================== -->
+      <section id="candidate-6" class="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm space-y-6 scroll-mt-24">
+        <div class="flex items-start justify-between gap-4 border-b border-stone-100 pb-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-stone-900 text-stone-50">CANDIDATE 06</span>
+              <span class="font-mono text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-medium">Medium-High Leverage</span>
+              <span class="font-mono text-xs px-2 py-0.5 rounded bg-stone-100 text-stone-700 font-medium">Backend · Testability · Concurrency</span>
+            </div>
+            <h3 class="font-serif text-2xl text-stone-900 mt-2">Attack-Path &amp; Estate Graph Read Module</h3>
+          </div>
+          <div class="text-right font-mono text-xs text-stone-500">
+            <div>574-line route file → thin handlers</div>
+            <div>Hides 15+ low-level helpers</div>
+          </div>
+        </div>
+
+        <!-- 1. Where -->
+        <div>
+          <h4 class="text-xs font-mono uppercase tracking-wider text-stone-400 mb-2">1. Where</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs font-mono bg-stone-50 p-3.5 rounded-xl border border-stone-200">
+            <div><span class="text-stone-900 font-semibold">apps/api/app/api/routes/attack_paths.py:109-475</span> — 8 graph read handlers (574 lines)</div>
+            <div><span class="text-stone-900 font-semibold">apps/api/app/api/routes/findings.py:261-301</span> — <code class="font-mono">finding_provenance</code> graph read</div>
+            <div><span class="text-stone-900 font-semibold">apps/api/app/services/graph.py:345-1192</span> — 25 exported low-level helpers (1,192 lines)</div>
+          </div>
+        </div>
+
+        <!-- 2. The Shallow Seam -->
+        <div class="space-y-4">
+          <h4 class="text-xs font-mono uppercase tracking-wider text-stone-400">2. The Shallow Seam</h4>
+          <p class="text-sm text-stone-700 leading-relaxed">
+            Every route handler in <code class="font-mono text-xs">routes/attack_paths.py</code> (<code class="font-mono text-xs">list_attack_paths</code>, <code class="font-mono text-xs">route_graph</code>, <code class="font-mono text-xs">blast_radius</code>, <code class="font-mono text-xs">access</code>, <code class="font-mono text-xs">inspect_asset</code>, <code class="font-mono text-xs">neighborhood</code>, <code class="font-mono text-xs">estate</code>, <code class="font-mono text-xs">what_if</code>) manually orchestrates a 5-step dance:
+            (1) <code class="font-mono text-xs">load_graph(session, org_id)</code>,
+            (2) duplicate <code class="font-mono text-xs">if not resource_id or graph.resolve(resource_id) not in graph.nodes: raise NotFound("Asset")</code> (<code class="font-mono text-xs">L266, L304, L344</code>),
+            (3) hop onto the thread pool via <code class="font-mono text-xs">off_loop(...)</code> for traversal,
+            (4) return to the event loop to run 2–5 SQL enrichment queries (<code class="font-mono text-xs">asset_ids</code>, <code class="font-mono text-xs">open_findings</code>, <code class="font-mono text-xs">load_placements</code>, <code class="font-mono text-xs">tracked_routes</code>, <code class="font-mono text-xs">node_readings</code>), and
+            (5) hop onto <code class="font-mono text-xs">off_loop(...)</code> a second time to serialize dicts and wrap them in Pydantic models.
+          </p>
+        </div>
+
+        <!-- 3. What Deepening Looks Like -->
+        <div class="p-4 rounded-xl bg-stone-50 border border-stone-200 space-y-2">
+          <h4 class="text-xs font-mono uppercase tracking-wider text-stone-500">3. What Deepening Looks Like</h4>
+          <p class="text-sm text-stone-700 leading-relaxed">
+            Expose question-level async functions on the graph read module (<code class="font-mono text-xs">read_route_map</code>, <code class="font-mono text-xs">read_blast_radius</code>, <code class="font-mono text-xs">read_access</code>, <code class="font-mono text-xs">read_neighborhood</code>, <code class="font-mono text-xs">read_estate</code>, <code class="font-mono text-xs">read_simulation</code>, <code class="font-mono text-xs">read_finding_provenance</code>) that encapsulate the <code class="font-mono text-xs">load_graph → NotFound check → SQL enrichment → single off_loop</code> pipeline and make low-level <code class="font-mono text-xs">serialize_*</code> helpers module-private.
+          </p>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- CANDIDATE 07 -->
+      <!-- ============================================================== -->
+      <section id="candidate-7" class="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm space-y-6 scroll-mt-24">
+        <div class="flex items-start justify-between gap-4 border-b border-stone-100 pb-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-stone-900 text-stone-50">CANDIDATE 07</span>
+              <span class="font-mono text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-medium">Medium Leverage</span>
+              <span class="font-mono text-xs px-2 py-0.5 rounded bg-stone-100 text-stone-700 font-medium">Cross-Stack Type Safety (§157)</span>
+            </div>
+            <h3 class="font-serif text-2xl text-stone-900 mt-2">OpenAPI → TypeScript Schema Contract Seam</h3>
+          </div>
+          <div class="text-right font-mono text-xs text-stone-500">
+            <div>1,474 lines in lib/types.ts</div>
+            <div>Backend ↔ Frontend Seam</div>
+          </div>
+        </div>
+
+        <!-- 1. Where -->
+        <div>
+          <h4 class="text-xs font-mono uppercase tracking-wider text-stone-400 mb-2">1. Where</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs font-mono bg-stone-50 p-3.5 rounded-xl border border-stone-200">
+            <div><span class="text-stone-900 font-semibold">docs/api/openapi.json</span> — Committed OpenAPI 3.1 contract (404 schemas, 113 paths)</div>
+            <div><span class="text-stone-900 font-semibold">apps/api/tests/unit/test_openapi_export.py</span> — Enforces FastAPI ↔ <code class="font-mono">openapi.json</code> parity</div>
+            <div><span class="text-stone-900 font-semibold">apps/web/src/lib/types.ts:1-1474</span> — Hand-copied TypeScript interfaces</div>
+          </div>
+        </div>
+
+        <!-- 2. The Shallow Seam -->
+        <div class="space-y-3">
+          <h4 class="text-xs font-mono uppercase tracking-wider text-stone-400">2. The Shallow Seam</h4>
+          <p class="text-sm text-stone-700 leading-relaxed">
+            CloudGuard already pays the cost of maintaining a strict, committed <code class="font-mono text-xs">docs/api/openapi.json</code> verified by <code class="font-mono text-xs">test_openapi_export.py</code> (§157). Yet <code class="font-mono text-xs">apps/web/src/lib/types.ts</code> (1,474 lines) re-declares every wire schema by hand. Several types have already drifted from the backend schemas (e.g. <code class="font-mono text-xs">CloudAccount.provider: string</code> instead of <code class="font-mono text-xs">Provider</code>, and manual synchronization required whenever schemas like <code class="font-mono text-xs">ProviderOption</code> or <code class="font-mono text-xs">RemediationTaskRead</code> evolve).
+          </p>
+        </div>
+
+        <!-- 3. What Deepening Looks Like -->
+        <div class="p-4 rounded-xl bg-stone-50 border border-stone-200 space-y-2">
+          <h4 class="text-xs font-mono uppercase tracking-wider text-stone-500">3. What Deepening Looks Like</h4>
+          <p class="text-sm text-stone-700 leading-relaxed">
+            Extend the <code class="font-mono text-xs">openapi.json</code> contract seam to the frontend by generating TypeScript schema definitions from <code class="font-mono text-xs">docs/api/openapi.json</code> (and re-exporting ergonomic aliases from <code class="font-mono text-xs">apps/web/src/lib/types.ts</code>), backed by a fast check so backend schema edits immediately surface in <code class="font-mono text-xs">tsc</code>.
+          </p>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- CANDIDATE 08 -->
+      <!-- ============================================================== -->
+      <section id="candidate-8" class="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm space-y-6 scroll-mt-24">
+        <div class="flex items-start justify-between gap-4 border-b border-stone-100 pb-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-stone-900 text-stone-50">CANDIDATE 08</span>
+              <span class="font-mono text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-medium">Medium Leverage</span>
+              <span class="font-mono text-xs px-2 py-0.5 rounded bg-stone-100 text-stone-700 font-medium">Frontend · UX · Testability (§261)</span>
+            </div>
+            <h3 class="font-serif text-2xl text-stone-900 mt-2">AttackPaths URL State &amp; Selection Module</h3>
+          </div>
+          <div class="text-right font-mono text-xs text-stone-500">
+            <div>AttackPaths.tsx (1,540 lines, ~49 hooks)</div>
+            <div>12-parameter URL state machine</div>
+          </div>
+        </div>
+
+        <!-- 1. Where -->
+        <div>
+          <h4 class="text-xs font-mono uppercase tracking-wider text-stone-400 mb-2">1. Where</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs font-mono bg-stone-50 p-3.5 rounded-xl border border-stone-200">
+            <div><span class="text-stone-900 font-semibold">apps/web/src/pages/AttackPaths.tsx:109-245</span> — Inline URL search-param parsing &amp; mutation</div>
+            <div><span class="text-stone-900 font-semibold">apps/web/src/pages/AttackPaths.tsx:250-560</span> — Route filtering, keyboard stepping, simulation state</div>
+          </div>
+        </div>
+
+        <!-- 2. The Shallow Seam -->
+        <div class="space-y-3">
+          <h4 class="text-xs font-mono uppercase tracking-wider text-stone-400">2. The Shallow Seam</h4>
+          <p class="text-sm text-stone-700 leading-relaxed">
+            <code class="font-mono text-xs">AttackPaths.tsx</code> (1,540 lines, ~49 hook calls) embeds the entire URL search-parameter codec (<code class="font-mono text-xs">trace</code>, <code class="font-mono text-xs">hop</code>, <code class="font-mono text-xs">through</code>, <code class="font-mono text-xs">scope</code>, <code class="font-mono text-xs">group</code>, <code class="font-mono text-xs">sort</code>, <code class="font-mono text-xs">q</code>, 6 facet params, and repeated <code class="font-mono text-xs">cut</code> params) alongside coupled invariants (clearing <code class="font-mono text-xs">previewKey</code> and resetting <code class="font-mono text-xs">hop</code> when <code class="font-mono text-xs">trace</code> changes; switching tabs when tracing or simulating cuts). Because this state machine lives inside the 1,540-line canvas page module, URL transitions cannot be unit-tested without mounting React Flow.
+          </p>
+        </div>
+
+        <!-- 3. What Deepening Looks Like -->
+        <div class="p-4 rounded-xl bg-stone-50 border border-stone-200 space-y-2">
+          <h4 class="text-xs font-mono uppercase tracking-wider text-stone-500">3. What Deepening Looks Like</h4>
+          <p class="text-sm text-stone-700 leading-relaxed">
+            Extract a deep <code class="font-mono text-xs">useAttackPathUrlState</code> module in <code class="font-mono text-xs">apps/web/src/components/graph/</code> that owns the 12-parameter URL codec and exposes semantic transition actions (<code class="font-mono text-xs">traceRoute</code>, <code class="font-mono text-xs">stepHop</code>, <code class="font-mono text-xs">pickNode</code>, <code class="font-mono text-xs">narrowPlace</code>, <code class="font-mono text-xs">toggleCut</code>, <code class="font-mono text-xs">clearFilters</code>, <code class="font-mono text-xs">clearPlan</code>), allowing pure hook tests without mounting the graph canvas.
+          </p>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</body>
+</html>
