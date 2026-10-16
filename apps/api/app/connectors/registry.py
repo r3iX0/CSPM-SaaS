@@ -1,45 +1,34 @@
-"""Connector lookup by provider.
+"""Provider lookup.
 
-The one place that maps a stored ``provider`` string to an implementation.
-Adding AWS later is a line in this dict plus a package under ``connectors/``.
+The one place that maps a stored ``provider`` string to an implementation. Each
+cloud declares itself once, as a :class:`ProviderAdapter` in its own package;
+adding a cloud is that adapter plus a line in :data:`ADAPTERS`.
 """
 
-from types import ModuleType
 from typing import Any
 
-from app.connectors.aws import change_events as aws_change_events
-from app.connectors.aws.connector import AwsConnector
-from app.connectors.aws.onboarding import AwsOnboarding
-from app.connectors.azure import change_events as azure_change_events
-from app.connectors.azure.connector import AzureConnector
-from app.connectors.azure.onboarding import AzureOnboarding
+from app.connectors.aws.adapter import AWS
+from app.connectors.azure.adapter import AZURE
 from app.connectors.base import CloudConnector
 from app.connectors.onboarding import ProviderOnboarding
+from app.connectors.provider import ChangeFeed, ProviderAdapter
 from app.core.enums import Provider
 from app.core.errors import NotConfigured
 
-CONNECTORS: dict[Provider, type[CloudConnector]] = {
-    Provider.AZURE: AzureConnector,
-    Provider.AWS: AwsConnector,
-}
+ADAPTERS: dict[Provider, ProviderAdapter] = {adapter.provider: adapter for adapter in (AZURE, AWS)}
 
-# How a customer grants access to this provider, and how CloudGuard proves they
-# did. Beside the connector lookup rather than inside the onboarding service,
-# because the service is now provider-neutral and holding this map would be the
-# one import that made it Azure-shaped again.
-ONBOARDING: dict[Provider, type[ProviderOnboarding]] = {
-    Provider.AZURE: AzureOnboarding,
-    Provider.AWS: AwsOnboarding,
-}
 
-# The module that reads a provider's change events. Beside the connector lookup
-# rather than in the service that debounces them, so the neutral half of
-# change-triggered scanning holds no provider vocabulary at all -- not even the
-# import that would fetch some.
-CHANGE_FEEDS: dict[Provider, ModuleType] = {
-    Provider.AZURE: azure_change_events,
-    Provider.AWS: aws_change_events,
-}
+def get_adapter(provider: Provider | str) -> ProviderAdapter:
+    """Everything declared for a provider, or :class:`NotConfigured`.
+
+    Refused rather than defaulted: handing back Azure for a cloud nobody
+    implemented would be a scan that appears to work and reads the wrong cloud.
+    """
+    resolved = Provider(provider)
+    adapter = ADAPTERS.get(resolved)
+    if adapter is None:
+        raise NotConfigured(f"No adapter is implemented for {resolved.value}.")
+    return adapter
 
 
 def get_connector_class(provider: Provider | str) -> type[CloudConnector]:
@@ -51,11 +40,7 @@ def get_connector_class(provider: Provider | str) -> type[CloudConnector]:
     answering them should not require the tenant and subscription ids a
     constructor wants.
     """
-    provider = Provider(provider)
-    implementation = CONNECTORS.get(provider)
-    if implementation is None:
-        raise NotConfigured(f"No connector is implemented for {provider.value}.")
-    return implementation
+    return get_adapter(provider).connector
 
 
 def get_connector(provider: Provider | str, **kwargs: Any) -> CloudConnector:
@@ -69,14 +54,10 @@ def get_onboarding(provider: Provider | str) -> ProviderOnboarding:
     whole point of onboarding is the period when there is no verified access to
     build a connector against.
     """
-    resolved = Provider(provider)
-    implementation = ONBOARDING.get(resolved)
-    if implementation is None:
-        raise NotConfigured(f"No onboarding flow is implemented for {resolved.value}.")
-    return implementation()
+    return get_adapter(provider).onboarding()
 
 
-def get_change_feed(provider: Provider | str) -> ModuleType:
+def get_change_feed(provider: Provider | str) -> ChangeFeed:
     """How this provider says its environment changed.
 
     Separate from the connector because it is answered without one: a webhook
@@ -84,8 +65,4 @@ def get_change_feed(provider: Provider | str) -> ModuleType:
     delivery is worth reading must not require credentials to the environment it
     is about.
     """
-    resolved = Provider(provider)
-    feed = CHANGE_FEEDS.get(resolved)
-    if feed is None:
-        raise NotConfigured(f"No change feed is implemented for {resolved.value}.")
-    return feed
+    return get_adapter(provider).change_feed

@@ -165,6 +165,30 @@ class ChangeEventsUpdate(RequestModel):
     enabled: bool
 
 
+class ScopeOptionOut(ClosedModel):
+    """One scope a cloud offers."""
+
+    scope: ConnectionScope
+    #: Whether the customer must type an id for it -- every narrower scope, and
+    #: on AWS the widest too (``ProviderOnboarding.requires_scope_id``).
+    requires_id: bool
+
+
+class ProviderCapabilitiesOut(ClosedModel):
+    """What a cloud's onboarding declares, so the wizard need not restate it.
+
+    Facts about the cloud rather than about this deployment, so they are
+    published whether or not it is available here. Words are not among them:
+    copy stays in the web app's strings, keyed by provider (section 78).
+    """
+
+    #: A consent step separate from the deployment (Azure's admin consent).
+    #: Without one, the deployment is the grant (``has_separate_consent``).
+    separate_consent: bool
+    #: Every scope offered, widest first.
+    scopes: list[ScopeOptionOut]
+
+
 class ProviderOptionOut(ClosedModel):
     """A cloud this deployment can connect, or why it cannot."""
 
@@ -177,6 +201,7 @@ class ProviderOptionOut(ClosedModel):
     #: checklist to finish. Kept apart so a customer is not handed an
     #: environment variable as an instruction (DECISIONS.md section 186).
     operator_detail: str | None
+    capabilities: ProviderCapabilitiesOut
 
 
 class AppRegistrationOut(ClosedModel):

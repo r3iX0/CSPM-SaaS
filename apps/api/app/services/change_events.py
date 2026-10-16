@@ -29,14 +29,11 @@ connection and the scan waits for quiet.
 """
 
 from datetime import UTC, datetime, timedelta
-from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.connectors.registry import get_change_feed
-from app.core.enums import Provider
 from app.core.logging import get_logger
 from app.models.cloud_connection import CloudConnection
 
@@ -52,36 +49,6 @@ QUIET_PERIOD = timedelta(minutes=3)
 # deploying all afternoon would otherwise be scanned every three minutes, which
 # is the storm the quiet period was meant to prevent, arriving more slowly.
 MIN_INTERVAL = timedelta(minutes=30)
-
-
-def is_validation(event: dict[str, Any], provider: Provider = Provider.AZURE) -> bool:
-    return bool(get_change_feed(provider).is_validation(event))
-
-
-def validation_response(
-    event: dict[str, Any], provider: Provider = Provider.AZURE
-) -> dict[str, str] | None:
-    response: dict[str, str] | None = get_change_feed(provider).validation_response(event)
-    return response
-
-
-def confirmation_url(event: dict[str, Any], provider: Provider = Provider.AZURE) -> str | None:
-    """Where a subscription is activated, for a cloud that activates out of band.
-
-    Azure echoes a code in the response and answers ``None`` here; SNS hands
-    over a URL that has to be fetched. Asked of the provider rather than decided
-    by the endpoint, so the neutral half never learns which cloud does which.
-
-    The provider is also what refuses an unsafe URL. Fetching one named in an
-    inbound payload is an SSRF unless the host is checked, and the check belongs
-    with the cloud that knows what its own hosts look like.
-    """
-    url: str | None = get_change_feed(provider).confirmation_url(event)
-    return url
-
-
-def is_relevant(event: dict[str, Any], provider: Provider = Provider.AZURE) -> bool:
-    return bool(get_change_feed(provider).is_relevant(event))
 
 
 async def record_change(
@@ -135,13 +102,6 @@ async def connections_ready(
 def clear_pending(connection: CloudConnection) -> None:
     """The burst has been acted on. The next event starts a new one."""
     connection.change_pending_since = None
-
-
-def event_subscription_command(
-    scope_id: str, endpoint: str, provider: Provider = Provider.AZURE
-) -> str:
-    """What the customer runs to wire one scanned unit to CloudGuard."""
-    return str(get_change_feed(provider).subscription_command(scope_id, endpoint))
 
 
 async def connection_for_event(

@@ -8,6 +8,7 @@ import { ConnectionSetupPage } from "@/pages/ConnectionSetup";
 import { useScanWizard } from "@/components/scans/ScanWizardProvider";
 import { api } from "@/lib/api";
 import type { CloudConnection } from "@/lib/types";
+import { AWS_CAPABILITIES, AZURE_CAPABILITIES } from "@/test/providerCapabilities";
 
 // The scan wizard lives in the shell, which these tests do not mount. Stubbed
 // so the last step can be checked for opening it, not merely for rendering.
@@ -86,6 +87,7 @@ describe("the connection wizard", () => {
                   available: true,
                   unavailable_reason: null,
                   operator_detail: null,
+                  capabilities: AZURE_CAPABILITIES,
                 },
                 {
                   id: "aws",
@@ -93,6 +95,7 @@ describe("the connection wizard", () => {
                   available: false,
                   unavailable_reason: "Coming soon. Cleave does not connect AWS accounts yet.",
                   operator_detail: "Set AWS_ACCESS_KEY_ID.",
+                  capabilities: AWS_CAPABILITIES,
                 },
               ]
             : null,

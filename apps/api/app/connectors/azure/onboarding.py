@@ -63,6 +63,11 @@ GRANT_INCOMPLETE_PREFIX = "Admin consent did not grant"
 class AzureOnboarding(ProviderOnboarding):
     provider = Provider.AZURE
     root_scope = ConnectionScope.TENANT_ROOT
+    scopes = (
+        ConnectionScope.TENANT_ROOT,
+        ConnectionScope.MANAGEMENT_GROUP,
+        ConnectionScope.SUBSCRIPTION,
+    )
 
     initial_status_detail = "Grant admin consent to continue."
     ready_to_deploy_detail = READY_TO_DEPLOY

@@ -850,6 +850,24 @@ export type ConnectionScope =
   | "ORGANIZATIONAL_UNIT"
   | "ACCOUNT";
 
+/** One scope a cloud offers, and whether the customer has to name it. */
+export interface ScopeOption {
+  scope: ConnectionScope;
+  requires_id: boolean;
+}
+
+/**
+ * What a cloud's onboarding declares, published so the wizard does not restate
+ * it. Facts about the cloud, not this deployment, so present on an unavailable
+ * one too. Words stay in `i18n`, keyed by provider (§78, §263).
+ */
+export interface ProviderCapabilities {
+  /** A consent step separate from the deployment; without one, the deployment is the grant. */
+  separate_consent: boolean;
+  /** Every scope offered, widest first. */
+  scopes: ScopeOption[];
+}
+
 /** What a deployment can actually connect, and why not. */
 export interface ProviderOption {
   id: Provider;
@@ -866,6 +884,7 @@ export interface ProviderOption {
    * out of the way of a customer, who read it as an instruction (§186).
    */
   operator_detail?: string | null;
+  capabilities: ProviderCapabilities;
 }
 
 export interface CloudConnection {

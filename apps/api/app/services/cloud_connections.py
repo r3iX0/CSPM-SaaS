@@ -32,7 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.connectors.base import ConnectionCheck
 from app.connectors.evidence import EvidenceCategory
 from app.connectors.onboarding import DeploymentArtifact, ProviderOnboarding
-from app.connectors.registry import get_onboarding
+from app.connectors.registry import ADAPTERS, get_change_feed, get_onboarding
 from app.core.config import settings
 from app.core.db import commit_unless_externally_managed, service_session
 from app.core.deps import TenantContext
@@ -1270,6 +1270,9 @@ async def change_event_setup(session: AsyncSession, connection: CloudConnection)
     connection covering twelve of them needs twelve subscriptions to it.
     """
     url = event_webhook_url(connection)
+    # The connection's own cloud, never a default: an AWS connection handed
+    # Azure's `az eventgrid` command would wire nothing.
+    feed = get_change_feed(connection.provider)
     return {
         "enabled": connection.change_events_enabled,
         "webhook_url": url,
@@ -1287,7 +1290,7 @@ async def change_event_setup(session: AsyncSession, connection: CloudConnection)
         "commands": [
             {
                 "subscription_id": account.subscription_id,
-                "command": change_events.event_subscription_command(account.subscription_id, url),
+                "command": feed.subscription_command(account.subscription_id, url),
             }
             for account in await _scannable_accounts(session, connection)
             if account.subscription_id
@@ -1338,71 +1341,33 @@ def available_providers() -> list[dict]:
     # Availability is *derived* from the reason rather than computed beside it.
     # Two expressions of one fact drift, and the way this one drifts is the bad
     # way round: a provider reported available with a reason attached lets a
-    # customer start a flow the deployment cannot finish.
-    offered = [
-        (Provider.AZURE, "Microsoft Azure", settings.azure_consent_problem),
-        (Provider.AWS, "Amazon Web Services", _aws_problem()),
-    ]
+    # customer start a flow the deployment cannot finish. Each cloud says its
+    # own problem (its adapter); the customer's words for it stay apart from the
+    # operator's (§186).
+    api_base = public_api_base()
+    offered = [(adapter, adapter.problem(api_base)) for adapter in ADAPTERS.values()]
     return [
         {
-            "id": provider.value,
-            "name": name,
+            "id": adapter.provider.value,
+            "name": adapter.name,
             "available": problem is None,
-            "unavailable_reason": _customer_reason(provider, name) if problem else None,
+            "unavailable_reason": adapter.customer_reason() if problem else None,
             "operator_detail": problem,
+            "capabilities": _capabilities(adapter.onboarding()),
         }
-        for provider, name, problem in offered
+        for adapter, problem in offered
     ]
 
 
-def _customer_reason(provider: Provider, name: str) -> str:
-    """Why a cloud cannot be chosen, in words for the customer choosing it.
-
-    The problem itself names environment variables and a checklist in this
-    repository -- what whoever runs the deployment needs, and noise to anyone
-    else, who read "Set AWS_ACCESS_KEY_ID" as an instruction to them. It stays
-    in ``operator_detail``, and the page keeps it out of the way (§186). AWS
-    not yet verified is "coming", as the environments page already says it;
-    anything else is this deployment not being set up for that cloud.
-    """
-    if provider == Provider.AWS and not settings.aws_offered:
-        return "Coming soon. Cleave does not connect AWS accounts yet."
-    return f"Not set up on this deployment yet, so {name} cannot be connected here."
-
-
-def _aws_problem() -> str | None:
-    """Why AWS cannot be chosen here, in the order a reader can act on.
-
-    The second reason is the honest one and is not a configuration error: the
-    connector has never been run against a live account, and until
-    ``docs/AWS_INTEGRATION.md`` section 1 has been completed, offering it would
-    be claiming to scan a cloud nobody has scanned.
-    """
-    if not settings.aws_configured:
-        return (
-            "Cleave has no AWS identity on this deployment. Set "
-            "AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_PRINCIPAL_ARN "
-            "(docs/AWS_INTEGRATION.md §2)."
-        )
-    if not settings.aws_enabled:
-        return (
-            "AWS support is built but has not been verified against a live "
-            "account yet. Complete the checklist in docs/AWS_INTEGRATION.md §1, "
-            "then set AWS_ENABLED=true."
-        )
-    if public_api_base() is None:
-        # Azure gets this host from AZURE_REDIRECT_URI, which consent forces to
-        # be correct. AWS has no consent round trip and therefore no such
-        # value, so API_URL stops being optional -- and a customer allowed to
-        # reach the deploy step would find a Launch Stack link with no template
-        # behind it, which reads as a broken product rather than a missing
-        # variable.
-        return (
-            "This deployment has no public API address configured, so there is "
-            "nowhere for CloudFormation to fetch the stack from or for AWS to "
-            "deliver change events to. Set API_URL."
-        )
-    return None
+def _capabilities(onboarding: ProviderOnboarding) -> dict:
+    """What the wizard would otherwise restate, read off the declaration."""
+    return {
+        "separate_consent": onboarding.has_separate_consent,
+        "scopes": [
+            {"scope": scope.value, "requires_id": onboarding.requires_scope_id(scope)}
+            for scope in onboarding.scopes
+        ],
+    }
 
 
 def self_registration(provider: Provider) -> dict | None:

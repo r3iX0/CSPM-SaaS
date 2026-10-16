@@ -34,6 +34,8 @@ import httpx
 from fastapi import APIRouter, Query, Request, status
 from fastapi.responses import JSONResponse
 
+from app.connectors.provider import ChangeFeed
+from app.connectors.registry import get_change_feed
 from app.core.db import service_session
 from app.core.enums import Provider
 from app.core.errors import NotConfigured
@@ -79,7 +81,7 @@ async def change_event(
     """
     try:
         cloud = Provider(provider)
-        service.is_validation({}, cloud)
+        feed = get_change_feed(cloud)
     except (ValueError, NotConfigured):
         # An unknown provider, or one with no change feed. Refused rather than
         # dropped: this is not an event CloudGuard decided against, it is a URL
@@ -98,10 +100,10 @@ async def change_event(
         return JSONResponse({"error": "Malformed event payload"}, status_code=400)
 
     for event in events:
-        if service.is_validation(event, cloud):
-            return await _handshake(event, cloud, connection_id)
+        if feed.is_validation(event):
+            return await _handshake(event, feed, cloud, connection_id)
 
-    relevant = [event for event in events if service.is_relevant(event, cloud)]
+    relevant = [event for event in events if feed.is_relevant(event)]
     if not relevant:
         # Accepted and dropped. The alternative -- a non-2xx -- would have Azure
         # redelivering an event CloudGuard has already decided it cannot act on.
@@ -128,14 +130,16 @@ async def change_event(
     return JSONResponse({"accepted": len(events), "relevant": len(relevant)}, status_code=200)
 
 
-async def _handshake(event: dict[str, Any], cloud: Provider, connection_id: UUID) -> JSONResponse:
+async def _handshake(
+    event: dict[str, Any], feed: ChangeFeed, cloud: Provider, connection_id: UUID
+) -> JSONResponse:
     """Activate the subscription, whichever way this cloud does it.
 
     Event Grid wants a code echoed in the body. SNS wants a URL fetched. A
     provider that answers neither has sent a handshake CloudGuard cannot
     complete, and saying so is better than a 200 that activates nothing.
     """
-    response = service.validation_response(event, cloud)
+    response = feed.validation_response(event)
     if response is not None:
         log.info(
             "events.validation_handshake",
@@ -144,7 +148,7 @@ async def _handshake(event: dict[str, Any], cloud: Provider, connection_id: UUID
         )
         return JSONResponse(response, status_code=200)
 
-    url = service.confirmation_url(event, cloud)
+    url = feed.confirmation_url(event)
     if url is None:
         # Either no confirmation was carried, or it named a host this provider
         # does not vouch for. The second is the case that matters: fetching it

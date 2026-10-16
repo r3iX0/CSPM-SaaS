@@ -175,6 +175,38 @@ def test_the_rule_filters_at_the_source_as_well() -> None:
     assert "AWS API Call via CloudTrail" in command
 
 
+async def test_an_aws_connection_is_handed_the_aws_command(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The setup asks the connection's own cloud, never a default.
+
+    It used to call a wrapper defaulting to Azure without naming a provider, so
+    an AWS connection would have been handed an `az eventgrid` command that
+    wires nothing.
+    """
+    from types import SimpleNamespace
+
+    from app.services import cloud_connections as service
+
+    async def accounts(session: object, connection: object) -> list[SimpleNamespace]:
+        return [SimpleNamespace(subscription_id="111122223333")]
+
+    monkeypatch.setattr(service, "_scannable_accounts", accounts)
+    monkeypatch.setattr(service, "event_webhook_url", lambda _: "https://api.example.com/x")
+    connection = SimpleNamespace(
+        provider=Provider.AWS,
+        change_events_enabled=True,
+        change_pending_since=None,
+        last_change_event_at=None,
+    )
+
+    setup = await service.change_event_setup(None, connection)  # type: ignore[arg-type]
+
+    (wiring,) = setup["commands"]
+    assert "aws sns subscribe" in wiring["command"]
+    assert "az eventgrid" not in wiring["command"]
+
+
 # ------------------------------------------------------------- the seam
 def test_the_registry_hands_back_the_aws_feed() -> None:
     """Asked before any connection is resolved: a delivery arrives before
@@ -183,20 +215,16 @@ def test_the_registry_hands_back_the_aws_feed() -> None:
     assert get_change_feed(Provider.AWS) is feed
 
 
-def test_both_feeds_answer_the_same_questions() -> None:
+def test_every_feed_answers_the_same_questions() -> None:
     """The contract, checked rather than assumed.
 
-    A feed missing one of these fails at the moment a customer's environment
-    changes, which is the worst time to discover it.
+    The type checker holds each adapter's feed to ``ChangeFeed``; this holds the
+    registry to it at run time too. A feed missing one of these fails at the
+    moment a customer's environment changes, which is the worst time to
+    discover it.
     """
-    from app.connectors.registry import CHANGE_FEEDS
+    from app.connectors.provider import ChangeFeed
+    from app.connectors.registry import ADAPTERS
 
-    for provider, module in CHANGE_FEEDS.items():
-        for name in (
-            "is_validation",
-            "validation_response",
-            "confirmation_url",
-            "is_relevant",
-            "subscription_command",
-        ):
-            assert hasattr(module, name), f"{provider.value} feed has no {name}"
+    for provider, adapter in ADAPTERS.items():
+        assert isinstance(adapter.change_feed, ChangeFeed), provider.value

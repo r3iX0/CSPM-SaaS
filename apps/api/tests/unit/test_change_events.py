@@ -42,28 +42,28 @@ def test_the_validation_code_is_echoed_back() -> None:
         "data": {"validationCode": "512d38b6-c7b8-40c8-89fe-f46f9e9622b6"},
     }
 
-    assert service.is_validation(event)
-    assert service.validation_response(event) == {
+    assert azure.is_validation(event)
+    assert azure.validation_response(event) == {
         "validationResponse": "512d38b6-c7b8-40c8-89fe-f46f9e9622b6"
     }
 
 
 def test_a_validation_event_with_no_code_is_not_answered() -> None:
     """Replying with an empty code would activate nothing and hide the reason."""
-    assert service.validation_response({"eventType": azure.VALIDATION_EVENT, "data": {}}) is None
+    assert azure.validation_response({"eventType": azure.VALIDATION_EVENT, "data": {}}) is None
 
 
 # -------------------------------------------------------------------- filter
 def test_a_write_to_something_a_rule_reads_is_relevant() -> None:
-    assert service.is_relevant(change("Microsoft.Network/networkSecurityGroups/write"))
-    assert service.is_relevant(change("Microsoft.Storage/storageAccounts/write"))
-    assert service.is_relevant(change("Microsoft.Authorization/roleAssignments/write"))
+    assert azure.is_relevant(change("Microsoft.Network/networkSecurityGroups/write"))
+    assert azure.is_relevant(change("Microsoft.Storage/storageAccounts/write"))
+    assert azure.is_relevant(change("Microsoft.Authorization/roleAssignments/write"))
 
 
 def test_a_deletion_is_a_change_too() -> None:
     """An asset that has gone is a posture that has changed -- and the scan is
     what turns that into a DISAPPEARED event rather than a stale inventory."""
-    assert service.is_relevant(
+    assert azure.is_relevant(
         change(
             "Microsoft.Storage/storageAccounts/delete",
             "Microsoft.Resources.ResourceDeleteSuccess",
@@ -74,14 +74,14 @@ def test_a_deletion_is_a_change_too() -> None:
 def test_a_write_to_something_no_rule_reads_is_dropped() -> None:
     """The customer's own web app deployments are not a security event, and a
     scan each would be their API limits spent on nothing."""
-    assert not service.is_relevant(change("Microsoft.Web/sites/write"))
-    assert not service.is_relevant(change("Microsoft.ContainerRegistry/registries/write"))
+    assert not azure.is_relevant(change("Microsoft.Web/sites/write"))
+    assert not azure.is_relevant(change("Microsoft.ContainerRegistry/registries/write"))
 
 
 def test_a_failed_write_is_not_a_change() -> None:
     """It left the environment as it was. Scanning would be scanning because
     somebody lacked permission."""
-    assert not service.is_relevant(
+    assert not azure.is_relevant(
         change(
             "Microsoft.Network/networkSecurityGroups/write",
             "Microsoft.Resources.ResourceWriteFailure",
@@ -90,13 +90,13 @@ def test_a_failed_write_is_not_a_change() -> None:
 
 
 def test_a_read_is_not_a_change() -> None:
-    assert not service.is_relevant(change("Microsoft.Storage/storageAccounts/read"))
+    assert not azure.is_relevant(change("Microsoft.Storage/storageAccounts/read"))
 
 
 def test_an_event_with_no_operation_is_dropped() -> None:
     """Rather than treated as a change of unknown kind: an endpoint anyone can
     post to must not turn an empty body into a scan."""
-    assert not service.is_relevant({"eventType": "Microsoft.Resources.ResourceWriteSuccess"})
+    assert not azure.is_relevant({"eventType": "Microsoft.Resources.ResourceWriteSuccess"})
 
 
 # ------------------------------------------------------------------ debounce
@@ -149,7 +149,7 @@ def test_the_command_names_this_connection_and_nothing_else() -> None:
     """Generated rather than documented: the endpoint carries a signed token
     specific to one connection, and a customer copying a URL out of a
     documentation page would be copying somebody else's."""
-    command = service.event_subscription_command(
+    command = azure.subscription_command(
         "00000000-0000-0000-0000-000000000001",
         "https://api.example.com/api/v1/events/azure/abc?token=signed.mac",
     )

@@ -63,6 +63,11 @@ CONSOLE_REGION = "us-east-1"
 class AwsOnboarding(ProviderOnboarding):
     provider = Provider.AWS
     root_scope = ConnectionScope.ORGANIZATION
+    scopes = (
+        ConnectionScope.ORGANIZATION,
+        ConnectionScope.ORGANIZATIONAL_UNIT,
+        ConnectionScope.ACCOUNT,
+    )
 
     initial_status_detail = READY_TO_DEPLOY
     ready_to_deploy_detail = READY_TO_DEPLOY

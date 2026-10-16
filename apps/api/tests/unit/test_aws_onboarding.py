@@ -303,3 +303,34 @@ def test_the_checklist_gate_is_reported_before_the_address(
 
     assert "AWS_INTEGRATION.md" in (aws["operator_detail"] or "")
     assert aws["unavailable_reason"] == ("Coming soon. Cleave does not connect AWS accounts yet.")
+
+
+def test_each_cloud_publishes_what_its_onboarding_declares(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The wizard reads these instead of restating them, so they are the
+    declaration itself: AWS has no consent step and names every scope, Azure's
+    tenant root is the one scope its consent names for it. Published even while
+    AWS is unavailable here, because a greyed-out cloud is still drawn."""
+    from app.schemas.cloud_connection import ProviderOptionOut
+    from app.services.cloud_connections import available_providers
+
+    monkeypatch.setattr("app.core.config.settings.aws_enabled", False)
+
+    options = {p["id"]: ProviderOptionOut.model_validate(p) for p in available_providers()}
+    azure = options["azure"].capabilities
+    aws = options["aws"].capabilities
+
+    assert options["aws"].available is False
+    assert azure.separate_consent is True
+    assert [(s.scope, s.requires_id) for s in azure.scopes] == [
+        (ConnectionScope.TENANT_ROOT, False),
+        (ConnectionScope.MANAGEMENT_GROUP, True),
+        (ConnectionScope.SUBSCRIPTION, True),
+    ]
+    assert aws.separate_consent is False
+    assert [(s.scope, s.requires_id) for s in aws.scopes] == [
+        (ConnectionScope.ORGANIZATION, True),
+        (ConnectionScope.ORGANIZATIONAL_UNIT, True),
+        (ConnectionScope.ACCOUNT, True),
+    ]

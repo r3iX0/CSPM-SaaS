@@ -24,9 +24,10 @@ import pathlib
 
 import pytest
 
+from app.connectors.provider import ChangeFeed
 from app.connectors.registry import (
-    CONNECTORS,
-    ONBOARDING,
+    ADAPTERS,
+    get_adapter,
     get_connector_class,
     get_onboarding,
 )
@@ -44,9 +45,9 @@ ALLOWED_PREFIXES = (
     "rules/azure/",
     "connectors/aws/",
     "rules/aws/",
-    # The two registries. Mapping a provider to its implementation is the whole
-    # job of one and half the job of the other, so naming providers there is the
-    # design rather than a leak from it.
+    # The two registries. The connector registry lists each cloud's adapter
+    # and the rules registry lists each cloud's rules, so naming providers
+    # there is the design rather than a leak from it.
     "connectors/registry.py",
     "rules/registry.py",
 )
@@ -125,7 +126,8 @@ def test_every_registered_provider_answers_the_questions_asked_of_a_class() -> N
     connector that could not answer them would be one the neutral code has to
     special-case, which is the seam leaking again in a different direction.
     """
-    for provider, implementation in CONNECTORS.items():
+    for provider, adapter in ADAPTERS.items():
+        implementation = adapter.connector
         assert implementation.required_permissions(), provider
         assert implementation.baseline_evidence(), provider
         # Every provider has *some* category it collects under; which ones is
@@ -158,7 +160,7 @@ def test_every_registered_provider_can_onboard_a_customer() -> None:
     reason they are abstract: a provider missing ``probe`` would have verified
     every connection to it by not checking.
     """
-    for provider in ONBOARDING:
+    for provider in ADAPTERS:
         onboarding = get_onboarding(provider)
         assert onboarding.provider == provider
         assert onboarding.root_scope
@@ -176,3 +178,25 @@ def test_a_provider_with_no_onboarding_is_refused_rather_than_defaulted() -> Non
 
     with pytest.raises(NotConfigured):
         get_onboarding(Provider.GCP)
+
+
+def test_every_adapter_is_one_provider_throughout() -> None:
+    """One declaration per cloud, and every part of it about that cloud.
+
+    The three registries this replaced could disagree -- an onboarding flow
+    filed under the wrong key would have sent an AWS customer to Microsoft's
+    consent screen with nothing to notice it. One adapter per cloud makes that
+    one place to be wrong, and this is where it is caught.
+    """
+    for provider, adapter in ADAPTERS.items():
+        assert adapter.provider == provider
+        assert adapter.onboarding().provider == provider
+        assert isinstance(adapter.change_feed, ChangeFeed), provider
+        assert adapter.name
+        # The scope list the wizard is given starts at the root and repeats
+        # nothing, so the published order and `root_scope` cannot disagree.
+        scopes = adapter.onboarding.scopes
+        assert scopes, provider
+        assert scopes[0] == adapter.onboarding.root_scope, provider
+        assert len(set(scopes)) == len(scopes), provider
+        assert get_adapter(provider.value) is adapter

@@ -13601,6 +13601,41 @@ The mark's accessible name is the whole account (level and every reason), so a s
 why, not just "Low". A resolved finding shows no confidence: a verified fix's evidence is meant to
 age.
 
+## 263. One adapter per cloud
+
+A provider was three registrations kept in step by hand in `connectors/registry.py` (`CONNECTORS`,
+`ONBOARDING` and `CHANGE_FEEDS`), plus a fourth fact, whether this deployment can offer it, written
+inline in `services/cloud_connections.available_providers` with AWS's reasons beside it. The change
+feed was a bare module, so `services/change_events.py` wrapped each of its five calls in a function
+that defaulted the provider to Azure and cast the answer. One of those defaults was a bug:
+`change_event_setup` never named the provider, so an AWS connection would have been handed Azure's
+`az eventgrid` command.
+
+**Each cloud declares itself once**, as a `ProviderAdapter` (`app/connectors/provider.py`) in its own
+package (`connectors/azure/adapter.py`, `connectors/aws/adapter.py`): its display name, connector,
+onboarding, change feed, and `problem`, the operator's reason it cannot be offered here. The
+registry is one dict, `ADAPTERS`; `get_connector_class`, `get_connector`, `get_onboarding` and
+`get_change_feed` read it, and an unknown provider is still refused with `NotConfigured`.
+
+- **The feed is typed.** `ChangeFeed` is a protocol the two `change_events` modules already
+  satisfy, so the type checker holds them to it and the casts and the five wrappers are gone. The
+  webhook and the setup ask the connection's own feed, never a default.
+- **Availability is the adapter's.** `available_providers` iterates the adapters and passes in the
+  public API address, which stays with the onboarding service so no adapter imports a service. A
+  cloud with more to say to a customer than the generic sentence says it (`explain_unavailable`);
+  AWS's "Coming soon" moved there.
+- **Unchanged:** the seam test (§71) still forbids a provider import outside the provider packages
+  and the registries, and now also checks that every part of an adapter is about its own cloud.
+  Vocabulary stays off the adapter (§78). `operator_detail` and the customer's reason stay apart
+  (§186).
+
+**`GET /cloud-connections/providers` publishes what onboarding declares**, as each option's
+`capabilities`: `separate_consent` (`has_separate_consent`) and `scopes`, widest first, each with
+`requires_id` (`requires_scope_id`). Onboarding gained `scopes` for it, whose first entry the seam
+test holds to `root_scope`. They are facts about the cloud, so an unavailable one carries them too.
+The wizard reads them instead of answering the same questions by comparing provider names. Its
+words stay in `i18n`, keyed by provider, because copy is vocabulary and stays off the adapter (§78).
+
 ## Open items carried forward
 
 **Turnstile on every auth form (§219).** CAPTCHA protection in Supabase covers sign-up, sign-in,

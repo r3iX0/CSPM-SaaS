@@ -7,18 +7,26 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ConnectPage } from "@/pages/Connect";
 import { api } from "@/lib/api";
 import type { CloudConnection } from "@/lib/types";
+import { AWS_CAPABILITIES, AZURE_CAPABILITIES } from "@/test/providerCapabilities";
 
 function mount(rows: CloudConnection[], awsAvailable = false) {
   vi.spyOn(api, "get").mockImplementation((path: string) => {
     if (path === "/api/v1/cloud-connections/providers") {
       return Promise.resolve({
         data: [
-          { id: "azure", name: "Microsoft Azure", available: true, unavailable_reason: null },
+          {
+            id: "azure",
+            name: "Microsoft Azure",
+            available: true,
+            unavailable_reason: null,
+            capabilities: AZURE_CAPABILITIES,
+          },
           {
             id: "aws",
             name: "Amazon Web Services",
             available: awsAvailable,
             unavailable_reason: null,
+            capabilities: AWS_CAPABILITIES,
           },
         ],
         meta: {},

@@ -123,6 +123,11 @@ class ProviderOnboarding(ABC):
     #: management group, organizational unit or account it covers.
     root_scope: ConnectionScope
 
+    #: Every scope this cloud offers, widest first, so the first is
+    #: :attr:`root_scope`. Published to the wizard (``/providers``) rather than
+    #: restated there, so a picker cannot offer a scope this cloud does not have.
+    scopes: tuple[ConnectionScope, ...]
+
     #: What to tell the customer before anything is granted.
     initial_status_detail: str = "Grant access to continue."
     #: What to tell them once the first grant lands and the artefact is next.

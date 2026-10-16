@@ -24896,6 +24896,29 @@
         ],
         "title": "Provider"
       },
+      "ProviderCapabilitiesOut": {
+        "properties": {
+          "separate_consent": {
+            "type": "boolean",
+            "title": "Separate Consent"
+          },
+          "scopes": {
+            "items": {
+              "$ref": "#/components/schemas/ScopeOptionOut"
+            },
+            "type": "array",
+            "title": "Scopes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "separate_consent",
+          "scopes"
+        ],
+        "title": "ProviderCapabilitiesOut",
+        "description": "What a cloud's onboarding declares, so the wizard need not restate it.\n\nFacts about the cloud rather than about this deployment, so they are\npublished whether or not it is available here. Words are not among them:\ncopy stays in the web app's strings, keyed by provider (section 78)."
+      },
       "ProviderOptionOut": {
         "properties": {
           "id": {
@@ -24930,6 +24953,9 @@
               }
             ],
             "title": "Operator Detail"
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/ProviderCapabilitiesOut"
           }
         },
         "additionalProperties": false,
@@ -24939,7 +24965,8 @@
           "name",
           "available",
           "unavailable_reason",
-          "operator_detail"
+          "operator_detail",
+          "capabilities"
         ],
         "title": "ProviderOptionOut",
         "description": "A cloud this deployment can connect, or why it cannot."
@@ -27949,6 +27976,25 @@
           "name"
         ],
         "title": "ScopeBoxOut"
+      },
+      "ScopeOptionOut": {
+        "properties": {
+          "scope": {
+            "$ref": "#/components/schemas/ConnectionScope"
+          },
+          "requires_id": {
+            "type": "boolean",
+            "title": "Requires Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "scope",
+          "requires_id"
+        ],
+        "title": "ScopeOptionOut",
+        "description": "One scope a cloud offers."
       },
       "ScopeSelection": {
         "properties": {
