@@ -1,3 +1,4 @@
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Query
@@ -41,17 +42,17 @@ def _fact(value: str | None, source: ContextSource) -> ContextFactOut:
 async def list_assets(
     session: DbSession,
     tenant: Tenant,
-    resource_type: str | None = None,
-    environment: str | None = None,
+    resource_type: Annotated[str | None, Query(max_length=128)] = None,
+    environment: Annotated[str | None, Query(max_length=64)] = None,
     criticality: Level | None = None,
     exposure: Level | None = None,
-    search: str | None = None,
+    search: Annotated[str | None, Query(max_length=200)] = None,
     entry_point: bool = False,
     sensitive: bool = False,
     on_attack_path: bool = False,
-    subscription_id: str | None = None,
-    resource_group: str | None = None,
-    region: str | None = None,
+    subscription_id: Annotated[str | None, Query(max_length=128)] = None,
+    resource_group: Annotated[str | None, Query(max_length=128)] = None,
+    region: Annotated[str | None, Query(max_length=64)] = None,
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
 ) -> Envelope[list[AssetRowOut], AssetsMeta]:

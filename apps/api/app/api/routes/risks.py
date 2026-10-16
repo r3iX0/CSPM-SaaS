@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Query
@@ -28,7 +29,7 @@ async def list_risks(
     risk_level: Level | None = None,
     risk_status: RiskStatus | None = Query(default=None, alias="status"),
     kind: RiskKind | None = None,
-    search: str | None = None,
+    search: Annotated[str | None, Query(max_length=200)] = None,
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
 ) -> Envelope[list[RiskListItemOut], PageMeta]:

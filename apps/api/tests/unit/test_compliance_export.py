@@ -203,3 +203,26 @@ def test_the_filename_survives_a_customers_own_name() -> None:
 
 def test_an_unnamed_organization_still_produces_a_findable_file() -> None:
     assert export_filename("", "cis-azure", "json") == "cloudguard-organization-cis-azure.json"
+
+
+def test_formula_triggers_in_cells_are_prefixed_with_an_apostrophe() -> None:
+    """Provider error text can reach inconclusive_reasons. If a cell begins
+    with =, +, -, @, tab, or CR, Excel evaluates it as a formula unless prefixed
+    with a leading apostrophe."""
+    degraded = control(
+        status="INCONCLUSIVE",
+        rules=[{"rule_id": "AZ-STO-001", "unknown_reasons": ["=cmd|' /C calc'!A0"]}],
+    )
+    text = to_csv(payload(controls=[degraded]))
+
+    assert "'=cmd|' /C calc'!A0" in text
+
+
+def test_attachment_header_encodes_non_ascii_organization_names() -> None:
+    from app.api.routes.compliance import _attachment
+
+    header = _attachment("Łódź", "iso27001", "csv")["Content-Disposition"]
+    # Must be latin-1 safe for Starlette's HTTP header encoding while carrying UTF-8 filename*
+    header.encode("latin-1")
+    assert 'filename="cloudguard-d-iso27001.csv"' in header
+    assert "filename*=UTF-8''cloudguard-%C5%82%C3%B3d%C5%BA-iso27001.csv" in header

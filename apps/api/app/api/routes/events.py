@@ -164,7 +164,9 @@ async def _handshake(
         )
 
     try:
-        async with httpx.AsyncClient(timeout=CONFIRM_TIMEOUT_SECONDS) as client:
+        async with httpx.AsyncClient(
+            timeout=CONFIRM_TIMEOUT_SECONDS, follow_redirects=False, trust_env=False
+        ) as client:
             await client.get(url)
     except Exception as exc:
         # 200 anyway. The subscription is not confirmed, and a retry is exactly

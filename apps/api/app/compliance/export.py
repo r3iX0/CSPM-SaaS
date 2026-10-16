@@ -112,11 +112,20 @@ def rows(payload: dict[str, Any]) -> list[list[str]]:
     return table
 
 
+# A spreadsheet runs a cell that starts with one of these as a formula, and a
+# reason Cleave quotes from a provider is text an attacker may have influenced.
+_FORMULA_TRIGGERS = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _cell(value: str) -> str:
+    return f"'{value}" if value.startswith(_FORMULA_TRIGGERS) else value
+
+
 def to_csv(payload: dict[str, Any]) -> str:
     """RFC 4180 quoting, and CRLF line endings, because Excel wants both."""
     buffer = io.StringIO()
     writer = csv.writer(buffer, lineterminator="\r\n")
-    writer.writerows(rows(payload))
+    writer.writerows([[_cell(value) for value in row] for row in rows(payload)])
     return buffer.getvalue()
 
 

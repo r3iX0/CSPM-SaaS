@@ -8,12 +8,14 @@ saving a file, not reading an API response.
 """
 
 import json
+import re
+from urllib.parse import quote
 
 from fastapi import APIRouter, Query
 from fastapi.responses import Response
 
 from app.compliance.export import export_filename, to_csv
-from app.core.deps import DbSession, Tenant
+from app.core.deps import Costly, DbSession, Tenant
 from app.core.errors import NotFound
 from app.schemas.common import ERROR_RESPONSES, Envelope, NoMeta
 from app.schemas.compliance import FrameworkDetailOut, FrameworkSummaryOut
@@ -39,6 +41,7 @@ async def list_frameworks(
 @router.get(
     "/{framework_id}/export",
     response_class=Response,
+    dependencies=[Costly],
     responses={
         200: {
             "description": "The assessment as a file, CSV or JSON by ``format``.",
@@ -89,7 +92,12 @@ async def export_framework(
 
 def _attachment(organization: str, framework_id: str, extension: str) -> dict[str, str]:
     name = export_filename(organization, framework_id, extension)
-    return {"Content-Disposition": f'attachment; filename="{name}"'}
+    fallback = re.sub(r"-{2,}", "-", "".join(c if c.isascii() else "-" for c in name))
+    return {
+        "Content-Disposition": (
+            f"attachment; filename=\"{fallback}\"; filename*=UTF-8''{quote(name)}"
+        )
+    }
 
 
 @router.get("/{framework_id}")

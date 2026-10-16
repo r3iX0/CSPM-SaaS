@@ -30,3 +30,28 @@ describe("which failures are worth asking again", () => {
     expect(shouldRetry(0, new Error("something threw"))).toBe(true);
   });
 });
+
+describe("tenant and session cache isolation", () => {
+  it("clears cached queries when signing out or switching organizations", async () => {
+    const { auth } = await import("@/lib/api");
+    const { createQueryClient } = await import("@/lib/queryClient");
+
+    auth.token = "token-1";
+    auth.organizationId = "org-a";
+    const client = createQueryClient();
+
+    client.setQueryData(["findings"], [{ id: "f-1" }]);
+    expect(client.getQueryData(["findings"])).toEqual([{ id: "f-1" }]);
+
+    // Switching organization clears the cache so tenant A data never flashes under tenant B
+    auth.organizationId = "org-b";
+    expect(client.getQueryData(["findings"])).toBeUndefined();
+
+    client.setQueryData(["findings"], [{ id: "f-2" }]);
+    expect(client.getQueryData(["findings"])).toEqual([{ id: "f-2" }]);
+
+    // Signing out (or 401 token clear) clears the cache
+    auth.signOut();
+    expect(client.getQueryData(["findings"])).toBeUndefined();
+  });
+});

@@ -1,6 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 
-import { ApiError } from "@/lib/api";
+import { ApiError, auth, subscribeToAuth } from "@/lib/api";
 
 /**
  * Whether a failed request is worth sending a second time.
@@ -21,7 +21,7 @@ export function shouldRetry(attempt: number, error: unknown): boolean {
 }
 
 export function createQueryClient(): QueryClient {
-  return new QueryClient({
+  const client = new QueryClient({
     defaultOptions: {
       queries: {
         retry: shouldRetry,
@@ -30,4 +30,21 @@ export function createQueryClient(): QueryClient {
       },
     },
   });
+
+  // Cache keys do not carry the organization id, so any sign-out (including an
+  // expired session's 401 or another tab signing out) or organization change
+  // clears the cache here rather than relying on every caller to remember.
+  let lastToken = auth.token;
+  let lastOrg = auth.organizationId;
+  subscribeToAuth(() => {
+    const nextToken = auth.token;
+    const nextOrg = auth.organizationId;
+    if ((lastToken && !nextToken) || (lastOrg && nextOrg !== lastOrg)) {
+      client.clear();
+    }
+    lastToken = nextToken;
+    lastOrg = nextOrg;
+  });
+
+  return client;
 }

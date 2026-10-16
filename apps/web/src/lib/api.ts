@@ -232,6 +232,8 @@ async function fetchDocument(path: string): Promise<Blob> {
     try {
       const body = (await response.json()) as Envelope<unknown>;
       const error = body.error ?? { code: "UNKNOWN", message: "Request failed" };
+      if (error.code === "MFA_REQUIRED")
+        window.dispatchEvent(new Event(SECOND_FACTOR_REQUIRED_EVENT));
       throw new ApiError(error.code, error.message, response.status);
     } catch (err) {
       if (err instanceof ApiError) throw err;

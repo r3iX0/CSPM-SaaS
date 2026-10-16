@@ -1,3 +1,4 @@
+import asyncio
 from uuid import UUID
 
 from fastapi import APIRouter, Query, Request, Response, status
@@ -126,7 +127,7 @@ async def list_scans(
 # an id that is not a UUID.
 
 
-@router.get("/worker-status")
+@router.get("/worker-status", dependencies=[Costly])
 async def worker_status(tenant: Tenant) -> Envelope[WorkerStatusOut, NoMeta]:
     """Whether any Celery worker is actually listening.
 
@@ -141,7 +142,7 @@ async def worker_status(tenant: Tenant) -> Envelope[WorkerStatusOut, NoMeta]:
     broken one.
     """
     try:
-        replies = celery_app.control.ping(timeout=1.0) or []
+        replies = (await asyncio.to_thread(celery_app.control.ping, timeout=1.0)) or []
     except Exception as exc:
         # The exception goes to the log, not the response: it is written for
         # an operator and can carry the broker's address or credentials, and
@@ -233,10 +234,10 @@ async def scan_events(
     the tenant boundary to each read exactly as it does to a poll.
     """
     await scans_service.get_scan(session, tenant, scan_id)
-    user_id = tenant.user.id
+    user = tenant.user
 
     async def load() -> dict | None:
-        async with rls_session(user_id) as tick:
+        async with rls_session(user.id, user.email, guest=user.guest) as tick:
             try:
                 scan = await scans_service.get_scan(tick, tenant, scan_id)
             except ScanNotFound:

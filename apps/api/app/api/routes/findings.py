@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 from functools import partial
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 import anyio
@@ -58,11 +58,11 @@ async def list_findings(
     tenant: Tenant,
     severity: Severity | None = None,
     finding_status: FindingStatus | None = Query(default=None, alias="status"),
-    rule_id: str | None = None,
+    rule_id: Annotated[str | None, Query(max_length=64)] = None,
     resource_id: UUID | None = None,
     evidence_id: UUID | None = None,
-    environment: str | None = None,
-    search: str | None = None,
+    environment: Annotated[str | None, Query(max_length=128)] = None,
+    search: Annotated[str | None, Query(max_length=256)] = None,
     confidence: Confidence | None = None,
     sort: str = Query(default="risk", pattern="^(risk|severity|recent)$"),
     limit: int = Query(default=100, ge=1, le=500),

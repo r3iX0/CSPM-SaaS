@@ -176,4 +176,32 @@ describe("api client", () => {
     );
     await expect(api.get("/api/v1/dashboard")).rejects.toBeInstanceOf(ApiError);
   });
+
+  it("dispatches the second-factor event when a document download requires MFA", async () => {
+    const { SECOND_FACTOR_REQUIRED_EVENT } = await import("../api");
+    const listener = vi.fn();
+    window.addEventListener(SECOND_FACTOR_REQUIRED_EVENT, listener);
+    try {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue(
+          new Response(
+            JSON.stringify({
+              data: null,
+              error: { code: "MFA_REQUIRED", message: "Two-factor authentication required" },
+              meta: {},
+            }),
+            { status: 403, headers: { "Content-Type": "application/json" } },
+          ),
+        ),
+      );
+      await expect(api.document("/api/v1/reports/executive.html")).rejects.toMatchObject({
+        code: "MFA_REQUIRED",
+        status: 403,
+      });
+      expect(listener).toHaveBeenCalledTimes(1);
+    } finally {
+      window.removeEventListener(SECOND_FACTOR_REQUIRED_EVENT, listener);
+    }
+  });
 });

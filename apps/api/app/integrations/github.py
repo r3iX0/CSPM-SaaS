@@ -74,7 +74,9 @@ async def _request(
 ) -> httpx.Response:
     headers = {**_HEADERS, "Authorization": f"{scheme} {token}"}
     try:
-        async with httpx.AsyncClient(timeout=TIMEOUT_SECONDS) as client:
+        async with httpx.AsyncClient(
+            timeout=TIMEOUT_SECONDS, follow_redirects=False, trust_env=False
+        ) as client:
             return await client.request(method, url, headers=headers, **kwargs)
     except httpx.HTTPError as exc:
         raise CodeHostError("GitHub did not answer.") from exc
@@ -89,7 +91,9 @@ def _json(response: httpx.Response, what: str) -> Any:
 async def user_token(code: str) -> str:
     """Exchange the code GitHub returned after installation for the person's token."""
     try:
-        async with httpx.AsyncClient(timeout=TIMEOUT_SECONDS) as client:
+        async with httpx.AsyncClient(
+            timeout=TIMEOUT_SECONDS, follow_redirects=False, trust_env=False
+        ) as client:
             response = await client.post(
                 OAUTH_TOKEN,
                 headers={"Accept": "application/json"},
