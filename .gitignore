@@ -45,3 +45,6 @@ graphify-out/
 tools/local/
 infrastructure/local/
 CLAUDE.local.md
+
+# Security audit runs (agent scratch and raw evidence; never committed)
+docs/audits/
